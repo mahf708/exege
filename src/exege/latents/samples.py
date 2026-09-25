@@ -21,13 +21,14 @@ The two rules of ``latents.grid`` hold here as well, and are as easy to forget:
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from exege.core.errors import RequestError
 from exege.core.extras import missing_extra
-from exege.latents.basis import PCA, fix_signs
-from exege.latents.source import LatentSource, read_latents
+from exege.latents.basis import PCA, fix_signs, node_normalize
+from exege.latents.grid import Grid
+from exege.latents.source import LatentInfo, LatentSource, read_latents
 
 try:
     import numpy as np
@@ -35,6 +36,38 @@ except ImportError as exc:
     raise missing_extra("numpy", "latents") from exc
 
 _BLOCK = 8192
+
+
+class NodeNormalized:
+    """A ``LatentSource`` whose every node comes back through ``node_normalize``.
+
+    For fitting on the geometry a block reads rather than on the raw stream:
+    moments, batches and whatever else takes a source see normalized nodes, and a
+    node's size and offset -- which a pre-norm network discards before each block
+    -- no longer dominate. Asked for some channels, it normalizes over all of them
+    first; that is what the network does. The provenance says it was done.
+    """
+
+    def __init__(self, source: LatentSource) -> None:
+        self.source = source
+        info = source.info()
+        self._info = replace(info, options={**info.options, "node_norm": True})
+
+    def info(self) -> LatentInfo:
+        return self._info
+
+    def grid(self) -> Grid:
+        return self.source.grid()
+
+    def load(
+        self,
+        time: str | int,
+        layer: int,
+        channels: Sequence[int] | None = None,
+        nodes: Sequence[int] | None = None,
+    ) -> np.ndarray:
+        normalized = node_normalize(self.source.load(time, layer, nodes=nodes))
+        return normalized if channels is None else normalized[:, np.asarray(channels)]
 
 
 def _time_labels(source: LatentSource, times: Sequence[str | int] | None) -> list[str]:

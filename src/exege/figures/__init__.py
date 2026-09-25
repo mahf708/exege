@@ -14,11 +14,13 @@ from exege.figures.bars import profile_figure, response_figure
 from exege.figures.grids import hovmoller_figure, layer_time_figure
 from exege.figures.maps import have_coastlines, map_figure, to_png, why_no_coastlines
 from exege.figures.series import series_figure
+from exege.figures.training import loss_figure
 
 __all__ = [
     "have_coastlines",
     "hovmoller_figure",
     "layer_time_figure",
+    "loss_figure",
     "map_figure",
     "profile_figure",
     "response_figure",

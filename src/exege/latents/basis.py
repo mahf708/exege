@@ -263,6 +263,31 @@ def topk_mask(z: np.ndarray, k: int) -> np.ndarray:
     return above | (tied & (np.cumsum(tied, axis=1) <= room))
 
 
+NODE_NORM_EPS = 1e-5  # as ACE's ChannelLayerNorm
+
+
+def node_normalize(latents: np.ndarray, eps: float = NODE_NORM_EPS) -> np.ndarray:
+    """Each node's vector centered over its channels and scaled to unit RMS: a
+    layer norm per node, with no learned scale or offset.
+
+    What a pre-norm network does to its residual stream before each block reads
+    it, less the affine the network learns (and may condition on noise). It is
+    also the per-node normalization of MacMillan & Ouellette (2025) up to a
+    constant: they scale to unit length, which is this divided by the square root
+    of the width. Float32 in, float32 out, computed in float64.
+    """
+    x = np.asarray(latents, dtype=np.float64)
+    centered = x - x.mean(axis=-1, keepdims=True)
+    scale = np.sqrt((centered**2).mean(axis=-1, keepdims=True) + eps)
+    return (centered / scale).astype(np.float32)
+
+
+def _node_moments(latents: np.ndarray, eps: float) -> tuple[np.ndarray, np.ndarray]:
+    x = np.asarray(latents, dtype=np.float64)
+    mean = x.mean(axis=-1, keepdims=True)
+    return mean, np.sqrt(((x - mean) ** 2).mean(axis=-1, keepdims=True) + eps)
+
+
 @dataclass(frozen=True, eq=False)
 class Dictionary:
     """A sparse autoencoder, fitted elsewhere, as plain arrays.
@@ -272,6 +297,10 @@ class Dictionary:
     that is how the dictionary was trained and a feature's activation means
     nothing otherwise. With ``output_*`` set apart from ``input_*`` it is a
     transcoder: it reads one layer and writes another.
+
+    With ``node_norm`` each node is first put through ``node_normalize`` -- the
+    dictionary was trained on normalized nodes -- and is still handed raw
+    latents: ``reconstruct`` puts each node's own mean and size back.
     """
 
     encoder: np.ndarray
@@ -286,6 +315,7 @@ class Dictionary:
     k: int | None = None
     spline: np.ndarray | None = None
     spline_upper: float = 1.0
+    node_norm: bool = False
     meta: Mapping[str, Any] = field(default_factory=dict)
     kind = "dictionary"
 
@@ -305,6 +335,8 @@ class Dictionary:
             self.spline is None or self.spline.shape[0] != n_features
         ):
             raise ValueError("a bspline dictionary needs spline coefficients, one row per feature")
+        if self.node_norm and self.output_mean is not None:
+            raise ValueError("node_norm is for an autoencoder; a transcoder writes another layer")
 
     @property
     def n_features(self) -> int:
@@ -342,7 +374,10 @@ class Dictionary:
         width = self.n_features if chosen is None else chosen.size
         out = np.empty((latents.shape[0], width), dtype=np.float64)
         for start in range(0, latents.shape[0], _BLOCK):
-            block = (latents[start : start + _BLOCK].astype(np.float32) - mean) / self.input_scale
+            block = latents[start : start + _BLOCK].astype(np.float32)
+            if self.node_norm:
+                block = node_normalize(block)
+            block = (block - mean) / self.input_scale
             active = self._activate(block @ encoder.T + bias, rows)
             if rows is None and chosen is not None:
                 active = active[:, chosen]
@@ -364,9 +399,12 @@ class Dictionary:
         would be as wide as the dictionary."""
         out = np.empty((np.shape(latents)[0], self.decoder.shape[1]), dtype=np.float32)
         for start in range(0, out.shape[0], _BLOCK):
-            out[start : start + _BLOCK] = self.decode(
-                self.transform(latents[start : start + _BLOCK])
-            )
+            block = latents[start : start + _BLOCK]
+            rebuilt = self.decode(self.transform(block))
+            if self.node_norm:  # back from each node's normalization to its own units
+                node_mean, node_scale = _node_moments(block, NODE_NORM_EPS)
+                rebuilt = rebuilt * node_scale + node_mean
+            out[start : start + _BLOCK] = rebuilt
         return out
 
     def directions(self) -> np.ndarray:
@@ -382,7 +420,9 @@ _PCA_ARRAYS = ("mean", "components", "explained_variance_ratio")
 _DICTIONARY_ARRAYS = (
     "encoder", "encoder_bias", "decoder", "decoder_bias", "input_mean", "output_mean", "spline",
 )  # fmt: skip
-_DICTIONARY_SCALARS = ("input_scale", "output_scale", "activation", "k", "spline_upper")
+_DICTIONARY_SCALARS = (
+    "input_scale", "output_scale", "activation", "k", "spline_upper", "node_norm",
+)  # fmt: skip
 _LOADED = ("sha256", "hash_status")
 
 
@@ -392,7 +432,10 @@ def _parts(basis: Decomposition) -> tuple[dict[str, np.ndarray], dict[str, Any]]
         return {name: getattr(basis, name) for name in _PCA_ARRAYS}, {}
     if isinstance(basis, Dictionary):
         arrays = {n: getattr(basis, n) for n in _DICTIONARY_ARRAYS if getattr(basis, n) is not None}
-        return arrays, {n: getattr(basis, n) for n in _DICTIONARY_SCALARS}
+        scalars = {n: getattr(basis, n) for n in _DICTIONARY_SCALARS}
+        if not scalars["node_norm"]:  # left out, so a basis without it keeps the hash it had
+            del scalars["node_norm"]
+        return arrays, scalars
     raise TypeError(f"do not know how to save a {type(basis).__name__}")
 
 

@@ -51,6 +51,7 @@ the loop's own, taken while the weights were changing.
 | `--activation` | `topk` (the default), `relu` or `bspline` |
 | `--k` | active features per node, for `topk` |
 | `--l1` | the sparsity penalty, for `relu` and `bspline` |
+| `--node-norm` | normalize each node over its channels first ([below](#normalizing-each-node)) |
 | `--epochs`, `--batch-size`, `--lr`, `--seed` | the loop |
 | `--time` | fit on some times only; repeatable |
 | `--device` | `cpu`, `cuda` or `mps`; the best there is by default |
@@ -107,6 +108,32 @@ The file carries a content hash, checked whenever it is loaded, and the line end
 file that is not this one. What a result used is recorded under its provenance; see
 [Provenance](latents.md#provenance-what-a-result-was-made-from).
 
+### Normalizing each node
+
+`--node-norm` (`node_norm=True`) first centres each node's vector over its channels and
+scales it to unit RMS — a layer norm per node, without the learned scale and offset
+(`latents.node_normalize`) — and takes the standardization above over the normalized
+nodes. A pre-norm network does this to its residual stream before every block reads it, so
+the dictionary sees the geometry the block sees, and a node's overall size and offset stop
+dominating the loss. It is the normalization MacMillan & Ouellette (2025) apply to GraphCast's
+residual stream inside their SAE, up to a constant: they scale to unit length, which is this
+divided by √width. The learned affine is left out on purpose: in ACE's SFNO it is
+conditioned on the noise field, so it would teach the dictionary the noise draw.
+
+The dictionary records it, and is still handed raw latents: `transform` normalizes each
+node, `reconstruct` puts each node's own mean and size back. Autoencoders only; a
+transcoder writes another layer, whose nodes have sizes of their own.
+
+### The loss curve
+
+Every fit keeps its curve in `meta["history"]`: every `log_every` steps, that batch's
+reconstruction error and the fraction of its variance left unexplained, and the epoch.
+With `holdout_times=`, times left out of training (refused if also trained on), a fixed
+area-drawn sample of their nodes is scored before training, every `eval_every` steps and
+at the end — the curve to believe, because a falling training curve alone cannot show
+overfitting — and `metrics["holdout_explained_variance"]` is its last point.
+`exege.figures.loss_figure(dictionary.meta["history"])` draws both, on a log scale.
+
 ## Python API
 
 ```python
@@ -118,6 +145,18 @@ dictionary = fit_sae(source, layer=8, n_features=1024, activation="topk", k=32)
 dictionary.meta["metrics"]  # explained_variance, mean_active_features, dead_fraction
 dictionary.meta["training_metrics"]  # the loop's running tally, a monitor
 save_basis("sae8.npz", dictionary)
+
+times = source.info().times
+dictionary = fit_sae(
+    source,
+    layer=8,
+    n_features=4096,
+    activation="topk",
+    k=32,
+    node_norm=True,
+    holdout_times=times[10::20],
+)
+dictionary.meta["history"]  # the loss curve, training and held out
 ```
 
 `metrics` describes the dictionary you were given, measured in one more pass over the last
@@ -140,6 +179,7 @@ sae = SparseAutoencoder(384, 1024, activation="bspline")
 rebuilt, features = sae(x)  # x standardized, (n, 384)
 total, reconstruction, features = sae.loss(x, l1=5.0)
 sae.to_dictionary(input_mean=mean, input_scale=scale)  # plain arrays, for exege.latents
+SparseAutoencoder.from_dictionary(dictionary)  # and back, to run or train it in torch
 ```
 
 Trained against another layer (`target_layer=`, or `sae.loss(x, target)`), the same module
@@ -154,7 +194,8 @@ of these sharing an encoder.
    (`latents series --basis`).
 2. Read its direction in the model's environment, which needs only numpy:
    `np.load("sae8.npz")["decoder"][676]` is the unit direction feature 676 writes to
-   layer 8; an activation of `a` adds `a × input_scale` of it, in the layer's own units.
+   layer 8; an activation of `a` adds `a × input_scale` of it, in the layer's own units
+   (with `node_norm`, in the node's normalized units: times that node's own RMS as well).
 3. Add a multiple of it to that layer in a forward hook, export the run as a latent
    archive whose manifest says so under `experiment`, and set it against its control:
    `exege latents diff control steered --growth`.
