@@ -1,4 +1,4 @@
-"""exege -- light, framework-agnostic tooling for E3SM AI campaigns.
+"""exege -- tools for understanding and evaluating scientific machine-learning models.
 
 Domains, and the presentation downstream of them:
 

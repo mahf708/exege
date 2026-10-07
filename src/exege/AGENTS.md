@@ -1,7 +1,8 @@
 # exege
 
-Light, framework-agnostic tooling for AI campaigns. One installable toolkit, grown by
-adding subpackages and adapters rather than by widening what exists.
+Light, framework-agnostic tools for understanding and evaluating scientific
+machine-learning models. One installable toolkit, grown by adding subpackages and
+adapters rather than by widening what exists.
 
 | Subpackage | Scope | Needs |
 |---|---|---|
