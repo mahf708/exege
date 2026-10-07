@@ -1,6 +1,7 @@
 name: release
 
-# A tag `vX.Y.Z` on main publishes exege X.Y.Z to PyPI. "Run workflow" publishes
+# A tag `vX.Y.Z` on main publishes exege-core X.Y.Z and exege X.Y.Z (the full install,
+# packages/exege) to PyPI. "Run workflow" publishes
 # whatever ref it is given to TestPyPI instead: the dress rehearsal.
 #
 # Neither needs a token. Both indexes trust this workflow by name (PyPI's "trusted
@@ -29,28 +30,44 @@ jobs:
           show-progress: false
       - uses: astral-sh/setup-uv@v5
       - name: Build
-        run: uv build
+        run: uv build --all-packages
       # A tag that disagrees with `__version__` would publish one number under the
       # name of another, and an index never lets a version be replaced.
       - name: The tag is the version
         if: github.ref_type == 'tag'
         run: |
-          wheel="dist/exege-${GITHUB_REF_NAME#v}-py3-none-any.whl"
-          test -f "$wheel" || { echo "::error::tag $GITHUB_REF_NAME, but built: $(ls dist)"; exit 1; }
+          for wheel in exege_core exege; do
+            wheel="dist/$wheel-${GITHUB_REF_NAME#v}-py3-none-any.whl"
+            test -f "$wheel" || { echo "::error::tag $GITHUB_REF_NAME, but built: $(ls dist)"; exit 1; }
+          done
       - name: Check the metadata
         run: uvx twine check --strict dist/*
-      # What is uploaded is the wheel, so that is what is tried: installed alone,
-      # it must start, and must not have brought the scientific stack with it.
-      - name: Try the wheel on its own
+      # What is uploaded is the wheels, so they are what is tried. exege-core installed
+      # alone must start, and must not have brought the scientific stack with it.
+      - name: Try the exege-core wheel on its own
         run: |
           uv venv /tmp/wheel
-          uv pip install --python /tmp/wheel/bin/python dist/*.whl
+          uv pip install --python /tmp/wheel/bin/python dist/exege_core-*.whl
           /tmp/wheel/bin/exege --version
           /tmp/wheel/bin/exege --help
           /tmp/wheel/bin/python - <<'PY'
           from importlib.util import find_spec
           present = [m for m in ("numpy", "xarray", "torch", "matplotlib", "streamlit") if find_spec(m)]
           assert not present, f"the base install unexpectedly has {present}"
+          PY
+      # exege, against the exege-core just built (it pins that exact version), must
+      # bring every extra but nn.
+      - name: Try the exege wheel
+        run: |
+          uv venv /tmp/full
+          uv pip install --python /tmp/full/bin/python --find-links dist dist/exege-*.whl
+          /tmp/full/bin/exege --version
+          /tmp/full/bin/python - <<'PY'
+          from importlib.util import find_spec
+          wanted = ("numpy", "xarray", "matplotlib", "cartopy", "streamlit", "huggingface_hub")
+          missing = [m for m in wanted if not find_spec(m)]
+          assert not missing, f"the full install is missing {missing}"
+          assert not find_spec("torch"), "torch is for exege[nn], not the default"
           PY
       - uses: actions/upload-artifact@v4
         with:
@@ -64,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: testpypi
-      url: https://test.pypi.org/project/exege/
+      url: https://test.pypi.org/project/exege-core/
     permissions:
       id-token: write
     steps:
@@ -83,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/exege/
+      url: https://pypi.org/project/exege-core/
     permissions:
       id-token: write
     steps:

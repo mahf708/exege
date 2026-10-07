@@ -24,16 +24,23 @@ $ uv run exege --help
 
 In a checkout, `uv sync` (or the first `uv run`) installs every extra below but `nn`,
 plus pytest and ruff. Torch is large, and whether it should be a CPU or a CUDA build is the
-machine's business: ask for it with `uv sync --extra nn`. To use it from another
-project, install it from [PyPI](https://pypi.org/project/exege/), asking for the extras you
-need:
+machine's business: ask for it with `uv sync --extra nn`.
+
+To use it from another project, install it from PyPI. It is published twice, with the
+same code: [exege](https://pypi.org/project/exege/) is the full install, every extra
+below but `nn`, and [exege-core](https://pypi.org/project/exege-core/) is the light one,
+with the extras you ask for:
 
 ```console
-$ uv pip install 'exege[latents]'
-$ uv pip install 'exege[latents] @ git+https://github.com/mahf708/exege'   # what main holds and no release does yet
+$ uv pip install exege                    # everything but torch
+$ uv pip install 'exege[nn]'              # and torch
+$ uv pip install 'exege-core[latents]'    # Click, and what exege.latents needs
+$ uv pip install 'exege-core[latents] @ git+https://github.com/mahf708/exege'   # what main holds and no release does yet
 ```
 
-The base install pulls only Click. Anything heavier sits behind an extra named after the
+On conda-forge, `exege` is everything, torch included.
+
+`exege-core` alone pulls only Click. Anything heavier sits behind an extra named after the
 subpackage that needs it. A missing one says so, with the command that fits how this
 `exege` was installed:
 

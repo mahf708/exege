@@ -402,7 +402,7 @@ def _shipped() -> dict[str, type]:
     return {
         ep.name: ep.load()
         for ep in entry_points(group="exege.adapters")
-        if ep.dist is not None and ep.dist.name == "exege"
+        if ep.dist is not None and ep.dist.name == "exege-core"
     }
 
 

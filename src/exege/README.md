@@ -9,12 +9,16 @@ interpretation.
 
 ## Install
 
-The base install pulls only Click. Anything heavier sits behind an extra named after the
-subpackage that needs it:
+This is the light install: the code, and only Click. Anything heavier sits behind an
+extra named after the subpackage that needs it:
 
 ```console
-$ uv pip install 'exege[latents]'     # or: pip install 'exege[latents]'
+$ uv pip install 'exege-core[latents]'     # or: pip install 'exege-core[latents]'
 ```
+
+For everything at once, install [exege](https://pypi.org/project/exege/) instead: it is
+this with every extra but `nn` (`pip install exege`, or `'exege[nn]'` to add torch). Both
+provide the same `import exege` and the same `exege` command.
 
 | Extra | Pulls | Gets you |
 | --- | --- | --- |
@@ -36,8 +40,8 @@ $ exege latents toy scratch/toy/control
 $ exege latents info scratch/toy/control --mask-variable sst
 $ exege latents region scratch/toy/control --lat 10 --lon -114 --time 2 --centered --pcs 2
 $ exege latents fields scratch/toy/control --field precipitation --top 3
-$ exege nn sae scratch/toy/control --features 64 --k 4 --out scratch/toy/sae.npz   # needs exege[nn]
-$ exege app --latents scratch/toy                                                  # needs exege[app]
+$ exege nn sae scratch/toy/control --features 64 --k 4 --out scratch/toy/sae.npz   # needs exege-core[nn]
+$ exege app --latents scratch/toy                                                  # needs exege-core[app]
 ```
 
 The CLI is a thin client of the Python API; anything it can do, a notebook can:

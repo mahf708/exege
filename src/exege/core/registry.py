@@ -31,7 +31,7 @@ from exege.core.errors import AdapterError
 log = logging.getLogger(__name__)
 
 _GROUP = "exege.adapters"
-_OWN_DISTRIBUTION = "exege"
+_OWN_DISTRIBUTION = "exege-core"
 _REGISTERED: dict[str, Callable[..., Any]] = {}
 
 _Parameter = inspect.Parameter

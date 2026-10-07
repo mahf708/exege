@@ -26,7 +26,7 @@ from urllib.parse import unquote, urlparse
 
 from exege.core.errors import MissingExtraError
 
-_DISTRIBUTION = "exege"
+_DISTRIBUTION = "exege-core"
 
 
 def _origin() -> dict:

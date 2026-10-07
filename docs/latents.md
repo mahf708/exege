@@ -22,7 +22,7 @@ one by setting a steered run against its control, follows
 
 ```console
 $ uv sync                      # in a checkout: everything
-$ uv pip install 'exege[latents]'   # elsewhere, from PyPI
+$ uv pip install 'exege-core[latents]'   # elsewhere, from PyPI
 ```
 
 ## What is in an archive
@@ -611,7 +611,7 @@ An archive kept in a Hugging Face dataset repository opens in place, with the `h
 extra:
 
 ```console
-$ uv pip install 'exege[hf]'
+$ uv pip install 'exege-core[hf]'
 $ exege latents info hf://datasets/<owner>/<repo>/<folder>
 ```
 

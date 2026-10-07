@@ -16,16 +16,19 @@ $ uv run exege --help
 
 In a checkout, `uv sync` (or the first `uv run`) installs every extra but torch, plus
 pytest and ruff; `uv sync --extra nn` adds torch. To use it from another project,
-install it from [PyPI](https://pypi.org/project/exege/), asking for the extras you need:
+install it from PyPI: [exege](https://pypi.org/project/exege/) is everything but torch,
+[exege-core](https://pypi.org/project/exege-core/) the same code with only the extras you
+ask for.
 
 ```console
-$ uv pip install 'exege[latents]'
-$ uv pip install 'exege[latents] @ git+https://github.com/mahf708/exege'   # what main holds and no release does yet
+$ uv pip install exege                    # everything but torch; 'exege[nn]' adds it
+$ uv pip install 'exege-core[latents]'    # Click, and what exege.latents needs
+$ uv pip install 'exege-core[latents] @ git+https://github.com/mahf708/exege'   # what main holds and no release does yet
 ```
 
-The base install pulls only Click. Anything heavier sits behind an extra named after the
-subpackage that needs it (`latents`, `figures`, `nn`, `app`), so the core
-stays nimble.
+`exege-core` alone pulls only Click. Anything heavier sits behind an extra named after
+the subpackage that needs it (`latents`, `figures`, `nn`, `app`, `hf`), so the core stays
+nimble. `exege` lives in `packages/exege`: no code, only that dependency.
 
 ## Use
 

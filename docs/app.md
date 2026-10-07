@@ -16,7 +16,7 @@ batch job, and the app tells you how.
 
 ```console
 $ uv sync                      # in a checkout: everything
-$ uv pip install 'exege[app]'   # elsewhere, from PyPI
+$ uv pip install 'exege-core[app]'   # elsewhere, from PyPI
 ```
 
 The `app` extra brings Streamlit and everything `figures` and `latents` need.
@@ -46,7 +46,7 @@ Every option is optional: archives can also be opened from the sidebar.
 
 | Option | Meaning |
 | --- | --- |
-| `--latents` | a latent archive, a directory of them, or a Hugging Face path (`hf://datasets/<owner>/<repo>/<folder>`, with `exege[hf]`) to offer in the explorer; repeatable |
+| `--latents` | a latent archive, a directory of them, or a Hugging Face path (`hf://datasets/<owner>/<repo>/<folder>`, with `exege-core[hf]`) to offer in the explorer; repeatable |
 | `--record` | an [experiment record](records.md) (from `latents evaluate --record` or `latents steer --record`) to offer under Records; repeatable |
 | `--port` | 8501 by default |
 | `--address` | the interface to listen on; `localhost` by default, so the app is reachable from this machine only |
