@@ -64,7 +64,7 @@ class _LazyGroup(click.Group):
 @click.version_option(__version__, prog_name="exege")
 @click.option("--debug", is_flag=True, help="Verbose logging.")
 def cli(debug: bool) -> None:
-    """Tooling for E3SM AI campaigns."""
+    """Tools for understanding and evaluating scientific machine-learning models."""
     logging.basicConfig(
         level=logging.DEBUG if debug else logging.WARNING,
         format="%(levelname)s %(name)s: %(message)s",
