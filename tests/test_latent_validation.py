@@ -13,9 +13,9 @@ np = pytest.importorskip("numpy")
 from click.testing import CliRunner  # noqa: E402
 
 from conftest import MemorySource  # noqa: E402
-from xaig._cli import cli  # noqa: E402
-from xaig.core.errors import RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege._cli import cli  # noqa: E402
+from exege.core.errors import RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     Box,
     Region,
     accumulate_moments,

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from xaig.core import registry
-from xaig.core.errors import AdapterError
+from exege.core import registry
+from exege.core.errors import AdapterError
 
 
 class Reader:

@@ -1,6 +1,6 @@
 """Adapter lookup and construction.
 
-Adapters are found through the ``xaig.adapters`` entry-point group and through
+Adapters are found through the ``exege.adapters`` entry-point group and through
 nothing else, so the adapters shipped here and one from a separate distribution
 are resolved identically -- and core never names an adapter module. Loading is
 lazy: an adapter's heavy dependencies are imported only when it is asked for.
@@ -26,12 +26,12 @@ from collections.abc import Callable, Mapping
 from importlib.metadata import EntryPoint, entry_points
 from typing import Any
 
-from xaig.core.errors import AdapterError
+from exege.core.errors import AdapterError
 
 log = logging.getLogger(__name__)
 
-_GROUP = "xaig.adapters"
-_OWN_DISTRIBUTION = "xaig"
+_GROUP = "exege.adapters"
+_OWN_DISTRIBUTION = "exege"
 _REGISTERED: dict[str, Callable[..., Any]] = {}
 
 _Parameter = inspect.Parameter
@@ -47,7 +47,7 @@ def unregister(name: str) -> None:
 
 
 def _entry_points() -> dict[str, EntryPoint]:
-    """One entry point per name. xaig's own win a clash, so installing a plugin
+    """One entry point per name. exege's own win a clash, so installing a plugin
     can add adapters but never silently replace a shipped one."""
     found: dict[str, EntryPoint] = {}
     for ep in entry_points(group=_GROUP):
@@ -80,7 +80,7 @@ def get(name: str) -> Callable[..., Any]:
     if not found and not _REGISTERED:
         raise AdapterError(
             f"unknown adapter {name!r}: no adapters are registered at all, which usually "
-            "means xaig is not installed (in a checkout: `uv sync`)"
+            "means exege is not installed (in a checkout: `uv sync`)"
         )
     raise AdapterError(f"unknown adapter {name!r}; available: {', '.join(available())}")
 

@@ -19,7 +19,7 @@ and cartopy for coastlines).
   compute node has no network. Maps are then still drawn — on plain axes, with the
   grid's own mask outlined — and `why_no_coastlines()` says what happened. The fetch has
   a deadline, because cartopy's has none and a node that drops packets never refuses.
-  `XAIG_NO_COASTLINES=1` skips the attempt.
+  `EXEGE_NO_COASTLINES=1` skips the attempt.
 - **Time is placed, not counted.** `series_figure` takes real `x` (hours) when the source
   can give it, so a gap between kept steps looks like one; without it, points are evenly
   spaced and labeled, which is the honest picture when the spacing is unknown.

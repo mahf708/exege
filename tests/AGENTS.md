@@ -6,7 +6,7 @@
   filesystem, or the network. The suite has to pass on a laptop with nothing mounted.
 - `test_purity.py` enforces the architecture from two tables (`ALLOWED`: who may import
   whom; `THIRD_PARTY`: dependency ceilings), plus runtime checks that core imports no
-  consumer and that `import xaig` / `xaig --help` stay light. A new subpackage must be
+  consumer and that `import exege` / `exege --help` stay light. A new subpackage must be
   added to the tables or the suite fails. These are cheap and unglamorous; without them
   the boundary erodes in a month.
 - The app is tested headlessly with `streamlit.testing.v1.AppTest`: what a view shows,

@@ -14,8 +14,8 @@ from conftest import (  # noqa: E402
     MemorySource,
     write_latent_archive,
 )
-from xaig.core.errors import RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege.core.errors import RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     accumulate_moments,
     fit_pca,
     iter_batches,

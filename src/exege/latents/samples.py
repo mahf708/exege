@@ -24,10 +24,10 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.basis import PCA, fix_signs
-from xaig.latents.source import LatentSource, read_latents
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
+from exege.latents.basis import PCA, fix_signs
+from exege.latents.source import LatentSource, read_latents
 
 try:
     import numpy as np

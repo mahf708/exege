@@ -1,6 +1,6 @@
-# The `xaig` package
+# The `exege` package
 
-`xaig` is a light, framework-agnostic package for working with AI campaigns. It lives in
+`exege` is a light, framework-agnostic package for working with AI campaigns. It lives in
 this repo alongside the guides, as a peer rather than an appendix.
 
 | Subpackage | Scope |
@@ -12,41 +12,41 @@ this repo alongside the guides, as a peer rather than an appendix.
 
 !!! warning "research tool"
 
-    `xaig` is early. What this page describes works; expect it to change.
+    `exege` is early. What this page describes works; expect it to change.
 
 ## Install
 
 ```console
 $ uv sync
-$ uv run xaig --help
+$ uv run exege --help
 ```
 
 In a checkout, `uv sync` (or the first `uv run`) installs every extra below but `nn`,
 plus pytest and ruff. Torch is large, and whether it should be a CPU or a CUDA build is the
 machine's business: ask for it with `uv sync --extra nn`. To use it from another
-project, install it from [PyPI](https://pypi.org/project/xaig/), asking for the extras you
+project, install it from [PyPI](https://pypi.org/project/exege/), asking for the extras you
 need:
 
 ```console
-$ uv pip install 'xaig[latents]'
-$ uv pip install 'xaig[latents] @ git+https://github.com/E3SM-Project/aigroup'   # what main holds and no release does yet
+$ uv pip install 'exege[latents]'
+$ uv pip install 'exege[latents] @ git+https://github.com/E3SM-Project/aigroup'   # what main holds and no release does yet
 ```
 
 The base install pulls only Click. Anything heavier sits behind an extra named after the
 subpackage that needs it. A missing one says so, with the command that fits how this
-`xaig` was installed:
+`exege` was installed:
 
 ```console
-$ xaig latents info latents/atmosphere
+$ exege latents info latents/atmosphere
 Error: numpy is not installed; it comes with the 'latents' extra: uv pip install -e '/path/to/aigroup[latents]'  (in that checkout: `uv sync --extra latents`)
 ```
 
 | Extra | Pulls | Gets you |
 | --- | --- | --- |
-| `latents` | numpy, xarray, netCDF4 | `xaig.latents` |
-| `figures` | matplotlib, cartopy | `xaig.figures`: maps and figures (brings `latents`) |
-| `app` | streamlit | [`xaig app`](app.md) (brings `figures`) |
-| `nn` | torch | [`xaig.nn`](nn.md) and `xaig nn` (not part of a plain `uv sync`) |
+| `latents` | numpy, xarray, netCDF4 | `exege.latents` |
+| `figures` | matplotlib, cartopy | `exege.figures`: maps and figures (brings `latents`) |
+| `app` | streamlit | [`exege app`](app.md) (brings `figures`) |
+| `nn` | torch | [`exege.nn`](nn.md) and `exege nn` (not part of a plain `uv sync`) |
 | `hf` | huggingface_hub | [archives read from a Hugging Face repository](latents.md#from-a-hugging-face-repository) (brings `latents`) |
 
 !!! tip "uv cache"
@@ -63,21 +63,21 @@ Three concerns are kept apart, because each has a different answer:
 
 - **Framework coupling lives in adapters.** The group expects to move to systems
   profoundly unlike ACE/FME/Samudra, so everything that knows a real file layout, log
-  format or scheduler lives in `xaig.adapters`, behind a small protocol. Supporting a new
+  format or scheduler lives in `exege.adapters`, behind a small protocol. Supporting a new
   system means writing a new adapter, never editing the code that uses it. Adapters are
-  found through the `xaig.adapters` entry-point group and nothing else, so one can ship
+  found through the `exege.adapters` entry-point group and nothing else, so one can ship
   from a completely separate package.
 - **Science lives in the subpackage that uses it**, with the dependencies it honestly
   needs: needing numpy does not make something an adapter. What it may not know is a file
   format or a user interface.
-- **Weight lives behind extras.** `xaig.core` depends on the standard library alone, and
-  `import xaig` never pulls in the scientific stack.
+- **Weight lives behind extras.** `exege.core` depends on the standard library alone, and
+  `import exege` never pulls in the scientific stack.
 
 Every API returns objects and prints nothing; the CLI is one client of it, a notebook
 another. These rules are enforced by `tests/test_purity.py`, not by convention.
 
-Errors xaig raises on purpose are `XaigError`s and reach a terminal as one line; anything
-else is a bug and keeps its traceback, as does everything under `xaig --debug`.
+Errors exege raises on purpose are `ExegeError`s and reach a terminal as one line; anything
+else is a bug and keeps its traceback, as does everything under `exege --debug`.
 
 ## Looking inside a model
 
@@ -85,17 +85,17 @@ else is a bug and keeps its traceback, as does everything under `xaig --debug`.
 and analyses them; [latent diagnostics](latents.md) is the guide to it.
 
 ```console
-$ xaig latents info /path/to/latents/atmosphere
+$ exege latents info /path/to/latents/atmosphere
 ```
 
 With no model and no data to hand, make an archive with the toy emulator — an MLP with a
 residual stream on a small Gaussian grid, in numpy, in a few seconds — and read it back:
 
 ```console
-$ xaig latents toy scratch/toy/control
-$ xaig latents toy scratch/toy/steered --steer 2:7:3     # +3 on channel 7 of layer 2, every step
-$ xaig latents info scratch/toy/steered --mask-variable sst
-model                  xaig-toy
+$ exege latents toy scratch/toy/control
+$ exege latents toy scratch/toy/steered --steer 2:7:3     # +3 on channel 7 of layer 2, every step
+$ exege latents info scratch/toy/steered --mask-variable sst
+model                  exege-toy
 calendar               noleap
 grid                   24x48, 1152 nodes, 1062 valid
 times                  8: 0424-02-27T06:00:00 .. 0424-03-02T00:00:00
@@ -111,7 +111,7 @@ an analysis has a right answer to find.
 The CLI is a thin client of the API; anything it can do, a notebook can.
 
 ```python
-from xaig.latents import open_source
+from exege.latents import open_source
 
 source = open_source("latents/atmosphere")
 source.info().layers  # what was recorded, without loading any of it
@@ -141,28 +141,28 @@ An adapter is one class implementing one or more protocols — for latents, `inf
 Register it, from this repo or any other package:
 
 ```toml
-[project.entry-points."xaig.adapters"]
+[project.entry-points."exege.adapters"]
 myframework = "mypkg.adapter:MyAdapter"
 ```
 
 ```console
 $ uv sync   # entry points are read from installed metadata
-$ xaig latents info /path/to/export --adapter myframework
+$ exege latents info /path/to/export --adapter myframework
 ```
 
 ### Writing one
 
-1. **The module** goes in `xaig/adapters/` (or any package): a class whose first positional
+1. **The module** goes in `exege/adapters/` (or any package): a class whose first positional
    parameter is the source and whose options are keyword arguments. An option it does not
    declare is refused by name for it, by the registry. A source that is broken is an
    `AdapterError`; a request it cannot meet is a `RequestError`, never an `IndexError`.
 2. **A writer**, `write(path, **contents)` with the signature of `write_archive`, is
    optional and worth having: the toy emulator writes through it
-   (`xaig latents toy OUT --adapter myframework`), so the reader is tested against it.
+   (`exege latents toy OUT --adapter myframework`), so the reader is tested against it.
 3. **The entry point**, as above, and `uv sync`.
 4. **The contract tests.** Add one line to `LATENT_CASES` in
    `tests/test_adapter_contracts.py` (and to `INTERVENABLE_CASES` if the adapter can be run
-   forward with hooks), and every test there is asked of it; `src/xaig/adapters/AGENTS.md`
+   forward with hooks), and every test there is asked of it; `src/exege/adapters/AGENTS.md`
    lists what they ask. The suite fails until a registered adapter is under contract.
 
 The repository ships two layouts, and the second exists to show that this is all there is.
@@ -172,10 +172,10 @@ its JSON manifest (`system`, `clock`, `levels`). Nothing that reads latents was 
 add it:
 
 ```console
-$ xaig latents toy scratch/bundle --adapter bundle-dir
-$ xaig latents info scratch/bundle --adapter bundle-dir
+$ exege latents toy scratch/bundle --adapter bundle-dir
+$ exege latents info scratch/bundle --adapter bundle-dir
 source                 scratch/bundle
-model                  xaig-toy
+model                  exege-toy
 component              atmosphere
 checkpoint             seed-0
 calendar               noleap

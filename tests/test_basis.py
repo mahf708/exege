@@ -10,8 +10,8 @@ import pytest
 np = pytest.importorskip("numpy")
 
 from conftest import BUMP, URL  # noqa: E402
-from xaig.core.errors import RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege.core.errors import RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     PCA,
     Decomposition,
     Dictionary,
@@ -122,7 +122,7 @@ def test_what_is_not_a_basis_file_says_so(tmp_path):
         load_basis(tmp_path / "nothing.npz")
     other = tmp_path / "other.npz"
     np.savez(other, lat=np.zeros(3))
-    with pytest.raises(RequestError, match="not a basis file written by xaig"):
+    with pytest.raises(RequestError, match="not a basis file written by exege"):
         load_basis(other)
 
 
@@ -201,7 +201,7 @@ def test_a_basis_for_another_layer_is_refused_before_anything_is_read(latent_arc
 
 
 def test_topk_keeps_exactly_k_and_a_tie_goes_to_the_lowest_index():
-    from xaig.latents.basis import topk_mask
+    from exege.latents.basis import topk_mask
 
     z = np.array([[3.0, 3.0, 3.0, 3.0], [5.0, 3.0, 3.0, 3.0], [0.0, 2.0, 0.0, 2.0]])
     assert topk_mask(z, 1).tolist() == [[1, 0, 0, 0], [1, 0, 0, 0], [0, 1, 0, 0]]
@@ -294,7 +294,7 @@ def test_region_basis_round_trips_raw_inputs_with_identity(latent_archive, tmp_p
 
 
 def test_pca_projection_retains_small_float32_variation_across_blocks():
-    from xaig.latents.basis import PCA
+    from exege.latents.basis import PCA
 
     direction = np.array([[1.0, 1.0]]) / np.sqrt(2.0)
     basis = PCA(np.array([1e8, 1e8]), direction, np.ones(1))
@@ -343,7 +343,7 @@ def test_incomplete_basis_identity_refused_before_loading(latent_archive, missin
 def test_missing_source_identity_needs_override(latent_archive):
     from dataclasses import replace
 
-    from xaig.latents.source import check_basis_fits
+    from exege.latents.source import check_basis_fits
 
     source = open_source(latent_archive)
     result = analyze_region(source, time=0, layer=2, region=HERE, n_components=1)
@@ -358,7 +358,7 @@ def test_missing_source_identity_needs_override(latent_archive):
 def test_cli_requires_explicit_unverified_basis_override(latent_archive, tmp_path):
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     basis = fit_pca(np.random.default_rng(0).normal(size=(20, 6)), 2)
     path = save_basis(tmp_path / "anonymous.npz", basis)
@@ -390,8 +390,8 @@ def test_a_basis_is_matched_to_a_layer_by_its_place_in_the_network(latent_archiv
     fitted on layer 2 of a run that kept them all belongs at its index 1, not 2."""
     import shutil
 
-    from xaig.latents import accumulate_moments, pca_from_moments
-    from xaig.latents.source import check_basis_fits
+    from exege.latents import accumulate_moments, pca_from_moments
+    from exege.latents.source import check_basis_fits
 
     full = open_source(latent_archive)
     basis = pca_from_moments(accumulate_moments(full, layer=2), 2)
@@ -554,7 +554,7 @@ def test_an_unhashed_file_needs_the_same_explicit_acceptance_as_unverified_ident
 
 
 def test_results_carry_the_hash_of_the_basis_they_used(fitted, latent_archive):
-    from xaig.latents import region_series
+    from exege.latents import region_series
 
     basis, path = fitted
     source = open_source(latent_archive)
@@ -580,7 +580,7 @@ def test_the_hash_of_a_basis_fitted_on_a_hub_archive_includes_the_commit(hub):
 def test_the_command_line_prints_the_hash_and_refuses_another(latent_archive, tmp_path):
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     out = tmp_path / "pca.npz"
     run = CliRunner().invoke(

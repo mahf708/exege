@@ -7,7 +7,7 @@ import `core`, `latents` and `figures`; **nothing may import it**.
 
 - **Presentation only.** No science here: if a number is computed in this package, it
   belongs in `latents`, where a notebook can reach it and a test can check it without
-  a browser. Figures come from `xaig.figures`.
+  a browser. Figures come from `exege.figures`.
 - **Everything on screen is reproducible off screen.** A view that shows an analysis
   also shows the settings, the command and the code that produce it.
 - **Cache what is slow, and bound every cache** (`max_entries`). Streamlit reruns a page
@@ -25,21 +25,21 @@ import `core`, `latents` and `figures`; **nothing may import it**.
   the user's explicit `--address`.
 - **Local and offline.** It reads what is on disk. No uploads, no accounts, no tracking
   service.
-- `cli.py` and `config.py` must import on a base install (`xaig --help` imports every
+- `cli.py` and `config.py` must import on a base install (`exege --help` imports every
   cli module): standard library and click only. Streamlit is found, not imported, there.
 - The framework is an adapter-grade choice. Keeping pages this thin is what makes
   replacing Streamlit a rewrite of `app/` and nothing else.
 
 ## Layout
 
-- `cli.py` — `xaig app …`; passes paths to the app through the environment
+- `cli.py` — `exege app …`; passes paths to the app through the environment
   (`config.py`)
 - `main.py` — the script Streamlit runs: page configuration and navigation only
 - `latent.py` — a view, as a `page()` function
 - `theme.py` — what pages share about looks (`dark_page`); a page imports it, never another page
-- `record.py` — the Records view: opens an experiment record (`xaig.latents.load_record`) and
+- `record.py` — the Records view: opens an experiment record (`exege.latents.load_record`) and
   shows what it holds. It computes nothing; its command is the record's own, and the tests
-  run it. `xaig app --record FILE` offers files (`XAIG_APP_RECORDS`)
+  run it. `exege app --record FILE` offers files (`EXEGE_APP_RECORDS`)
 
 Adding a view is a module with a `page()` and a line in `main.py`.
 

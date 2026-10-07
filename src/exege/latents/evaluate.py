@@ -18,7 +18,7 @@ protocol here is the smallest that says more:
 Beside that, ``seed_stability`` asks whether two trainings found the same features, and
 ``fidelity_curve`` sets a PCA's explained variance against a dictionary's at the same
 sparsity. Everything returns objects, prints nothing, and ``to_dict`` makes plain JSON.
-Nothing here trains: seeds and sweeps are ``xaig.nn``'s, and arrive as ``Dictionary``s.
+Nothing here trains: seeds and sweeps are ``exege.nn``'s, and arrive as ``Dictionary``s.
 """
 
 from __future__ import annotations
@@ -29,18 +29,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from xaig import __version__
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.basis import (
+from exege import __version__
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
+from exege.latents.basis import (
     PCA,
     Decomposition,
     Dictionary,
     basis_provenance,
     result_provenance,
 )
-from xaig.latents.samples import accumulate_moments, pca_from_moments
-from xaig.latents.source import (
+from exege.latents.samples import accumulate_moments, pca_from_moments
+from exege.latents.source import (
     LatentSource,
     check_basis_fits,
     check_comparable,
@@ -708,7 +708,7 @@ def seed_stability(
         chance=chance,
         same_training_times=len(times) == 1 and None not in times,
         provenance={
-            "xaig": __version__,
+            "exege": __version__,
             "bases": [basis_provenance(d) for d in dictionaries],
         },
     )
@@ -793,7 +793,7 @@ def fidelity_curve(
     scored on the held-out side of ``split``.
 
     The PCA is fitted here, once, on the training times only (``accumulate_moments``) and
-    cut to ``k`` components; the dictionaries come from the caller (``xaig.nn`` trains a
+    cut to ``k`` components; the dictionaries come from the caller (``exege.nn`` trains a
     sweep of ``k`` or ``l1``) and are held to ``evaluate_basis``'s rules, the one that
     they were not fitted on a held-out time included. Each carries its own evaluation.
     A PCA keeps exactly ``k`` features active at every node, so its curve runs from one

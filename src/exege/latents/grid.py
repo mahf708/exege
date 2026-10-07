@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
 
 try:
     import numpy as np

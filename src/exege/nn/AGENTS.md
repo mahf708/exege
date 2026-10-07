@@ -8,7 +8,7 @@ it. Needs the `nn` extra (torch), which a plain `uv sync` leaves out:
 |---|---|
 | `sae.py` | `SparseAutoencoder` (also a transcoder), `BSplineActivation` — plain `nn.Module`s |
 | `train.py` | `fit_sae`: the loop over `latents.iter_batches`, returning a `Dictionary` |
-| `cli.py` | `xaig nn sae …`; writes a basis file |
+| `cli.py` | `exege nn sae …`; writes a basis file |
 
 ## Rules
 
@@ -31,5 +31,5 @@ it. Needs the `nn` extra (torch), which a plain `uv sync` leaves out:
   beside them, measured on the *exported* dictionary (`training_metrics` is a monitor). A
   test holds `metrics` to an independent numpy evaluation of the `Dictionary`.
 - Import torch behind the extra, at the top of the module that needs it and never in
-  `__init__.py` or `cli.py`: `xaig --help` imports every cli module on a base install.
+  `__init__.py` or `cli.py`: `exege --help` imports every cli module on a base install.
 - The loop is a toy on purpose. Quote what it measures; do not tune it in secret.

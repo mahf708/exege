@@ -1,7 +1,7 @@
 """Experiment records: open one, see where it came from, what it found and how to redo it.
 
-Widgets and layout only. A record is a file ``xaig latents evaluate --record`` or
-``xaig latents steer --record`` wrote and ``xaig.latents.load_record`` validates; nothing
+Widgets and layout only. A record is a file ``exege latents evaluate --record`` or
+``exege latents steer --record`` wrote and ``exege.latents.load_record`` validates; nothing
 is computed here, so every number shown is one the record holds, and the command at the
 bottom is the one it holds too.
 """
@@ -13,11 +13,11 @@ import os
 
 import streamlit as st
 
-from xaig.app.config import configured_records
-from xaig.app.theme import dark_page
-from xaig.core.errors import RequestError
-from xaig.figures import response_figure, to_png
-from xaig.latents import ExperimentRecord, load_record
+from exege.app.config import configured_records
+from exege.app.theme import dark_page
+from exege.core.errors import RequestError
+from exege.figures import response_figure, to_png
+from exege.latents import ExperimentRecord, load_record
 
 _CACHED = 8
 
@@ -79,7 +79,7 @@ def _provenance(record: ExperimentRecord) -> None:
         },
         {"": "options", "value": json.dumps(p.get("options") or {})},
         {"": "experiment", "value": json.dumps(p.get("experiment") or {})},
-        {"": "xaig", "value": str(p.get("xaig", "-"))},
+        {"": "exege", "value": str(p.get("exege") or p.get("xaig", "-"))},
     ]
     st.dataframe(rows, hide_index=True, width="stretch")
     if record.bases:
@@ -210,8 +210,8 @@ def page() -> None:
     if path is None:
         st.info(
             "Open an experiment record from the sidebar, or start the app with "
-            "`xaig app --record FILE`. `xaig latents evaluate --record FILE` and "
-            "`xaig latents steer --record FILE` write one."
+            "`exege app --record FILE`. `exege latents evaluate --record FILE` and "
+            "`exege latents steer --record FILE` write one."
         )
         return
     try:

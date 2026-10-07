@@ -1,17 +1,17 @@
-"""Exception types. Kept in one place so callers can catch `XaigError` broadly."""
+"""Exception types. Kept in one place so callers can catch `ExegeError` broadly."""
 
 from __future__ import annotations
 
 
-class XaigError(Exception):
-    """Base class for every error xaig raises deliberately."""
+class ExegeError(Exception):
+    """Base class for every error exege raises deliberately."""
 
 
-class AdapterError(XaigError):
+class AdapterError(ExegeError):
     """An adapter could not be resolved or failed to read its source."""
 
 
-class RequestError(XaigError, ValueError):
+class RequestError(ExegeError, ValueError):
     """What was asked for cannot be done with what is there.
 
     Distinct from a plain ``ValueError`` on purpose. A client shows this to the
@@ -20,6 +20,6 @@ class RequestError(XaigError, ValueError):
     """
 
 
-class MissingExtraError(XaigError, ImportError):
+class MissingExtraError(ExegeError, ImportError):
     """An optional dependency is absent. Also an ``ImportError``, so code that
     guards an optional import the usual way keeps working."""

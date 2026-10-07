@@ -10,10 +10,10 @@ np = pytest.importorskip("numpy")
 from click.testing import CliRunner  # noqa: E402
 
 from conftest import LATENT_TIMES, N_CHANNELS, N_LAT, N_LON, write_latent_archive  # noqa: E402
-from xaig._cli import cli  # noqa: E402
-from xaig.core import registry  # noqa: E402
-from xaig.core.errors import AdapterError, RequestError  # noqa: E402
-from xaig.latents import LatentSource, open_source  # noqa: E402
+from exege._cli import cli  # noqa: E402
+from exege.core import registry  # noqa: E402
+from exege.core.errors import AdapterError, RequestError  # noqa: E402
+from exege.latents import LatentSource, open_source  # noqa: E402
 
 
 def test_describes_the_archive_without_loading_it(latent_archive):
@@ -107,7 +107,7 @@ def test_an_adapter_that_cannot_supply_latents_is_refused(tmp_path):
         registry.unregister("not-latents")
 
 
-# -- xaig latents ------------------------------------------------------
+# -- exege latents ------------------------------------------------------
 
 
 def test_cli_info(latent_archive):

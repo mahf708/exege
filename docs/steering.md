@@ -1,6 +1,6 @@
 # Steering
 
-Everything in `xaig` so far *reads*: an adapter hands over activations a model produced,
+Everything in `exege` so far *reads*: an adapter hands over activations a model produced,
 and the package computes on them. A steering experiment asks a different question, "what
 does the model do if this feature is changed?", and answering it means the first time an
 adapter **writes into** the model. This page is the design note for that, written before
@@ -9,7 +9,7 @@ the code and kept as its record, then updated as it shipped. Each section says w
 
 !!! note "status"
     Implemented: the protocol (`Intervenable`, `Hook`, `Steer`), the runner
-    (`run_steering`), the `xaig latents steer` command and a toy system to test them
+    (`run_steering`), the `exege latents steer` command and a toy system to test them
     against. Planned: a real adapter, a view and a figure in the app, and fitted
     dictionaries on the toy system; see [Remaining tasks](#remaining-tasks).
 
@@ -49,7 +49,7 @@ happens to the latents at a point inside it. Three consequences:
    seed it is given, which the paired design below needs.
 
 The protocol (`latents.Intervenable`; its consumers all sit on `latents`, so by the
-rule in `src/xaig/AGENTS.md` it lives there and moves to `core` only when something
+rule in `src/exege/AGENTS.md` it lives there and moves to `core` only when something
 outside needs it):
 
 ```python
@@ -79,7 +79,7 @@ A hook at `(layer, time)` receives the latent tensor the forward pass produced t
 returns what it continues with. `Rollout` holds the physical fields each step wrote
 (`(steps, n_nodes)` per name, step `t` being what the pass starting at `t` produced, the
 `lead=1` convention of `ReferenceFields`) and the latents at the `record`ed
-`(layer, time)` pairs, taken *after* any hook there. The initial state is opaque to xaig:
+`(layer, time)` pairs, taken *after* any hook there. The initial state is opaque to exege:
 it is whatever the adapter's `initial_state` returned.
 
 ## The four arms
@@ -139,7 +139,7 @@ seed changes the same nodes by the same amounts however the runs drift apart; `s
 
 A result carries `result_provenance(info, basis=...)` of the system it ran (source,
 commit, options, the basis's content hash) and the full specification of the experiment,
-so a printed reproduction command pins what moves: `xaig latents steer` ends with a
+so a printed reproduction command pins what moves: `exege latents steer` ends with a
 `reproduce:` line that carries the adapter and its options, `--basis-sha256`, and every
 setting. A result saved with `save_result` is the same record as JSON.
 
@@ -153,10 +153,10 @@ from running exactly this (`masked=3` leaves three nodes with NaN fields, like l
 
 ```console
 $ python -c "
-from xaig.adapters.toy_dynamics import ToyDynamics
-from xaig.latents import save_basis
+from exege.adapters.toy_dynamics import ToyDynamics
+from exege.latents import save_basis
 save_basis('scratch/steer/planted.npz', ToyDynamics(masked=3).planted_dictionary())"
-$ xaig latents steer --adapter toy-dynamics --adapter-option masked=3 \
+$ exege latents steer --adapter toy-dynamics --adapter-option masked=3 \
     --basis scratch/steer/planted.npz --layer 1 --feature 0 --amount 1.5 --time 1 \
     --steps 5 --seeds 0,1,2 --random-draws 20
 add 1.5 on feature 0 of layer 1 at time(s) 1; 5 step(s), seed(s) 0, 1, 2, 20 random direction(s)
@@ -166,7 +166,7 @@ moisture     0         0        0.3107      0.2964         -1.83        21/21  0
 pressure     0         0        0.1266      0.4251         -2.07        21/21  0
 temperature  1.406     1.2e-09  0.3335      0.4719         2.52         1/21   100
 
-reproduce: xaig latents steer --adapter toy-dynamics --adapter-option masked=3 --basis scratch/steer/planted.npz --basis-sha256 72ac49085d99b99ce37574a829a851708590fb99c1501497f907d09db4440960 --layer 1 --feature 0 --mode add --amount 1.5 --time 1 --steps 5 --seeds 0,1,2 --random-draws 20 --random-seed 0
+reproduce: exege latents steer --adapter toy-dynamics --adapter-option masked=3 --basis scratch/steer/planted.npz --basis-sha256 72ac49085d99b99ce37574a829a851708590fb99c1501497f907d09db4440960 --layer 1 --feature 0 --mode add --amount 1.5 --time 1 --steps 5 --seeds 0,1,2 --random-draws 20 --random-seed 0
 ```
 
 - **response** is the mean over steps 1 to 4 of the paired temperature difference:
@@ -186,7 +186,7 @@ reproduce: xaig latents steer --adapter toy-dynamics --adapter-option masked=3 -
 noise and the standard error is no longer zero:
 
 ```console
-$ xaig latents steer --adapter toy-dynamics --adapter-option masked=3 \
+$ exege latents steer --adapter toy-dynamics --adapter-option masked=3 \
     --basis scratch/steer/planted.npz --layer 1 --feature 0 --mode scale --amount 3 \
     --time 1 --steps 5 --seeds 0,1,2 --random-draws 20 --field temperature
 FIELD        RESPONSE  +-      RECON_ONLY  RANDOM_|RESP|  EFFECT_SIZE  RANK  PERCENTILE
@@ -195,7 +195,7 @@ temperature  0.4099    0.0045  0.3335      0.1375         2.52         1/21  100
 
 `--record FILE` also writes a [record](records.md) of this: its spec, each field's response
 and every random draw, the basis by hash and the `reproduce:` command, in 4.8 KB where `--out`
-is 110 KB. `xaig app --record FILE` draws each field's response against the draws.
+is 110 KB. `exege app --record FILE` draws each field's response against the draws.
 
 From Python, `run_steering(system, basis, Steer(layer=1, feature=0, amount=1.5,
 times=(1,)), steps=5, seeds=(0, 1, 2))` returns the same as an object, and `save_result`
@@ -203,7 +203,7 @@ writes it.
 
 ## Non-goals
 
-- No real model is run, loaded or downloaded by `xaig`; a real adapter is a later piece
+- No real model is run, loaded or downloaded by `exege`; a real adapter is a later piece
   of work and lives in its own environment.
 - No search over features or amounts, and no claim that a feature "causes" anything beyond
   what the arms show; the numbers are evidence for a reader to weigh.
@@ -215,8 +215,8 @@ writes it.
 ## Remaining tasks
 
 - [x] The protocol, the runner and a toy system to test it against.
-- [x] `xaig latents steer`.
+- [x] `exege latents steer`.
 - [ ] A real adapter, in the model's environment.
 - [x] A view in the app, and a figure of the feature's response against the random draws
-      ([records](records.md); `xaig.figures.response_figure`).
+      ([records](records.md); `exege.figures.response_figure`).
 - [ ] Fitted dictionaries on the toy system, to show a learned feature that is not planted.

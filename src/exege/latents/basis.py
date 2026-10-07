@@ -7,8 +7,8 @@ is made of, push a model along it. ``Decomposition`` is that shared part, so an
 analysis and the CLI take "the method" as a value.
 
 A basis is fitted once, often somewhere else (a dictionary is trained with torch,
-in ``xaig.nn``), and used many times, so it has a file of its own: one ``.npz``
-holding plain arrays and a JSON record of how it was made. It is xaig's own
+in ``exege.nn``), and used many times, so it has a file of its own: one ``.npz``
+holding plain arrays and a JSON record of how it was made. It is exege's own
 interchange format, written and read here and nowhere else. It is also the
 hand-off *back* to the model's environment, which needs nothing but numpy to read
 a row of ``directions`` and steer along it.
@@ -23,9 +23,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from xaig import __version__
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
+from exege import __version__
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
 
 try:
     import numpy as np
@@ -229,7 +229,7 @@ def bspline_activation(z: np.ndarray, coefficients: np.ndarray, upper: float) ->
     ``spline_knots`` it is a ReLU, and training bends it from there (a threshold,
     a saturation). Only four basis functions are non-zero anywhere, so they are
     evaluated in closed form rather than by recursion. The torch twin in
-    ``xaig.nn`` is tested to agree with this to float precision.
+    ``exege.nn`` is tested to agree with this to float precision.
     """
     n_intervals = coefficients.shape[1] - 3
     step = upper / n_intervals
@@ -254,7 +254,7 @@ def topk_mask(z: np.ndarray, k: int) -> np.ndarray:
     go to the entries *equal* to it in order of index. "At least the k-th value"
     keeps every tie instead, so four equal activations would all survive a top-1.
     The rule is spelled with comparisons and a running count so that the torch twin
-    in ``xaig.nn`` can spell it identically: the two must never disagree about
+    in ``exege.nn`` can spell it identically: the two must never disagree about
     which feature of a tie fired.
     """
     cut = np.partition(z, -k, axis=1)[:, -k][:, None]
@@ -437,9 +437,9 @@ def result_provenance(
     info: Any, basis: Decomposition | None = None, bases: Mapping[int, Decomposition] | None = None
 ) -> dict[str, Any]:
     """A result's provenance: the source's (with the commit it was opened at), this
-    version of xaig, and each basis used, by file and content hash. ``bases`` is one
+    version of exege, and each basis used, by file and content hash. ``bases`` is one
     per layer."""
-    out = {**info.provenance(), "xaig": __version__}
+    out = {**info.provenance(), "exege": __version__}
     if basis is not None:
         out["basis"] = basis_provenance(basis)
     if bases:
@@ -491,7 +491,7 @@ def load_basis(path: str | Path, *, sha256: str | None = None) -> PCA | Dictiona
             record = json.loads(str(stored["record"]))
             arrays = {name: stored[name] for name in stored.files if name not in ("kind", "record")}
     except (OSError, KeyError, ValueError) as exc:
-        raise RequestError(f"{path} is not a basis file written by xaig ({exc!r})") from exc
+        raise RequestError(f"{path} is not a basis file written by exege ({exc!r})") from exc
     if record.get("format") != FORMAT:
         raise RequestError(f"{path}: basis format {record.get('format')!r}, expected {FORMAT}")
     recorded = record.pop("sha256", None)

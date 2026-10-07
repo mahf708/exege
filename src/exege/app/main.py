@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import streamlit as st
 
-from xaig.app import latent, record
+from exege.app import latent, record
 
-st.set_page_config(page_title="xaig", page_icon=":material/blur_on:", layout="wide")
+st.set_page_config(page_title="exege", page_icon=":material/blur_on:", layout="wide")
 st.navigation(
     [
         st.Page(latent.page, title="Latents", url_path="latents", default=True),

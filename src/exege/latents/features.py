@@ -20,13 +20,13 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.analysis import AnyRegion
-from xaig.latents.basis import Decomposition, result_provenance
-from xaig.latents.samples import _time_labels
-from xaig.latents.source import LatentSource, ReferenceFields, check_basis_fits, read_latents
-from xaig.latents.through import _field_at
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
+from exege.latents.analysis import AnyRegion
+from exege.latents.basis import Decomposition, result_provenance
+from exege.latents.samples import _time_labels
+from exege.latents.source import LatentSource, ReferenceFields, check_basis_fits, read_latents
+from exege.latents.through import _field_at
 
 try:
     import numpy as np

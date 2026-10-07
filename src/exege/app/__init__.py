@@ -1,9 +1,9 @@
-"""app -- a local web app over the rest of xaig.
+"""app -- a local web app over the rest of exege.
 
-    $ xaig app --latents latents/atmosphere --latents latents/ocean
+    $ exege app --latents latents/atmosphere --latents latents/ocean
 
-Presentation only. Every number on screen comes from ``xaig.latents`` and every
-figure from ``xaig.figures``, so anything seen here can be reproduced in a notebook
+Presentation only. Every number on screen comes from ``exege.latents`` and every
+figure from ``exege.figures``, so anything seen here can be reproduced in a notebook
 or a batch job -- the app says how. Nothing imports this package.
 
 Needs the ``app`` extra (streamlit, plus everything ``figures`` and ``latents`` need).

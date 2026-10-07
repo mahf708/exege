@@ -16,10 +16,10 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-from xaig.adapters.toy_dynamics import FIELDS, ToyDynamics  # noqa: E402
-from xaig.core import registry  # noqa: E402
-from xaig.core.errors import AdapterError, RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege.adapters.toy_dynamics import FIELDS, ToyDynamics  # noqa: E402
+from exege.core import registry  # noqa: E402
+from exege.core.errors import AdapterError, RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     Dictionary,
     Hook,
     Intervenable,
@@ -32,7 +32,7 @@ from xaig.latents import (  # noqa: E402
     save_basis,
     save_result,
 )
-from xaig.latents.evaluate import jsonable  # noqa: E402
+from exege.latents.evaluate import jsonable  # noqa: E402
 
 GAIN, DECAY, STEPS, T0, AMOUNT = 2.0, 0.5, 5, 1, 1.5
 
@@ -298,7 +298,7 @@ def test_the_result_carries_where_it_ran_and_with_which_basis(system, tmp_path):
     assert provenance["source"] == "toy-dynamics" and provenance["checkpoint"] == "planted-0"
     assert provenance["options"]["masked"] == 3
     assert provenance["basis"]["sha256"] == basis_hash(basis)
-    assert provenance["xaig"]
+    assert provenance["exege"]
     path = save_result(tmp_path / "out" / "steer.json", result)
     written = json.loads(path.read_text())
     assert written["spec"]["steer"]["amount"] == AMOUNT
@@ -504,7 +504,7 @@ def test_the_command_reports_the_planted_effect_and_a_command_that_reproduces_it
     with more digits than ``:g`` shows."""
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     planted = ToyDynamics(masked=3).planted_dictionary()
     amount, extra = AMOUNT, ()
@@ -539,7 +539,7 @@ def test_the_command_reports_the_planted_effect_and_a_command_that_reproduces_it
         f"--basis-sha256 {sha}" in line and "masked=3" in line and "--adapter toy-dynamics" in line
     )
     # and the printed line, run again, says the same thing
-    again = run.invoke(cli, [*shlex.split(line.removeprefix("reproduce: xaig ")), "--json"])
+    again = run.invoke(cli, [*shlex.split(line.removeprefix("reproduce: exege ")), "--json"])
     assert again.exit_code == 0, again.output
     assert json.loads(again.output) == payload
 
@@ -547,7 +547,7 @@ def test_the_command_reports_the_planted_effect_and_a_command_that_reproduces_it
 def test_the_command_refuses_a_basis_whose_content_is_not_the_one_pinned(tmp_path):
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     basis = tmp_path / "planted.npz"
     save_basis(basis, ToyDynamics(masked=3).planted_dictionary())

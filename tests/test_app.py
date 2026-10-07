@@ -7,9 +7,9 @@ import shlex
 import pytest
 from click.testing import CliRunner
 
-from xaig._cli import cli
-from xaig.app import cli as app_cli
-from xaig.app.config import (
+from exege._cli import cli
+from exege.app import cli as app_cli
+from exege.app.config import (
     LATENTS_ENV,
     RECORDS_ENV,
     configured_latents,
@@ -70,14 +70,14 @@ pytest.importorskip("matplotlib")
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
 from conftest import write_evaluation_record, write_steering_record  # noqa: E402
-from xaig.figures import maps  # noqa: E402
+from exege.figures import maps  # noqa: E402
 
 APP = str(app_cli.Path(app_cli.__file__).with_name("main.py"))
 
 
 @pytest.fixture(autouse=True)
 def offline(monkeypatch):
-    monkeypatch.setenv("XAIG_NO_COASTLINES", "1")
+    monkeypatch.setenv("EXEGE_NO_COASTLINES", "1")
     maps._coastlines.cache_clear()
     monkeypatch.delenv(LATENTS_ENV, raising=False)
     monkeypatch.delenv(RECORDS_ENV, raising=False)
@@ -104,7 +104,7 @@ def _at_the_bump(at: AppTest) -> AppTest:
 def test_with_nothing_to_open_it_says_how(monkeypatch):
     at = _run()
     assert not at.exception
-    assert "xaig app --latents" in at.info[0].value
+    assert "exege app --latents" in at.info[0].value
 
 
 def test_the_latent_view_shows_the_analysis(monkeypatch, latent_archive):
@@ -138,7 +138,7 @@ def test_what_is_on_screen_can_be_reproduced_off_screen(monkeypatch, latent_arch
 
     # Not "looks like a command": run it, and it must say what the app says.
     argv = shlex.split(command.replace("\\\n", " "))
-    assert argv[0] == "xaig"
+    assert argv[0] == "exege"
     rerun = CliRunner().invoke(cli, [*argv[1:], "--json"])
     assert rerun.exit_code == 0, rerun.output
     assert json.loads(rerun.output) == shown
@@ -185,7 +185,7 @@ def test_the_drop_down_names_the_model_not_just_the_path(monkeypatch, latent_arc
 
 @pytest.fixture
 def basis_file(latent_archive, tmp_path):
-    from xaig.latents import (
+    from exege.latents import (
         accumulate_moments,
         open_source,
         pca_from_moments,
@@ -228,7 +228,7 @@ def test_an_unverified_basis_is_refused_until_it_is_allowed_and_then_reproduces(
     the command asks for a flag, and what it then shows says that it was allowed."""
     import numpy as np
 
-    from xaig.latents import fit_pca, save_basis
+    from exege.latents import fit_pca, save_basis
 
     anonymous = str(
         save_basis(tmp_path / "anon.npz", fit_pca(np.random.default_rng(0).normal(size=(40, 6)), 2))
@@ -290,7 +290,7 @@ def test_a_basis_refitted_to_the_same_name_is_the_one_shown(monkeypatch, latent_
     dictionary written there until it was restarted."""
     from dataclasses import replace
 
-    from xaig.latents import (
+    from exege.latents import (
         accumulate_moments,
         open_source,
         pca_from_moments,
@@ -328,7 +328,7 @@ def test_a_url_is_kept_as_given_for_its_adapter(monkeypatch):
 
 def test_a_basis_kept_in_an_archive_is_offered_where_it_fits(monkeypatch, latent_archive, tmp_path):
     from conftest import write_latent_archive
-    from xaig.latents import (
+    from exege.latents import (
         accumulate_moments,
         open_source,
         pca_from_moments,
@@ -422,7 +422,7 @@ def test_a_field_can_be_set_against_what_the_pass_wrote(monkeypatch, with_fields
 
 
 def test_a_field_reproduces_with_an_unverified_basis(monkeypatch, with_fields, tmp_path):
-    from xaig.latents import (
+    from exege.latents import (
         accumulate_moments,
         open_source,
         pca_from_moments,
@@ -452,8 +452,8 @@ def test_a_field_reproduces_with_an_unverified_basis(monkeypatch, with_fields, t
 def test_a_reproduction_pins_the_commit_and_the_basis_it_came_from(hub, tmp_path):
     """The archive was opened at a tag; what reproduces it names the commit the tag was
     at then, and the hash of the basis, and both rerun to the same answer."""
-    from xaig.app.latent import reproduction
-    from xaig.latents import (
+    from exege.app.latent import reproduction
+    from exege.latents import (
         Region,
         accumulate_moments,
         analyze_region,
@@ -503,7 +503,7 @@ def test_a_reproduction_pins_the_commit_and_the_basis_it_came_from(hub, tmp_path
 # Records are written by the commands (conftest), opened here, and what is on screen is
 # held to what the file says and to what its own command says when run again.
 
-RECORDS_PAGE = "from xaig.app import record\nrecord.page()"
+RECORDS_PAGE = "from exege.app import record\nrecord.page()"
 
 
 def _records(monkeypatch, *files) -> AppTest:
@@ -531,7 +531,7 @@ def test_the_launcher_offers_records_to_the_app(monkeypatch, tmp_path):
 def test_with_no_record_to_open_it_says_how(monkeypatch):
     at = _records(monkeypatch)
     assert not at.exception
-    assert "xaig app --record" in at.info[0].value and "steer --record" in at.info[0].value
+    assert "exege app --record" in at.info[0].value and "steer --record" in at.info[0].value
 
 
 def test_a_steering_record_shows_where_it_came_from_and_what_it_found(monkeypatch, tmp_path):
@@ -568,7 +568,7 @@ def test_the_command_a_steering_record_shows_reproduces_what_it_shows(monkeypatc
     command = at.code[0].value
     shown = _table(at, 2).set_index("field")
     argv = shlex.split(command)
-    assert argv[:3] == ["xaig", "latents", "steer"] and "--record" not in argv
+    assert argv[:3] == ["exege", "latents", "steer"] and "--record" not in argv
     assert f"--basis-sha256 {_table(at, 1)['sha256'].iloc[0]}" in command
     rerun = CliRunner().invoke(cli, [*argv[1:], "--json"])
     assert rerun.exit_code == 0, rerun.output
@@ -600,7 +600,7 @@ def test_an_evaluation_record_shows_the_split_and_the_held_out_numbers(monkeypat
     curve = _table(at, 3)
     assert curve["point"].tolist() == ["pca-1", "pca-4"]
     assert any("Stability" in m.value and "2 bases" in m.value for m in at.markdown)
-    assert at.code[0].value.startswith("xaig latents evaluate")
+    assert at.code[0].value.startswith("exege latents evaluate")
 
 
 def test_a_file_that_is_not_a_record_is_a_warning_and_not_a_traceback(monkeypatch, tmp_path):

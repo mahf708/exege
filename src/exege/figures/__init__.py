@@ -1,6 +1,6 @@
 """figures -- reusable figures, independent of any web framework.
 
-    from xaig.figures import map_figure
+    from exege.figures import map_figure
 
     fig = map_figure(source.grid(), result.similarity, region=region, title="similarity")
     fig.savefig("similarity.png")
@@ -10,10 +10,10 @@ Needs the ``figures`` extra (matplotlib, and cartopy for coastlines).
 
 from __future__ import annotations
 
-from xaig.figures.bars import profile_figure, response_figure
-from xaig.figures.grids import hovmoller_figure, layer_time_figure
-from xaig.figures.maps import have_coastlines, map_figure, to_png, why_no_coastlines
-from xaig.figures.series import series_figure
+from exege.figures.bars import profile_figure, response_figure
+from exege.figures.grids import hovmoller_figure, layer_time_figure
+from exege.figures.maps import have_coastlines, map_figure, to_png, why_no_coastlines
+from exege.figures.series import series_figure
 
 __all__ = [
     "have_coastlines",

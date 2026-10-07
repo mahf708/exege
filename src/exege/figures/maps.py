@@ -30,9 +30,9 @@ import socket
 from functools import lru_cache
 from typing import Any, Protocol
 
-from xaig.core.extras import missing_extra
+from exege.core.extras import missing_extra
 
-# Checked before anything of xaig.latents is imported: whoever wants figures should be
+# Checked before anything of exege.latents is imported: whoever wants figures should be
 # pointed at the one extra that brings everything, not at numpy's and then ours.
 try:
     import numpy as np
@@ -40,7 +40,7 @@ try:
 except ImportError as exc:
     raise missing_extra(exc.name or "matplotlib", "figures") from exc
 
-from xaig.latents.grid import Grid
+from exege.latents.grid import Grid
 
 log = logging.getLogger(__name__)
 
@@ -74,15 +74,15 @@ def _coastlines() -> tuple[Any | None, str | None]:
     node with no network -- and fails late, in the middle of rendering, or not at
     all for minutes. Asking for the file up front, against a deadline, turns that
     into a quiet fallback with a reason attached. Data already on disk is found
-    without touching the network. ``XAIG_NO_COASTLINES=1`` skips the attempt.
+    without touching the network. ``EXEGE_NO_COASTLINES=1`` skips the attempt.
     """
-    if os.environ.get("XAIG_NO_COASTLINES"):
-        return None, "XAIG_NO_COASTLINES is set"
+    if os.environ.get("EXEGE_NO_COASTLINES"):
+        return None, "EXEGE_NO_COASTLINES is set"
     try:
         import cartopy.crs as ccrs
         from cartopy.io import shapereader
     except ImportError:
-        return None, "cartopy is not installed; it comes with xaig[figures]"
+        return None, "cartopy is not installed; it comes with exege[figures]"
     waited = socket.getdefaulttimeout()
     socket.setdefaulttimeout(_FETCH_TIMEOUT_SECONDS)  # urlopen's only deadline is this one
     try:

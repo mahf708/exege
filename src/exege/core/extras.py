@@ -2,7 +2,7 @@
 
 The base install is deliberately tiny, so anything heavier sits behind an extra
 named after the subpackage that needs it. A missing one should say which extra
-to install *and how, from where this xaig came from* -- not surface as a bare
+to install *and how, from where this exege came from* -- not surface as a bare
 ``ModuleNotFoundError`` three imports deep, and not point at a package index that
 a checkout was never installed from.
 
@@ -24,9 +24,9 @@ from importlib.metadata import PackageNotFoundError, distribution
 from types import ModuleType
 from urllib.parse import unquote, urlparse
 
-from xaig.core.errors import MissingExtraError
+from exege.core.errors import MissingExtraError
 
-_DISTRIBUTION = "xaig"
+_DISTRIBUTION = "exege"
 
 
 def _origin() -> dict:
@@ -39,7 +39,7 @@ def _origin() -> dict:
 
 
 def install_hint(extra: str) -> str:
-    """The command that adds ``extra`` to this installation of xaig."""
+    """The command that adds ``extra`` to this installation of exege."""
     origin = _origin()
     url = origin.get("url", "")
     if url.startswith("file://"):

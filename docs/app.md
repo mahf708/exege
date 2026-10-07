@@ -1,10 +1,10 @@
 # The web app
 
-`xaig app` is a local web app over the rest of the package: an explorer for
+`exege app` is a local web app over the rest of the package: an explorer for
 [latent archives](latents.md) — pick a model, a region and a method — after the tool of
 [Tempest, Beylich & Craig (2026)](https://arxiv.org/abs/2604.20467).
-It is presentation only — every number on screen comes from `xaig.latents` and every
-figure from `xaig.figures` — so anything you see there can be redone in a notebook or a
+It is presentation only — every number on screen comes from `exege.latents` and every
+figure from `exege.figures` — so anything you see there can be redone in a notebook or a
 batch job, and the app tells you how.
 
 !!! warning "local, not a service"
@@ -16,7 +16,7 @@ batch job, and the app tells you how.
 
 ```console
 $ uv sync                      # in a checkout: everything
-$ uv pip install 'xaig[app]'   # elsewhere, from PyPI
+$ uv pip install 'exege[app]'   # elsewhere, from PyPI
 ```
 
 The `app` extra brings Streamlit and everything `figures` and `latents` need.
@@ -33,20 +33,20 @@ The `app` extra brings Streamlit and everything `figures` and `latents` need.
     $ python -c "from cartopy.io import shapereader as s; s.natural_earth('110m', 'physical', 'coastline')"
     ```
 
-    Set `XAIG_NO_COASTLINES=1` to skip the attempt altogether.
+    Set `EXEGE_NO_COASTLINES=1` to skip the attempt altogether.
 
 ## Start it
 
 ```console
-$ uv run xaig app --latents latents/atmosphere --latents latents/ocean
-$ uv run xaig app --latents latents/        # every archive directly inside it
+$ uv run exege app --latents latents/atmosphere --latents latents/ocean
+$ uv run exege app --latents latents/        # every archive directly inside it
 ```
 
 Every option is optional: archives can also be opened from the sidebar.
 
 | Option | Meaning |
 | --- | --- |
-| `--latents` | a latent archive, a directory of them, or a Hugging Face path (`hf://datasets/<owner>/<repo>/<folder>`, with `xaig[hf]`) to offer in the explorer; repeatable |
+| `--latents` | a latent archive, a directory of them, or a Hugging Face path (`hf://datasets/<owner>/<repo>/<folder>`, with `exege[hf]`) to offer in the explorer; repeatable |
 | `--record` | an [experiment record](records.md) (from `latents evaluate --record` or `latents steer --record`) to offer under Records; repeatable |
 | `--port` | 8501 by default |
 | `--address` | the interface to listen on; `localhost` by default, so the app is reachable from this machine only |
@@ -96,7 +96,7 @@ told apart — then a time, a layer and a region. The view is
 - **Through time** — the region's mean of the ranked channels (or the basis's features)
   at every time the archive holds, placed by its own calendar so that a gap between kept
   steps looks like one. On request, since centered it reads every time once.
-- **Reproduce** — the settings, the `xaig latents region` command and the
+- **Reproduce** — the settings, the `exege latents region` command and the
   Python that produce exactly what is on screen, and a JSON download of all three. The
   test suite runs that command and that code and checks they agree with the app. For an
   archive on the hub they name the commit it was opened at, and for a basis its content
@@ -107,7 +107,7 @@ told apart — then a time, a layer and a region. The view is
 
 The second page, *Records*, opens an [experiment record](records.md): choose one from
 `--record` or type a path in the sidebar. It is presentation only, like the page above — it
-holds what the file holds, computes nothing, and a file that is not a record this xaig reads
+holds what the file holds, computes nothing, and a file that is not a record this exege reads
 (another version, another format, a part missing) is a warning on the page and not a
 traceback.
 
@@ -135,8 +135,8 @@ analysis, and results and rendered maps are cached, bounded.
 ## The same figures without the app
 
 ```python
-from xaig.latents import Region, analyze_region, open_source
-from xaig.figures import map_figure
+from exege.latents import Region, analyze_region, open_source
+from exege.figures import map_figure
 
 source = open_source("latents/atmosphere")
 region = Region(lat=5, lon=-140, radius_km=1500)

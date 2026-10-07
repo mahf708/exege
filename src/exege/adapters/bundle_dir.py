@@ -12,12 +12,12 @@ first, on a grid that is two-dimensional, one file per level *and* time::
     fields/<name>.npy        optional (n_stamps, n_lat, n_lon): physical fields
 
 Nodes are the grid read in C order, ``node = i_lat * n_lon + i_lon``, which is what every
-``Grid`` of xaig means. Files are memory-mapped, and a read takes the channels asked for
+``Grid`` of exege means. Files are memory-mapped, and a read takes the channels asked for
 first and the nodes second, so a region of one level touches only the pages it needs.
 
 ``bundle.json`` says::
 
-    {"format": "xaig-bundle", "version": 1,
+    {"format": "exege-bundle", "version": 1,
      "system": {"name": ..., "part": ..., "weights": ...},
      "clock": {"calendar": "noleap", "step_seconds": 21600, "stamps": [...],
                "field_stamps": [...]},
@@ -37,10 +37,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from xaig.core.errors import AdapterError, RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.grid import Grid
-from xaig.latents.source import LatentInfo, LayerInfo, selection
+from exege.core.errors import AdapterError, RequestError
+from exege.core.extras import missing_extra
+from exege.latents.grid import Grid
+from exege.latents.source import LatentInfo, LayerInfo, selection
 
 try:
     import numpy as np
@@ -49,7 +49,9 @@ except ImportError as exc:
 
 MANIFEST = "bundle.json"
 COORDS = "coords.npz"
-FORMAT = "xaig-bundle"
+FORMAT = "exege-bundle"
+# What bundles were tagged before the package was renamed from xaig; still read.
+OLD_FORMATS = ("xaig-bundle",)
 VERSION = 1
 
 
@@ -73,7 +75,7 @@ class BundleDir:
             raise AdapterError(f"not a bundle (no {MANIFEST}): {self.path}")
         try:
             manifest = json.loads(manifest_path.read_text())
-            if manifest["format"] != FORMAT or manifest["version"] != VERSION:
+            if manifest["format"] not in (FORMAT, *OLD_FORMATS) or manifest["version"] != VERSION:
                 raise AdapterError(
                     f"{manifest_path}: format {manifest['format']!r} version "
                     f"{manifest['version']!r}; this reads {FORMAT!r} version {VERSION}"

@@ -18,7 +18,7 @@ One thing is planted, so that an analysis has a known right answer: channel
 precipitation is read off it. ``OFFSET_CHANNEL`` sits on a constant, which is
 what centering is for. The rest is seeded noise.
 
-    from xaig.latents.toy import write_toy
+    from exege.latents.toy import write_toy
 
     write_toy("scratch/toy/control")
     write_toy("scratch/toy/steered", steer=(2, 7, 3.0))   # +3 on channel 7 of layer 2, every step
@@ -33,18 +33,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from xaig import __version__
-from xaig.core import registry
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.grid import Grid, great_circle_km
+from exege import __version__
+from exege.core import registry
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
+from exege.latents.grid import Grid, great_circle_km
 
 try:
     import numpy as np
 except ImportError as exc:
     raise missing_extra("numpy", "latents") from exc
 
-MODEL = "xaig-toy"
+MODEL = "exege-toy"
 WIDTH = 16
 N_BLOCKS = 3
 STORM_CHANNEL = 5
@@ -220,7 +220,7 @@ def toy_run(
             fields["precipitation"].append(precipitation.copy())
             fields["sst"].append(sst)
 
-    experiment: dict[str, Any] = {"seed": seed, "kept_steps": list(kept), "xaig": __version__}
+    experiment: dict[str, Any] = {"seed": seed, "kept_steps": list(kept), "exege": __version__}
     if steer is not None:
         experiment["steer"] = {"layer": steer[0], "channel": steer[1], "by": steer[2]}
     hours = TIMESTEP_SECONDS // 3600

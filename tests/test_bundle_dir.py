@@ -18,13 +18,13 @@ pytest.importorskip("xarray")
 
 from click.testing import CliRunner  # noqa: E402
 
-from xaig._cli import cli  # noqa: E402
-from xaig.adapters.bundle_dir import BundleDir  # noqa: E402
-from xaig.core import registry  # noqa: E402
-from xaig.core.errors import AdapterError, RequestError  # noqa: E402
-from xaig.latents import load_record, open_source  # noqa: E402
-from xaig.latents.grid import Grid  # noqa: E402
-from xaig.latents.toy import write_toy  # noqa: E402
+from exege._cli import cli  # noqa: E402
+from exege.adapters.bundle_dir import BundleDir  # noqa: E402
+from exege.core import registry  # noqa: E402
+from exege.core.errors import AdapterError, RequestError  # noqa: E402
+from exege.latents import load_record, open_source  # noqa: E402
+from exege.latents.grid import Grid  # noqa: E402
+from exege.latents.toy import write_toy  # noqa: E402
 
 
 def _write(path, **overrides):
@@ -38,7 +38,7 @@ def _write(path, **overrides):
 def test_the_layout_is_channels_first_in_its_own_words(tmp_path):
     path, layer = _write(tmp_path / "b", model="m", component="c", checkpoint="k")
     manifest = json.loads((path / "bundle.json").read_text())
-    assert manifest["format"] == "xaig-bundle" and manifest["grid"] == [2, 3]
+    assert manifest["format"] == "exege-bundle" and manifest["grid"] == [2, 3]
     assert manifest["system"] == {"name": "m", "part": "c", "weights": "k"}
     assert manifest["levels"] == [{"id": 0, "name": "only", "width": 4}]
     archive_words = {"steps", "latent_times", "n_nodes", "extra_steps"}
@@ -85,6 +85,13 @@ def test_the_writer_refuses_what_the_layout_cannot_hold(tmp_path):
     path, _ = _write(tmp_path / "b")
     with pytest.raises(RequestError, match="not empty"):
         _write(path)
+
+
+def test_a_bundle_written_before_the_rename_still_opens(tmp_path):
+    path, layer = _write(tmp_path / "b")
+    manifest = json.loads((path / "bundle.json").read_text())
+    (path / "bundle.json").write_text(json.dumps({**manifest, "format": "xaig-bundle"}))
+    assert np.array_equal(BundleDir(path).load(1, 0), layer[1])
 
 
 def test_a_bundle_that_is_broken_is_an_adapter_error_naming_what_is_wrong(tmp_path):
@@ -150,7 +157,7 @@ def test_a_new_layout_is_reached_by_every_command_without_editing_any_of_them(tm
 
     info = run.invoke(cli, ["latents", "info", bundle, *base])
     assert info.exit_code == 0, info.output
-    assert "xaig-toy" in info.output and "noleap" in info.output
+    assert "exege-toy" in info.output and "noleap" in info.output
 
     fits = []
     for name in ("a.npz", "b.npz"):
@@ -166,7 +173,7 @@ def test_a_new_layout_is_reached_by_every_command_without_editing_any_of_them(tm
     assert done.exit_code == 0, done.output
 
     kept = load_record(record)
-    assert kept.provenance["model"] == "xaig-toy" and kept.settings["adapter"] == "bundle-dir"
+    assert kept.provenance["model"] == "exege-toy" and kept.settings["adapter"] == "bundle-dir"
     assert "--adapter bundle-dir" in kept.command  # and the command to redo it names it
     again = run.invoke(cli, [*kept.command.split()[1:], "--json"])
     assert again.exit_code == 0, again.output

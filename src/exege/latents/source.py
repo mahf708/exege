@@ -7,7 +7,7 @@ latents down, an adapter on the other reads them back through this protocol, and
 nothing here ever imports a model.
 
 The contract lives next to its consumers, all of which sit on ``latents``. It moves
-to ``xaig.core`` when a subpackage that does not needs it, and not before.
+to ``exege.core`` when a subpackage that does not needs it, and not before.
 """
 
 from __future__ import annotations
@@ -19,10 +19,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from xaig.core import registry
-from xaig.core.errors import AdapterError, RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.grid import Grid
+from exege.core import registry
+from exege.core.errors import AdapterError, RequestError
+from exege.core.extras import missing_extra
+from exege.latents.grid import Grid
 
 try:
     import numpy as np
@@ -315,7 +315,7 @@ def parse_time(text: str) -> str | int:
 
 
 def open_source(source: str | Path, adapter: str = DEFAULT_ADAPTER, **options: Any) -> LatentSource:
-    """Open latents through the adapter registry, like every other source in xaig."""
+    """Open latents through the adapter registry, like every other source in exege."""
     built = registry.create(adapter, source=str(source), options=options)
     if not isinstance(built, LatentSource):
         raise AdapterError(f"adapter {adapter!r} does not implement LatentSource")

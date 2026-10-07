@@ -15,9 +15,9 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
 from typing import Any
 
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.basis import (
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
+from exege.latents.basis import (
     PCA,
     Decomposition,
     _floating,
@@ -25,8 +25,8 @@ from xaig.latents.basis import (
     result_provenance,
     top_loadings,
 )
-from xaig.latents.grid import Grid, small_circle
-from xaig.latents.source import LatentSource, check_basis_fits, read_latents
+from exege.latents.grid import Grid, small_circle
+from exege.latents.source import LatentSource, check_basis_fits, read_latents
 
 try:
     import numpy as np

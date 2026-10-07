@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.13"]
-        # base: Click only, where `xaig --help` must still work; numpy-backed
+        # base: Click only, where `exege --help` must still work; numpy-backed
         # tests skip. full: every extra but torch, so the nn tests skip. nn: torch as
         # well, once -- the CPU build, since the default one brings CUDA along.
         tier: ["base", "full"]
@@ -71,7 +71,7 @@ jobs:
       # The nn tests skip without torch, so a failed install would pass quietly.
       - name: Assert the nn tier has torch
         if: matrix.tier == 'nn'
-        run: .venv/bin/python -c "import torch, xaig.nn.sae; print('torch', torch.__version__)"
+        run: .venv/bin/python -c "import torch, exege.nn.sae; print('torch', torch.__version__)"
       # That the base tier stays light, and that core stays pure, are tests now
       # (tests/test_purity.py), so they run locally as well as here. What only CI
       # can show is that the base tier really has no scientific stack installed.

@@ -6,16 +6,16 @@ subpackages built on it.
 
 from __future__ import annotations
 
-from xaig.core.errors import (
+from exege.core.errors import (
     AdapterError,
+    ExegeError,
     MissingExtraError,
     RequestError,
-    XaigError,
 )
 
 __all__ = [
     "AdapterError",
     "MissingExtraError",
     "RequestError",
-    "XaigError",
+    "ExegeError",
 ]

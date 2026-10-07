@@ -19,10 +19,10 @@ from pathlib import Path
 
 import pytest
 
-SRC = Path(__file__).resolve().parents[1] / "src" / "xaig"
+SRC = Path(__file__).resolve().parents[1] / "src" / "exege"
 
-# unit -> the other xaig units it may import. A unit is a subpackage or a
-# top-level module; every unit may import itself and the bare ``xaig`` package.
+# unit -> the other exege units it may import. A unit is a subpackage or a
+# top-level module; every unit may import itself and the bare ``exege`` package.
 # Domains never import adapters: they reach them through ``core.registry``.
 ALLOWED: dict[str, set[str]] = {
     "__init__": {"core"},
@@ -50,7 +50,7 @@ THIRD_PARTY: dict[str, set[str]] = {
 }
 
 # The name of the adapter entry-point group; it is an identifier, not an import path.
-CORE_STRING_EXCEPTIONS = {"xaig.adapters"}
+CORE_STRING_EXCEPTIONS = {"exege.adapters"}
 
 HEAVY = ("numpy", "xarray", "netCDF4", "torch", "matplotlib", "pandas", "scipy", "streamlit")
 
@@ -72,8 +72,8 @@ _ids = [str(path.relative_to(SRC)) for _, path in MODULES]
 
 def _imports(path: Path) -> set[str]:
     """Every module a file imports, as an absolute dotted name. Relative imports
-    are resolved rather than skipped, and ``from xaig import _cli`` counts as
-    importing ``xaig._cli``."""
+    are resolved rather than skipped, and ``from exege import _cli`` counts as
+    importing ``exege._cli``."""
     package = list(path.relative_to(SRC.parent).parts[:-1])
     found: set[str] = set()
     for node in ast.walk(ast.parse(path.read_text())):
@@ -87,31 +87,31 @@ def _imports(path: Path) -> set[str]:
     return found
 
 
-def _xaig_units(names: set[str]) -> set[str]:
+def _exege_units(names: set[str]) -> set[str]:
     out = set()
     for name in names:
         parts = name.split(".")
-        if parts[0] == "xaig" and len(parts) > 1 and parts[1] in UNITS:
+        if parts[0] == "exege" and len(parts) > 1 and parts[1] in UNITS:
             out.add(parts[1])
     return out
 
 
 def _third_party(names: set[str]) -> set[str]:
     roots = {n.split(".")[0] for n in names if n}
-    return roots - set(sys.stdlib_module_names) - {"xaig"}
+    return roots - set(sys.stdlib_module_names) - {"exege"}
 
 
 def test_every_unit_declares_its_dependencies() -> None:
     assert set(UNITS) == set(ALLOWED), (
-        "src/xaig and the ALLOWED table disagree; declare what a new unit may import: "
+        "src/exege and the ALLOWED table disagree; declare what a new unit may import: "
         f"{sorted(set(UNITS) ^ set(ALLOWED))}"
     )
 
 
 @pytest.mark.parametrize(("unit", "module"), MODULES, ids=_ids)
 def test_units_import_only_what_they_declared(unit: str, module: Path) -> None:
-    bad = _xaig_units(_imports(module)) - ALLOWED[unit] - {unit}
-    assert not bad, f"{module.relative_to(SRC)} imports xaig.{sorted(bad)}; {unit} may not"
+    bad = _exege_units(_imports(module)) - ALLOWED[unit] - {unit}
+    assert not bad, f"{module.relative_to(SRC)} imports exege.{sorted(bad)}; {unit} may not"
 
 
 _CEILINGED = [m for m in MODULES if m[0] in THIRD_PARTY]
@@ -128,9 +128,9 @@ def test_third_party_ceilings(unit: str, module: Path) -> None:
 
 @pytest.mark.parametrize("module", UNITS["core"], ids=lambda p: p.name)
 def test_core_does_not_name_its_consumers_in_strings(module: Path) -> None:
-    """An import hidden in a string (``resources.files("xaig.consumer...")``) is still a
+    """An import hidden in a string (``resources.files("exege.consumer...")``) is still a
     dependency, and one the import checks above cannot see."""
-    consumers = tuple(f"xaig.{u}" for u in UNITS if u != "core")
+    consumers = tuple(f"exege.{u}" for u in UNITS if u != "core")
     bad = {
         node.value
         for node in ast.walk(ast.parse(module.read_text()))
@@ -144,12 +144,12 @@ def test_core_does_not_name_its_consumers_in_strings(module: Path) -> None:
 
 def test_the_checks_see_relative_and_from_package_imports(tmp_path: Path, monkeypatch) -> None:
     """The earlier version of this file skipped both, so neither rule bit."""
-    fake = tmp_path / "xaig" / "core"
+    fake = tmp_path / "exege" / "core"
     fake.mkdir(parents=True)
     module = fake / "leak.py"
-    module.write_text("from ..latents import grid\nfrom . import errors\nfrom xaig import _cli\n")
-    monkeypatch.setattr(sys.modules[__name__], "SRC", tmp_path / "xaig")
-    assert _xaig_units(_imports(module)) == {"latents", "core", "_cli"}
+    module.write_text("from ..latents import grid\nfrom . import errors\nfrom exege import _cli\n")
+    monkeypatch.setattr(sys.modules[__name__], "SRC", tmp_path / "exege")
+    assert _exege_units(_imports(module)) == {"latents", "core", "_cli"}
 
 
 def _run(code: str) -> subprocess.CompletedProcess[str]:
@@ -158,26 +158,26 @@ def _run(code: str) -> subprocess.CompletedProcess[str]:
 
 def test_core_imports_no_consumer_at_runtime() -> None:
     result = _run(
-        "import sys, pkgutil, importlib, xaig.core\n"
-        "for m in pkgutil.iter_modules(xaig.core.__path__):\n"
-        "    importlib.import_module('xaig.core.' + m.name)\n"
+        "import sys, pkgutil, importlib, exege.core\n"
+        "for m in pkgutil.iter_modules(exege.core.__path__):\n"
+        "    importlib.import_module('exege.core.' + m.name)\n"
         "leaked = sorted(m for m in sys.modules\n"
-        "                if m.startswith('xaig.') and m.split('.')[1] != 'core')\n"
+        "                if m.startswith('exege.') and m.split('.')[1] != 'core')\n"
         "assert not leaked, leaked\n"
     )
     assert result.returncode == 0, result.stderr
 
 
 def test_the_base_tier_is_light() -> None:
-    """Importing xaig and printing --help must not pull in the scientific stack --
+    """Importing exege and printing --help must not pull in the scientific stack --
     whether or not it happens to be installed. Listing the commands imports every
     cli module, so this also holds those to the rule that heavy imports happen
     inside the command that needs them."""
     result = _run(
         "import sys\n"
-        "import xaig, xaig._cli\n"
+        "import exege, exege._cli\n"
         "from click.testing import CliRunner\n"
-        "out = CliRunner().invoke(xaig._cli.cli, ['--help'])\n"
+        "out = CliRunner().invoke(exege._cli.cli, ['--help'])\n"
         "assert out.exit_code == 0, out.output\n"
         f"heavy = [m for m in {HEAVY!r} if m in sys.modules]\n"
         "assert not heavy, heavy\n"

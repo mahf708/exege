@@ -13,8 +13,8 @@ import pytest
 np = pytest.importorskip("numpy")
 
 from conftest import URL  # noqa: E402
-from xaig.core.errors import AdapterError  # noqa: E402
-from xaig.latents import open_source  # noqa: E402
+from exege.core.errors import AdapterError  # noqa: E402
+from exege.latents import open_source  # noqa: E402
 
 
 def test_a_hub_archive_downloads_only_what_is_read(hub):
@@ -90,7 +90,7 @@ def test_a_hub_with_no_commit_to_name_is_refused(hub):
 
 
 def test_the_commit_reaches_every_result_a_hub_source_makes(hub):
-    from xaig.latents import Region, analyze_region, difference, region_series
+    from exege.latents import Region, analyze_region, difference, region_series
 
     here = Region(lat=7.5, lon=45.0, radius_km=2500.0)
     source = open_source(URL, revision="v1")
@@ -107,7 +107,7 @@ def test_the_commit_reaches_every_result_a_hub_source_makes(hub):
 def test_the_command_line_pins_a_revision_and_reports_the_commit(hub):
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     run = CliRunner().invoke(cli, ["latents", "info", URL, "--revision", "v1"])
     assert run.exit_code == 0, run.output
@@ -148,7 +148,7 @@ def test_a_local_archive_is_unchanged(latent_archive):
 def test_a_revision_needs_a_hub_source_on_the_command(hub, latent_archive):
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     run = CliRunner().invoke(cli, ["latents", "info", str(latent_archive), "--revision", "v1"])
     assert run.exit_code != 0 and "--revision" in run.output and "hf://" in run.output
@@ -161,7 +161,7 @@ def test_a_revision_needs_a_hub_source_on_the_command(hub, latent_archive):
 def test_a_basis_hash_needs_a_basis(latent_archive):
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     region = ["latents", "region", str(latent_archive), "--time", "0", "--layer", "2"]
     region += ["--lat", "7.5", "--lon", "45", "--radius-km", "2500", "--basis-sha256", "ab"]

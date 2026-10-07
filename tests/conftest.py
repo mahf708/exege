@@ -105,8 +105,8 @@ class MemorySource:
     def __init__(self, data, *, n_lat=6, n_lon=8, mask=None):
         import numpy as np
 
-        from xaig.latents import LatentInfo, LayerInfo
-        from xaig.latents.grid import Grid
+        from exege.latents import LatentInfo, LayerInfo
+        from exege.latents.grid import Grid
 
         lat, lon = np.meshgrid(
             np.linspace(-75.0, 75.0, n_lat), np.arange(n_lon) * 45.0, indexing="ij"
@@ -227,9 +227,9 @@ def write_steering_record(tmp_path: Path):
 
     from click.testing import CliRunner
 
-    from xaig._cli import cli
-    from xaig.adapters.toy_dynamics import ToyDynamics
-    from xaig.latents import save_basis
+    from exege._cli import cli
+    from exege.adapters.toy_dynamics import ToyDynamics
+    from exege.latents import save_basis
 
     basis = tmp_path / "planted.npz"
     save_basis(basis, ToyDynamics(masked=3).planted_dictionary())
@@ -252,7 +252,7 @@ def write_evaluation_record(tmp_path: Path):
 
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     run = CliRunner()
     archive = str(tmp_path / "toy")

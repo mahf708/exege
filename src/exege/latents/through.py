@@ -22,13 +22,13 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from xaig import __version__
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.analysis import AnyRegion, ChannelRanking
-from xaig.latents.basis import Decomposition, result_provenance
-from xaig.latents.samples import _time_labels
-from xaig.latents.source import (
+from exege import __version__
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
+from exege.latents.analysis import AnyRegion, ChannelRanking
+from exege.latents.basis import Decomposition, result_provenance
+from exege.latents.samples import _time_labels
+from exege.latents.source import (
     LatentSource,
     check_basis_fits,
     check_comparable,
@@ -205,7 +205,7 @@ def _pair_provenance(control: LatentSource, experiment: LatentSource) -> dict[st
     return {
         "control": control.info().provenance(),
         "experiment": experiment.info().provenance(),
-        "xaig": __version__,
+        "exege": __version__,
     }
 
 
@@ -484,7 +484,7 @@ def rank_by_field(
     A forward pass reads the state at its own time and writes the next, so an
     output the pass produces -- precipitation, say -- is at ``lead=1``; at 0 it is
     the previous pass's, which this one never saw."""
-    from xaig.latents.source import ReferenceFields
+    from exege.latents.source import ReferenceFields
 
     info, grid = source.info(), source.grid()
     if not isinstance(source, ReferenceFields):
@@ -540,7 +540,7 @@ def _field_with_values(source: LatentSource, field: str, label: str, lead: int =
 
 
 def _reference_fields(source: LatentSource, field: str):
-    from xaig.latents.source import ReferenceFields
+    from exege.latents.source import ReferenceFields
 
     info = source.info()
     if not isinstance(source, ReferenceFields):

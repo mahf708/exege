@@ -1,4 +1,4 @@
-xaig
+exege
 ====
 
 This product is licensed under the BSD 3-Clause License; see LICENSE.
@@ -6,7 +6,7 @@ This product is licensed under the BSD 3-Clause License; see LICENSE.
 Third-party notices
 -------------------
 
-xaig.latents, xaig.figures and xaig.app grew out of the latent space
+exege.latents, exege.figures and exege.app grew out of the latent space
 visualiser for weather models,
 
     https://github.com/ktempestuous/latent_space_visualiser_weather_models
@@ -14,7 +14,7 @@ visualiser for weather models,
 
 whose region selection, channel ranking, cosine-similarity and PCA views they
 reimplement, and whose SamudrACE exporter defines the latent-archive layout that
-xaig.adapters.latent_archive reads. That work is distributed under the MIT
+exege.adapters.latent_archive reads. That work is distributed under the MIT
 License, reproduced here as it requires:
 
     MIT License

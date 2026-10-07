@@ -1,4 +1,4 @@
-# xaig
+# exege
 
 Light, framework-agnostic tooling for AI campaigns. One installable toolkit, grown by
 adding subpackages and adapters rather than by widening what exists.
@@ -6,10 +6,10 @@ adding subpackages and adapters rather than by widening what exists.
 | Subpackage | Scope | Needs |
 |---|---|---|
 | `core` | errors, adapter registry, the hint for a missing extra | stdlib |
-| `latents` | what emulators hold inside: the latent space, on a grid | `xaig[latents]` (numpy, xarray) |
-| `nn` | torch modules trained on those latents: a sparse autoencoder | `xaig[nn]` (torch, and `latents`') |
-| `figures` | figures, with no web framework in them | `xaig[figures]` (matplotlib, cartopy) |
-| `app` | a local web app: presentation only | `xaig[app]` (streamlit, and `figures`') |
+| `latents` | what emulators hold inside: the latent space, on a grid | `exege[latents]` (numpy, xarray) |
+| `nn` | torch modules trained on those latents: a sparse autoencoder | `exege[nn]` (torch, and `latents`') |
+| `figures` | figures, with no web framework in them | `exege[figures]` (matplotlib, cartopy) |
+| `app` | a local web app: presentation only | `exege[app]` (streamlit, and `figures`') |
 | `adapters` | everything that knows a framework or a file layout | per adapter |
 
 ## Three concerns, kept apart
@@ -25,14 +25,14 @@ answer.
    it is used, *with the dependencies it honestly needs*: needing numpy does not make
    something an adapter. What a domain may not do is know a file format or a user
    interface.
-3. **Dependency weight → extras.** `import xaig` and `xaig --help` stay on Click alone.
+3. **Dependency weight → extras.** `import exege` and `exege --help` stay on Click alone.
    Anything heavier sits behind an extra named after the subpackage that needs it, and
    says so when it is missing (`core/extras.py`).
 
 ## Who may import whom
 
 ```
-core        <-  everything; imports nothing of xaig, and no third party
+core        <-  everything; imports nothing of exege, and no third party
 adapters    ->  core, and the domain contract each one implements
 latents     ->  core (and _render, for its cli)
 nn          ->  core, latents
@@ -59,12 +59,12 @@ before.
 
 ## Errors
 
-What xaig raises on purpose is an `XaigError` (`core/errors.py`): `AdapterError`,
+What exege raises on purpose is an `ExegeError` (`core/errors.py`): `AdapterError`,
 `MissingExtraError`, and `RequestError` for something asked that cannot be had — no such
 layer, an empty region. A client shows those to whoever asked, in one line; **any other
 exception is a bug and must keep its traceback**, so never catch `ValueError` or
 `KeyError` wholesale to tidy a message. The top-level command does the one-line part for
-every subcommand (`xaig --debug` does not).
+every subcommand (`exege --debug` does not).
 
 ## API first; everything else is a client
 
@@ -73,7 +73,7 @@ that parses, calls them and formats. A notebook, a batch job and the web app are
 in exactly the same way. If it is worth testing without a terminal, it belongs in the
 API.
 
-`cli.py` modules must import on the base tier — `xaig --help` imports every one of them —
+`cli.py` modules must import on the base tier — `exege --help` imports every one of them —
 so heavy imports happen inside the command that needs them.
 
 ## Extending
@@ -85,22 +85,22 @@ so heavy imports happen inside the command that needs them.
 | a way of finding features | something satisfying `latents.Decomposition`; if torch finds it, the module and its loop in `nn/` |
 | a figure | a function in `figures/` that returns a `Figure` |
 | a view in the app | a module with a `page()` in `app/`, and a line in `app/main.py` |
-| a command | a `cli.py`, named in `_cli._COMMANDS` (or the `xaig.commands` entry-point group, from another distribution) |
+| a command | a `cli.py`, named in `_cli._COMMANDS` (or the `exege.commands` entry-point group, from another distribution) |
 | a subpackage | the directory, an extra, its row in `tests/test_purity.py`, an `AGENTS.md` |
 
 Entry points are read from installed metadata: after editing them, rerun `uv sync`.
 
 ## Releasing
 
-`xaig` is published to PyPI by `.github/workflows/release.yml`, through trusted
+`exege` is published to PyPI by `.github/workflows/release.yml`, through trusted
 publishing: no token exists, the indexes trust that workflow by name.
 
-1. Bump `__version__` in `src/xaig/__init__.py` in a PR, and merge it.
+1. Bump `__version__` in `src/exege/__init__.py` in a PR, and merge it.
 2. Rehearse: run the *release* workflow by hand ("Run workflow") on `main`. It builds,
    checks the metadata, installs the wheel alone and publishes to TestPyPI.
 3. Tag the merged commit `vX.Y.Z` and push the tag. The same job runs, refuses a tag
    that is not the version, and publishes to PyPI.
 
 An index never lets a version be replaced: a bad release is fixed by the next number.
-`src/xaig/README.md` is the page PyPI shows. A release holds the package, its tests and
+`src/exege/README.md` is the page PyPI shows. A release holds the package, its tests and
 its licences; the guide site, the run configs and these notes stay out of it.

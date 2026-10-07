@@ -1,11 +1,11 @@
 # Evaluating a dictionary
 
 A sparse dictionary scored on the nodes it was fitted to says how well it memorized them.
-`xaig.latents.evaluate` scores a *frozen* basis on times it never saw, and says what each
+`exege.latents.evaluate` scores a *frozen* basis on times it never saw, and says what each
 number does and does not tell you. It is an API first (`evaluate_basis`, `seed_stability`,
-`fidelity_curve` return objects and print nothing) and `xaig latents evaluate` is a client
+`fidelity_curve` return objects and print nothing) and `exege latents evaluate` is a client
 of it. It reads `latents.Dictionary`s, which are plain numpy, so nothing here needs torch;
-training the seeds and sweeps it compares is [`xaig.nn`](nn.md)'s.
+training the seeds and sweeps it compares is [`exege.nn`](nn.md)'s.
 
 ## The protocol
 
@@ -25,8 +25,8 @@ training the seeds and sweeps it compares is [`xaig.nn`](nn.md)'s.
    equally.
 
 ```console
-$ xaig latents toy scratch/ev/control
-$ xaig latents evaluate scratch/ev/control --blocks 4 --split-only
+$ exege latents toy scratch/ev/control
+$ exege latents evaluate scratch/ev/control --blocks 4 --split-only
 layer 3: fit on 5 time(s), hold out 2 (0424-03-01T18:00:00, 0424-03-02T00:00:00), 1 in the buffer
 
 train  0424-02-27T06:00:00
@@ -34,10 +34,10 @@ train  0424-02-27T06:00:00
        0424-02-27T18:00:00
        0424-02-28T00:00:00
        0424-03-01T06:00:00
-$ for k in 2 4 8; do xaig nn sae scratch/ev/control --features 32 --activation topk --k $k \
+$ for k in 2 4 8; do exege nn sae scratch/ev/control --features 32 --activation topk --k $k \
     --epochs 20 --batch-size 256 --lr 3e-3 --time 0 --time 1 --time 2 --time 3 --time 4 \
     --out scratch/ev/sae_k$k.npz; done
-$ xaig latents evaluate scratch/ev/control --blocks 4 \
+$ exege latents evaluate scratch/ev/control --blocks 4 \
     --basis scratch/ev/sae_k2.npz --basis scratch/ev/sae_k4.npz --basis scratch/ev/sae_k8.npz \
     --pca 1,2,4,8,16
 BASIS       FEATURES  FITTED  EV_TRAIN  EV_TEST  ACTIVE_TRAIN  ACTIVE_TEST  DEAD_TEST  DUPLICATES
@@ -87,7 +87,7 @@ component active wherever its score clears the threshold, so its sparsity is its
 **Dead features** never exceed the threshold at any valid node of that side. On a short
 held-out stretch a feature can be dead for want of an occasion: `dormant` lists those
 alive in training and silent held out, and the held-out dead fraction above is larger than
-the one `xaig nn` reports for training, because it is counted over two times, not the
+the one `exege nn` reports for training, because it is counted over two times, not the
 last epoch's draws. Dead is a fact about a feature and a stretch of data, not about the
 dictionary; a feature that the training data also never used is a wasted one, and one
 that only the held-out data wakes is evidence the splits differ.
@@ -104,7 +104,7 @@ trainings one to one by decoder cosine (the Hungarian method, in numpy), and rep
 matched cosines and the share at or above `--recur-above`. Read it against
 `chance_similarity`, the same matching against random directions: forced pairings of
 unrelated unit vectors in few channels find high cosines by luck. On the toy, two seeds of
-the same dictionary (`--seed 0` and `--seed 1` of the `xaig nn sae` command above, `--k 4`)
+the same dictionary (`--seed 0` and `--seed 1` of the `exege nn sae` command above, `--k 4`)
 give a median matched cosine of 0.585 where random directions give 0.488 (chance), so the
 real seeds are only a little above chance and 6.2% of their features recur at 0.9. The
 bases must say they were fitted to one place in one network, and `same_training_times`
@@ -125,13 +125,13 @@ nothing about which is better for steering or naming a feature.
 The command ends with a `reproduce:` line that names the archive's commit (for an `hf://`
 source), the split, every basis file and the thresholds, and `--record FILE` writes the
 numbers, the split and that command as an [experiment record](records.md), which
-`xaig app --record FILE` opens. `--out` still writes the whole result. The line does not
+`exege app --record FILE` opens. `--out` still writes the whole result. The line does not
 pin the bases by hash, since `--basis-sha256` holds one; the record lists each basis's hash.
 
 ## Python API
 
 ```python
-from xaig.latents import (
+from exege.latents import (
     evaluate_basis,
     fidelity_curve,
     open_source,
@@ -139,7 +139,7 @@ from xaig.latents import (
     seed_stability,
     split_time_blocks,
 )
-from xaig.nn.train import fit_sae
+from exege.nn.train import fit_sae
 
 source = open_source("latents/atmosphere")
 split = split_time_blocks(source.info().times, n_blocks=5, test_blocks=[-1], gap=1)

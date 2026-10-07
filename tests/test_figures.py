@@ -6,15 +6,15 @@ np = pytest.importorskip("numpy")
 pytest.importorskip("matplotlib")
 
 from conftest import BUMP, write_latent_archive  # noqa: E402
-from xaig.figures import map_figure, maps, to_png  # noqa: E402
-from xaig.latents import Box, Region, load_channels, open_source  # noqa: E402
-from xaig.latents.grid import Grid, small_circle  # noqa: E402
+from exege.figures import map_figure, maps, to_png  # noqa: E402
+from exege.latents import Box, Region, load_channels, open_source  # noqa: E402
+from exege.latents.grid import Grid, small_circle  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def no_coastlines(monkeypatch):
     """Cartopy would reach for the network; the fallback is what is under test."""
-    monkeypatch.setenv("XAIG_NO_COASTLINES", "1")
+    monkeypatch.setenv("EXEGE_NO_COASTLINES", "1")
     maps._coastlines.cache_clear()
     yield
     maps._coastlines.cache_clear()
@@ -25,12 +25,12 @@ def _mesh(figure):
 
 
 def test_a_map_without_coastlines_can_say_why(monkeypatch):
-    from xaig.figures import have_coastlines, why_no_coastlines
+    from exege.figures import have_coastlines, why_no_coastlines
 
-    assert not have_coastlines() and "XAIG_NO_COASTLINES" in why_no_coastlines()
+    assert not have_coastlines() and "EXEGE_NO_COASTLINES" in why_no_coastlines()
 
     # Installed, but with no way to get its data: a compute node.
-    monkeypatch.delenv("XAIG_NO_COASTLINES")
+    monkeypatch.delenv("EXEGE_NO_COASTLINES")
     maps._coastlines.cache_clear()
     shapereader = pytest.importorskip("cartopy.io.shapereader")
 
@@ -108,7 +108,7 @@ def test_a_region_is_outlined_without_a_line_the_long_way_round(latent_archive):
 
 
 def test_the_outline_is_a_circle_on_the_sphere():
-    from xaig.latents.grid import great_circle_km
+    from exege.latents.grid import great_circle_km
 
     lat, lon = small_circle(60.0, -170.0, 2000.0)
     assert great_circle_km(lat, lon, 60.0, -170.0) == pytest.approx(2000.0)
@@ -123,7 +123,7 @@ def test_a_missing_dependency_names_the_one_extra_that_brings_everything():
     code = (
         "import sys\n"
         "sys.modules['numpy'] = None\n"  # as if it were not installed
-        "try:\n    import xaig.figures\nexcept ImportError as exc:\n    print(exc)\n"
+        "try:\n    import exege.figures\nexcept ImportError as exc:\n    print(exc)\n"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout
     assert "'figures' extra" in out and "'latents' extra" not in out
@@ -154,7 +154,7 @@ def test_load_channels_is_ready_to_map(tmp_path):
 
 
 def test_a_series_is_one_line_a_column_placed_in_time():
-    from xaig.figures import series_figure
+    from exege.figures import series_figure
 
     values = np.array([[0.0, 1.0], [1.0, -1.0], [4.0, 0.5]])
     figure = series_figure(values, x=[0.0, 6.0, 42.0], labels=["ch 4", "ch 1"], x_label="hours")
@@ -168,7 +168,7 @@ def test_a_series_is_one_line_a_column_placed_in_time():
 
 
 def test_without_real_times_a_series_is_evenly_spaced_and_says_which_is_which():
-    from xaig.figures import series_figure
+    from exege.figures import series_figure
 
     figure = series_figure(np.zeros((3, 9)), tick_labels=["a", "b", "c"], dark=True)
     axes = figure.axes[0]
@@ -185,7 +185,7 @@ def test_fetching_coastlines_has_a_deadline_and_gives_the_old_one_back(monkeypat
 
     shapereader = pytest.importorskip("cartopy.io.shapereader")
     seen = []
-    monkeypatch.delenv("XAIG_NO_COASTLINES")
+    monkeypatch.delenv("EXEGE_NO_COASTLINES")
     maps._coastlines.cache_clear()
     monkeypatch.setattr(
         shapereader, "natural_earth", lambda **kwargs: seen.append(socket.getdefaulttimeout())
@@ -196,7 +196,7 @@ def test_fetching_coastlines_has_a_deadline_and_gives_the_old_one_back(monkeypat
 
 
 def test_a_layer_by_time_panel_puts_layers_up_and_time_across():
-    from xaig.figures import layer_time_figure
+    from exege.figures import layer_time_figure
 
     values = np.arange(12.0).reshape(4, 3) / 12  # 4 times, 3 layers
     fig = layer_time_figure(values, layers=[0, 4, 8], tick_labels=list("abcd"), label="|r|")
@@ -209,7 +209,7 @@ def test_a_layer_by_time_panel_puts_layers_up_and_time_across():
 
 
 def test_a_hovmoller_runs_west_to_east_across_the_prime_meridian():
-    from xaig.figures import hovmoller_figure
+    from exege.figures import hovmoller_figure
 
     lon = np.array([90.0, 180.0, 270.0, 0.0])  # the archive's order, not the map's
     values = np.tile(lon, (5, 1))
@@ -226,7 +226,7 @@ def test_a_hovmoller_runs_west_to_east_across_the_prime_meridian():
 
 
 def test_a_profile_draws_the_largest_bars_and_skips_what_says_nothing():
-    from xaig.figures import profile_figure
+    from exege.figures import profile_figure
 
     figure = profile_figure(["a", "b", "c", "d"], [0.5, -2.0, np.nan, 1.0], top=2)
     bars = figure.axes[0].patches
@@ -245,7 +245,7 @@ def test_a_box_is_outlined(latent_archive):
 
 
 def test_a_response_is_drawn_against_the_draws_in_magnitude():
-    from xaig.figures import response_figure
+    from exege.figures import response_figure
 
     draws = [-0.5, 0.25, 0.5, np.nan, 0.75]  # signed, and one that is not a number
     figure = response_figure(draws, feature=-2.0, reconstruction=0.5, title="temperature")

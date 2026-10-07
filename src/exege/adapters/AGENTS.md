@@ -18,7 +18,7 @@ factory(source, **options) -> adapter
   ones it does.
 - **context** is offered by the caller, not the user (a campaign spec, say). It reaches
   only a factory that declares a parameter of that name. `**kwargs` is not a declaration
-  (what a factory hands on to another library must not hold xaig's objects), and the
+  (what a factory hands on to another library must not hold exege's objects), and the
   source parameter never receives it.
 
 The adapter returned is **one object implementing one or more protocols**. Callers ask
@@ -67,21 +67,21 @@ Entry points are the only mechanism, for the adapters shipped here and for one l
 a completely separate distribution alike:
 
 ```toml
-[project.entry-points."xaig.adapters"]
+[project.entry-points."exege.adapters"]
 myframework = "mypkg.adapter:MyAdapter"
 ```
 
 Then **rerun `uv sync`**: entry points are read from installed
-metadata, and a stale install is the usual reason a new adapter "is not found". xaig's
+metadata, and a stale install is the usual reason a new adapter "is not found". exege's
 own names win a clash, so a plugin can add adapters but never silently replace one.
 
 ## Rules
 
-- An adapter may import `xaig.core` and the domain contract it implements
-  (`xaig.latents`). Nothing imports an adapter; it is reached through the
+- An adapter may import `exege.core` and the domain contract it implements
+  (`exege.latents`). Nothing imports an adapter; it is reached through the
   registry.
 - Heavy dependencies go behind an extra and are imported by the adapter, which loads
-  lazily — never at `import xaig` time.
+  lazily — never at `import exege` time.
 - A source that is broken is an `AdapterError`; a request it cannot meet (a node index out
   of range, a field it does not hold) is a `RequestError`. Never a bare `IndexError`.
 - Carry what the exporter said. A latent adapter puts the manifest's free-form
@@ -106,6 +106,6 @@ own names win a clash, so a plugin can add adapters but never silently replace o
   `unmasked`, ignores the bundle's mask.
 - `latent_archive.py` — activations recorded from a model, as a directory of
   memory-mapped arrays, with the physical fields kept beside them; `write_archive` writes
-  one (`xaig[latents]`; format in `docs/package/latents.md`). The same reader takes an
+  one (`exege[latents]`; format in `docs/package/latents.md`). The same reader takes an
   `hf://datasets/<owner>/<repo>/<folder>` source and downloads one file at a time
-  (`xaig[hf]`).
+  (`exege[hf]`).

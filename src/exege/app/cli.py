@@ -1,4 +1,4 @@
-"""``xaig app``: start the local web app. Must import on a base install."""
+"""``exege app``: start the local web app. Must import on a base install."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from pathlib import Path
 
 import click
 
-from xaig.app.config import LATENTS_ENV, RECORDS_ENV, discover_archives
-from xaig.core.extras import missing_extra
+from exege.app.config import LATENTS_ENV, RECORDS_ENV, discover_archives
+from exege.core.extras import missing_extra
 
 
 @click.command(name="app")

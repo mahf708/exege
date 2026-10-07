@@ -4,8 +4,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from xaig import _cli
-from xaig._cli import cli
+from exege import _cli
+from exege._cli import cli
 
 
 @pytest.fixture
@@ -50,12 +50,12 @@ def test_a_plugin_cannot_replace_a_shipped_command(runner, monkeypatch):
 def test_deliberate_errors_are_one_line_and_debug_keeps_the_traceback(runner, tmp_path):
     """Whatever the tier: with no numpy the missing extra is the deliberate error,
     and with it the directory that holds no archive is."""
-    from xaig.core.errors import XaigError
+    from exege.core.errors import ExegeError
 
     args = ["latents", "info", str(tmp_path / "nothing-here")]
     plain = runner.invoke(cli, args)
     assert plain.exit_code == 1 and plain.output.startswith("Error: ")
-    assert isinstance(runner.invoke(cli, ["--debug", *args]).exception, XaigError)
+    assert isinstance(runner.invoke(cli, ["--debug", *args]).exception, ExegeError)
 
 
 def test_an_exit_code_asked_for_inside_a_command_reaches_the_shell(monkeypatch):

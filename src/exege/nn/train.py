@@ -16,22 +16,22 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from xaig import __version__
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
+from exege import __version__
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
 
 try:
     import torch
 except ImportError as exc:
     raise missing_extra("torch", "nn") from exc
 
-from xaig.latents import (
+from exege.latents import (
     Dictionary,
     LatentSource,
     accumulate_moments,
     iter_batches,
 )
-from xaig.nn.sae import SparseAutoencoder
+from exege.nn.sae import SparseAutoencoder
 
 
 def pick_device(device: str | None = None) -> torch.device:
@@ -189,7 +189,7 @@ def fit_sae(
         },
         "metrics": metrics,
         "training_metrics": training_metrics,
-        "xaig": __version__,
+        "exege": __version__,
     }  # fmt: skip
     return model.to_dictionary(
         input_mean=moments.mean.astype("float32"),

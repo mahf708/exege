@@ -15,13 +15,13 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
 | `steering.py` | steering: the `Intervenable` contract, four arms (control, reconstruction, feature, random direction) under paired noise, the response set against the random draws |
 | `record.py` | the experiment record: a versioned, compact JSON file of one evaluation or steering run, its loader, and the writers the commands call |
 | `features.py` | a feature without a field in mind: a census of a layer, one feature's profile |
-| `cli.py` | `xaig latents …`, a thin client of the above |
+| `cli.py` | `exege latents …`, a thin client of the above |
 | `__init__.py` | the public names, re-exported lazily (see the first rule) |
 
 ## Rules that must not be lost
 
-- **`__init__.py` imports nothing heavy.** `xaig --help` imports `cli.py`, and with it
-  this package, on a base install. The public names (`from xaig.latents import Region`)
+- **`__init__.py` imports nothing heavy.** `exege --help` imports `cli.py`, and with it
+  this package, on a base install. The public names (`from exege.latents import Region`)
   are resolved on first use through `_LAZY`; a new public name goes there, in `__all__`
   and under `TYPE_CHECKING`.
 - **Area-weight everything.** Unweighted means on a lat-lon grid are simply wrong. On
@@ -98,7 +98,7 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
 - **Mind the memory.** One layer of a 1-degree, 384-channel model is 100 MB; nine layers
   at one time is 0.9 GB. Ask a source for the nodes and channels you need, keep a layer
   in its own precision, and never make a second copy of one.
-  `xaig latents region` on the real atmosphere archive peaks near 275 MB
+  `exege latents region` on the real atmosphere archive peaks near 275 MB
   resident (`/usr/bin/time -l`), a quarter of it the archive's own mapped pages; the
   first draft took 650.
 - **Deterministic results.** No dependence on node order; PCA signs are fixed; batches

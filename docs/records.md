@@ -8,12 +8,12 @@ an **experiment record**: one versioned JSON file, 4.8 KB for the same experimen
 the commands write, a notebook can load, and [the app](app.md) opens.
 
 ```console
-$ xaig latents steer --adapter toy-dynamics --adapter-option masked=3 \
+$ exege latents steer --adapter toy-dynamics --adapter-option masked=3 \
     --basis scratch/rec/planted.npz --layer 1 --feature 0 --amount 1.5 --time 1 \
     --steps 5 --seeds 0,1,2 --random-draws 20 --record scratch/rec/steer.json
-$ xaig latents evaluate scratch/rec/toy --blocks 4 --basis scratch/rec/a.npz --pca 1,4 \
+$ exege latents evaluate scratch/rec/toy --blocks 4 --basis scratch/rec/a.npz --pca 1,4 \
     --record scratch/rec/eval.json
-$ xaig app --record scratch/rec/steer.json --record scratch/rec/eval.json
+$ exege app --record scratch/rec/steer.json --record scratch/rec/eval.json
 ```
 
 `--record` is beside `--out`, which still writes the whole result. A record cannot be asked
@@ -23,24 +23,24 @@ of `--split-only`, which computes nothing to keep.
 
 ```json
 {
-  "format": "xaig.experiment-record",
+  "format": "exege.experiment-record",
   "schema_version": 1,
   "kind": "steering",
   "provenance": {"source": "toy-dynamics", "model": "toy-dynamics", "component": "linear",
-                 "checkpoint": "planted-0", "options": {"masked": 3, "…": "…"}, "xaig": "0.5.0"},
+                 "checkpoint": "planted-0", "options": {"masked": 3, "…": "…"}, "exege": "0.5.0"},
   "bases": [{"path": "scratch/rec/planted.npz", "sha256": "72ac4908…0960", "status": "verified"}],
   "settings": {"adapter": "toy-dynamics", "adapter_options": {"masked": 3}, "…": "…"},
   "split": null,
   "results": {"spec": {"…": "…"}, "effects": {"temperature": {"feature_response": 1.40625,
               "reconstruction_response": 0.3335, "random_responses": ["20 numbers"],
               "rank": 1, "n_draws": 20, "p_value": 0.0476, "…": "…"}}},
-  "command": "xaig latents steer --adapter toy-dynamics … --basis-sha256 72ac4908…0960 …"
+  "command": "exege latents steer --adapter toy-dynamics … --basis-sha256 72ac4908…0960 …"
 }
 ```
 
 | Key | Holds |
 | --- | --- |
-| `provenance` | the source's model, component and checkpoint; for a hub archive the **commit** it was opened at and the revision that was asked for; the options it was opened with; what the exporter recorded about the run (`experiment`); the version of xaig. The same as `result_provenance` writes into every result ([provenance](latents.md#provenance-what-a-result-was-made-from)). |
+| `provenance` | the source's model, component and checkpoint; for a hub archive the **commit** it was opened at and the revision that was asked for; the options it was opened with; what the exporter recorded about the run (`experiment`); the version of exege. The same as `result_provenance` writes into every result ([provenance](latents.md#provenance-what-a-result-was-made-from)). |
 | `bases` | every basis used, by file and **content hash** |
 | `settings` | what the command was asked: enough to ask it again |
 | `split` | for an evaluation, the time labels of both sides and the buffer, held once. `null` for a steering record |
@@ -59,14 +59,14 @@ is refused by the command the record holds. A steering record's command pins its
 ## Versions
 
 `schema_version` is 1. `load_record` reads the versions it knows and refuses the rest with
-a one-line `RequestError`: a record from a later xaig says to upgrade, and a file that is
+a one-line `RequestError`: a record from a later exege says to upgrade, and a file that is
 not a record, is not JSON, lacks a part a view relies on, has one of the wrong JSON type
 (a number the view formats must be finite, or `null`), or is of a kind no view knows is
 refused too. Within a version a writer may add keys and a reader ignores what it does not
 know; removing or renaming one, or changing what one means, is a new version.
 
 ```python
-from xaig.latents import load_record
+from exege.latents import load_record
 
 record = load_record("scratch/rec/steer.json")
 record.kind  # "steering"

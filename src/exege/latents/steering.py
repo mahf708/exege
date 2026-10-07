@@ -25,12 +25,12 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from xaig.core import registry
-from xaig.core.errors import AdapterError, RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.basis import Decomposition, Dictionary, result_provenance
-from xaig.latents.grid import Grid
-from xaig.latents.source import LatentInfo, check_basis_fits
+from exege.core import registry
+from exege.core.errors import AdapterError, RequestError
+from exege.core.extras import missing_extra
+from exege.latents.basis import Decomposition, Dictionary, result_provenance
+from exege.latents.grid import Grid
+from exege.latents.source import LatentInfo, check_basis_fits
 
 try:
     import numpy as np
@@ -80,7 +80,7 @@ class Intervenable(Protocol):
     ``LatentSource``: reading a recording is cheap and repeatable, running a model is
     neither, and most sources cannot. Nothing of the model's framework crosses it:
     hooks take and return numpy arrays, and the initial state is whatever
-    ``initial_state`` handed out, opaque to xaig.
+    ``initial_state`` handed out, opaque to exege.
 
     ``run`` must be deterministic given ``noise_seed``, and the noise it draws must not
     depend on what the hooks did: that is what makes arms comparable pairwise. Without a

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xaig.core.extras import missing_extra
+from exege.core.extras import missing_extra
 
 try:
     import numpy as np
@@ -21,7 +21,7 @@ try:
 except ImportError as exc:
     raise missing_extra(exc.name or "matplotlib", "figures") from exc
 
-from xaig.figures.maps import _DARK_INK, _INK, DARK_SURFACE
+from exege.figures.maps import _DARK_INK, _INK, DARK_SURFACE
 
 CATEGORICAL = (
     "#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F0E442", "#999999",

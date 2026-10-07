@@ -1,9 +1,9 @@
-# xaig
+# exege
 
 Light, framework-agnostic tooling for E3SM AI campaigns: what an emulator holds inside,
 sparse autoencoders trained on it, figures, and a local app over them.
 
-> **Research tool.** `xaig` is early. What is described here works; expect it to change.
+> **Research tool.** `exege` is early. What is described here works; expect it to change.
 
 ## Install
 
@@ -11,18 +11,18 @@ The base install pulls only Click. Anything heavier sits behind an extra named a
 subpackage that needs it:
 
 ```console
-$ uv pip install 'xaig[latents]'     # or: pip install 'xaig[latents]'
+$ uv pip install 'exege[latents]'     # or: pip install 'exege[latents]'
 ```
 
 | Extra | Pulls | Gets you |
 | --- | --- | --- |
-| `latents` | numpy, xarray, netCDF4 | `xaig.latents`: latent diagnostics on a grid |
-| `figures` | matplotlib, cartopy | `xaig.figures`: maps and series figures (brings `latents`) |
-| `app` | streamlit | `xaig app`: a local web app (brings `figures`) |
-| `nn` | torch | `xaig.nn` and `xaig nn`: sparse autoencoders (brings `latents`) |
+| `latents` | numpy, xarray, netCDF4 | `exege.latents`: latent diagnostics on a grid |
+| `figures` | matplotlib, cartopy | `exege.figures`: maps and series figures (brings `latents`) |
+| `app` | streamlit | `exege app`: a local web app (brings `figures`) |
+| `nn` | torch | `exege.nn` and `exege nn`: sparse autoencoders (brings `latents`) |
 | `hf` | huggingface_hub | archives read from a Hugging Face repository, `hf://datasets/...` (brings `latents`) |
 
-A missing extra says so, with the command that fits how `xaig` was installed.
+A missing extra says so, with the command that fits how `exege` was installed.
 
 ## Try it, with no model and no data
 
@@ -30,18 +30,18 @@ A toy emulator writes a latent archive with nothing but numpy; everything else r
 like any other:
 
 ```console
-$ xaig latents toy scratch/toy/control
-$ xaig latents info scratch/toy/control --mask-variable sst
-$ xaig latents region scratch/toy/control --lat 10 --lon -114 --time 2 --centered --pcs 2
-$ xaig latents fields scratch/toy/control --field precipitation --top 3
-$ xaig nn sae scratch/toy/control --features 64 --k 4 --out scratch/toy/sae.npz   # needs xaig[nn]
-$ xaig app --latents scratch/toy                                                  # needs xaig[app]
+$ exege latents toy scratch/toy/control
+$ exege latents info scratch/toy/control --mask-variable sst
+$ exege latents region scratch/toy/control --lat 10 --lon -114 --time 2 --centered --pcs 2
+$ exege latents fields scratch/toy/control --field precipitation --top 3
+$ exege nn sae scratch/toy/control --features 64 --k 4 --out scratch/toy/sae.npz   # needs exege[nn]
+$ exege app --latents scratch/toy                                                  # needs exege[app]
 ```
 
 The CLI is a thin client of the Python API; anything it can do, a notebook can:
 
 ```python
-from xaig.latents import Region, analyze_region, open_source
+from exege.latents import Region, analyze_region, open_source
 
 source = open_source("scratch/toy/control", mask_variable="sst")
 result = analyze_region(
@@ -55,9 +55,9 @@ result.ranking.channels  # the channels that respond most strongly there
 - Guides: <https://e3sm-project.github.io/aigroup/package/>
 - Source and issues: <https://github.com/E3SM-Project/aigroup>
 
-BSD-3-Clause. `xaig.latents`, `xaig.figures` and `xaig.app` grew out of
+BSD-3-Clause. `exege.latents`, `exege.figures` and `exege.app` grew out of
 the [latent space visualiser for weather models](https://github.com/ktempestuous/latent_space_visualiser_weather_models)
 (Tempest, Beylich & Craig 2026, arXiv:2604.20467, doi:10.1007/978-3-032-29915-4_10); see
 `NOTICE`. The sparse autoencoders follow MacMillan & Ouellette (2025, arXiv:2512.24440);
-the B-spline autoencoder of Cheon (2026, arXiv:2605.17493) is what `xaig.nn` is
+the B-spline autoencoder of Cheon (2026, arXiv:2605.17493) is what `exege.nn` is
 heading for and does not implement yet.

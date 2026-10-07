@@ -1,6 +1,6 @@
 # Latent diagnostics
 
-`xaig.latents` asks what a model's internal channels respond to: which ones
+`exege.latents` asks what a model's internal channels respond to: which ones
 light up over a region, where else the model looks the same, what the main patterns are,
 how they evolve from one physics step to the next, and what a perturbation did to them.
 It grew out of the [latent space visualiser](https://github.com/ktempestuous/latent_space_visualiser_weather_models)
@@ -22,13 +22,13 @@ one by setting a steered run against its control, follows
 
 ```console
 $ uv sync                      # in a checkout: everything
-$ uv pip install 'xaig[latents]'   # elsewhere, from PyPI
+$ uv pip install 'exege[latents]'   # elsewhere, from PyPI
 ```
 
 ## What is in an archive
 
 ```console
-$ xaig latents info latents/atmosphere
+$ exege latents info latents/atmosphere
 source      latents/atmosphere
 model       SamudrACE-E3SMv3
 component   atmosphere
@@ -52,7 +52,7 @@ Rank channels by their peak absolute activation within 1500 km of a point in the
 equatorial Pacific, and fit three principal components there:
 
 ```console
-$ xaig latents region latents/atmosphere --lat 5 --lon -140 --radius-km 1500 \
+$ exege latents region latents/atmosphere --lat 5 --lon -140 --radius-km 1500 \
     --centered --top 6 --pcs 3
 572 node(s) at layer 8, time 0425-01-03T18:00:00
 
@@ -101,7 +101,7 @@ A basis is fitted once and used many times, so it has a file: one `.npz` of plai
 and a JSON record of how it was made.
 
 ```console
-$ xaig latents pca latents/atmosphere --components 32 --out pca8.npz
+$ exege latents pca latents/atmosphere --components 32 --out pca8.npz
 wrote pca8.npz: 32 component(s) of layer 8 over 17 time(s), 69.1% of the variance; --basis-sha256 <sha256 of pca8.npz>
 ```
 
@@ -114,7 +114,7 @@ are. It is the baseline a learned dictionary has to beat — on this layer, 32 c
 hold 69.1% of the variance, and [a top-32 sparse autoencoder](nn.md) 82.1%.
 
 ```console
-$ xaig latents region latents/atmosphere --lat 5 --lon -140 --radius-km 1500 \
+$ exege latents region latents/atmosphere --lat 5 --lon -140 --radius-km 1500 \
     --centered --top 6 --features 3 --basis sae8.npz
 ...
 F676  peak 27.5  45(-0.18)  107(+0.14)  351(-0.13)  124(+0.13)  129(+0.13)  326(+0.13)
@@ -135,7 +135,7 @@ direction — because a dictionary is free to trade one for the other.
     network and layer it was fitted on, and it is refused anywhere else:
 
     ```console
-    $ xaig latents region latents/atmosphere --lat 5 --lon -140 --layer 4 --rank-layer 4 \
+    $ exege latents region latents/atmosphere --lat 5 --lon -140 --layer 4 --rank-layer 4 \
         --features 3 --basis sae8.npz
     Error: the basis (sae8.npz) was not fitted here: layer 4 against the layer 8 it was fitted on
     ```
@@ -160,7 +160,7 @@ direction — because a dictionary is free to trade one for the other.
 `analyze_region` is a snapshot. To follow a region from one physics step to the next:
 
 ```console
-$ xaig latents series latents/atmosphere --lat 5 --lon -140 --radius-km 1500 \
+$ exege latents series latents/atmosphere --lat 5 --lon -140 --radius-km 1500 \
     --channel 45 --channel 107
 TIME                 HOURS  45        107
 0425-01-03T18:00:00  0      0.04793   4.694
@@ -192,8 +192,8 @@ record that you did). Only nodes valid in *all* the runs compared — control, e
 any noise run — are weighed: a node one of them masks holds whatever it holds there.
 
 ```console
-$ xaig latents diff latents/control latents/steered --layer 8
-$ xaig latents diff latents/control latents/steered --growth
+$ exege latents diff latents/control latents/steered --layer 8
+$ exege latents diff latents/control latents/steered --growth
 ```
 
 The first ranks channels by the area-weighted RMS of `steered − control` at one time —
@@ -209,7 +209,7 @@ drift apart, and some of what `--growth` shows after a few steps is that drift. 
 yardstick is a third run: the control again, with another seed.
 
 ```console
-$ xaig latents diff latents/control latents/steered --growth --noise latents/control-seed1
+$ exege latents diff latents/control latents/steered --growth --noise latents/control-seed1
 ```
 
 The second table it prints is the experiment's difference as a multiple of the one a new
@@ -228,15 +228,15 @@ An archive that keeps physical fields beside its latents (`reference.nc`) can sa
 channels, or which features of a basis, track one of them:
 
 ```console
-$ xaig latents fields latents/atmosphere          # the 62 fields this archive keeps
-$ xaig latents fields latents/atmosphere --field surface_precipitation_rate --top 3
+$ exege latents fields latents/atmosphere          # the 62 fields this archive keeps
+$ exege latents fields latents/atmosphere --field surface_precipitation_rate --top 3
 channels of layer 8 against surface_precipitation_rate at 0425-01-03T18:00:00
 
 RANK  CHANNEL  CORRELATION
 1     45       -0.588
 2     248      -0.540
 3     224      +0.509
-$ xaig latents fields latents/atmosphere --field surface_precipitation_rate --top 3 \
+$ exege latents fields latents/atmosphere --field surface_precipitation_rate --top 3 \
     --basis sae8.npz
 features of layer 8 against surface_precipitation_rate at 0425-01-03T18:00:00
 
@@ -267,7 +267,7 @@ how much of the area it is active over, its mean, its mean where active (*streng
 where it peaks. It is a catalog to browse:
 
 ```console
-$ xaig latents census latents/atmosphere --time 4 --layer 4 --basis bases/sae_L04.npz --top 3
+$ exege latents census latents/atmosphere --time 4 --layer 4 --basis bases/sae_L04.npz --top 3
 features of layer 4 at 2015-01-04T12:00:00, by coverage
 
 FEATURE  COVERAGE  MEAN   STRENGTH  PEAK  AT
@@ -282,7 +282,7 @@ fields of any unit share one axis. Here is the feature that followed sunlight at
 with |r| = 0.42 only:
 
 ```console
-$ xaig latents profile latents/atmosphere --layer 4 --basis bases/sae_L04.npz --feature 883 \
+$ exege latents profile latents/atmosphere --layer 4 --basis bases/sae_L04.npz --feature 883 \
     --time 1 --time 6 --time 11 --time 16
 feature 883 of layer 4: active over 4.3% of the area and 4 time(s)
 
@@ -314,8 +314,8 @@ a basis). Bright at the first layer means the field comes in with the inputs; br
 deep in the network means the network builds it.
 
 ```console
-$ xaig latents storyline latents/atmosphere --field surface_precipitation_rate
-$ xaig latents storyline latents/atmosphere --field surface_precipitation_rate \
+$ exege latents storyline latents/atmosphere --field surface_precipitation_rate
+$ exege latents storyline latents/atmosphere --field surface_precipitation_rate \
     --bases 'bases/sae_L{layer:02d}.npz'
 ```
 
@@ -332,7 +332,7 @@ later, what the pass itself produced; `fields`, `storyline` and `profile` all ta
 Precipitation, the best SAE feature per layer:
 
 ```console
-$ xaig latents storyline latents/atmosphere --field surface_precipitation_rate \
+$ exege latents storyline latents/atmosphere --field surface_precipitation_rate \
     --layer 0 --layer 4 --layer 6 --layer 8 --time 4 --time 7 --time 19 \
     --bases 'bases/sae_L{layer:02d}.npz' --lead 1
 best |r| of any feature (basis) with surface_precipitation_rate, by layer and time
@@ -353,13 +353,13 @@ time: anything that travels draws tilted stripes, whose slope is its speed. The 
 is a field, one channel of a layer, or one feature of a basis.
 
 ```console
-$ xaig latents hovmoller latents/atmosphere --lat-min 40 --lat-max 60 --field V_3
-$ xaig latents hovmoller latents/atmosphere --lat-min 40 --lat-max 60 --layer 8 --channel 45 \
+$ exege latents hovmoller latents/atmosphere --lat-min 40 --lat-max 60 --field V_3
+$ exege latents hovmoller latents/atmosphere --lat-min 40 --lat-max 60 --layer 8 --channel 45 \
     --out hovmoller.npz
 ```
 
 The command prints the diagram in coarse longitude bins; `--out` keeps it whole, and
-`xaig.figures.hovmoller_figure` draws it. `xaig.figures.layer_time_figure` draws a
+`exege.figures.hovmoller_figure` draws it. `exege.figures.layer_time_figure` draws a
 storyline, or a `--growth` table: anything that is layers against time.
 
 ## Provenance: what a result was made from
@@ -375,7 +375,7 @@ both kept (`LatentInfo.revision`), and the files are fetched by the commit, so a
 halfway through a session changes nothing already open:
 
 ```console
-$ xaig latents region hf://datasets/<owner>/<repo>/control --revision v1 --json …
+$ exege latents region hf://datasets/<owner>/<repo>/control --revision v1 --json …
 "revision": {"requested": "v1", "commit": "5b0e…"}
 ```
 
@@ -392,7 +392,7 @@ recomputes it, and a mismatch is a `RequestError`. A result that used a basis ca
 for a storyline):
 
 ```console
-$ xaig latents region scratch/prov/control --time 0 --lat 7.5 --lon 45 --radius-km 2500 \
+$ exege latents region scratch/prov/control --time 0 --lat 7.5 --lon 45 --radius-km 2500 \
     --features 2 --basis scratch/prov/pca3.npz --json
   "basis": {
     "path": "scratch/prov/pca3.npz",
@@ -418,7 +418,7 @@ result but cannot be pinned by a flag; pin those from Python with
 ## Python API
 
 ```python
-from xaig.latents import Region, analyze_region, open_source
+from exege.latents import Region, analyze_region, open_source
 
 source = open_source("latents/atmosphere")
 result = analyze_region(
@@ -439,8 +439,8 @@ grid = source.grid()
 first_pc = grid.to_map(result.scores[:, 0])  # (n_lat, n_lon), NaN where invalid
 ```
 
-To draw any of it, `xaig.figures.map_figure(grid, values, region=...)` returns a
-matplotlib figure, and [`xaig app`](app.md) puts the whole routine behind
+To draw any of it, `exege.figures.map_figure(grid, values, region=...)` returns a
+matplotlib figure, and [`exege app`](app.md) puts the whole routine behind
 widgets.
 
 The pieces are plain functions over `(n_nodes, n_channels)` arrays — `rank_channels`,
@@ -449,7 +449,7 @@ question being asked. `source.load(time, layer, channels=..., nodes=...)` reads 
 it is asked for. The rest of what this page shows:
 
 ```python
-from xaig.latents import (
+from exege.latents import (
     accumulate_moments,
     difference,
     difference_growth,
@@ -476,7 +476,7 @@ difference_growth(control, steered).relative  # (n_times, n_layers)
 for batch in iter_batches(source, layer=8, batch_size=4096):  # to train on
     ...  # float32 (4096, 384): valid nodes only, drawn in proportion to area
 
-from xaig.latents import field_storyline, hovmoller
+from exege.latents import field_storyline, hovmoller
 
 story = field_storyline(source, field="SOLIN", bases={8: basis})
 story.best  # (n_times, n_layers): the best |r| of any channel, or of layer 8's features
@@ -485,12 +485,12 @@ band.values  # (n_times, n_lon), with band.lon
 growth = difference_growth(control, steered, noise=open_source("latents/control-seed1"))
 growth.signal_to_noise  # (n_times, n_layers)
 
-from xaig.latents import feature_census, feature_profile
+from exege.latents import feature_census, feature_profile
 
 census = feature_census(source, time=4, layer=4, basis=basis)
 census.ranked("coverage", top=20)  # or "mean", "strength", "peak"
 profile = feature_profile(source, layer=4, column=883, basis=basis, times=range(1, 20, 5))
-profile.fields, profile.effect  # largest effect first; xaig.figures.profile_figure draws it
+profile.fields, profile.effect  # largest effect first; exege.figures.profile_figure draws it
 ```
 
 !!! warning "area, again"
@@ -501,7 +501,7 @@ profile.fields, profile.effect  # largest effect first; xaig.figures.profile_fig
     area-weighted loss. Anything trained on `source.load(...)` directly should do the same.
 
 What a request cannot have — a layer that is not there, an empty region, a basis for a
-different width — is a `RequestError` (an `XaigError` and a `ValueError`), raised before
+different width — is a `RequestError` (an `ExegeError` and a `ValueError`), raised before
 anything is read; any other exception is a bug and keeps its traceback.
 
 ## Where this departs from the app, on purpose
@@ -533,7 +533,7 @@ does not, name a variable of its reference file that is missing exactly where no
 nothing — `sst` for the ocean:
 
 ```console
-$ xaig latents info latents/ocean --mask-variable sst
+$ exege latents info latents/ocean --mask-variable sst
 ...
 grid        180x360, 64800 nodes, 44892 valid
 ```
@@ -568,7 +568,7 @@ A directory per model component. Any exporter that writes this layout can be rea
 | `grid.npz` | `lat`, `lon` per node, flat. Optional: `grid_shape` `(n_lat, n_lon)` for a structured grid in C order (absent for a mesh), `mask` (true where a node means something), `area` (per-node area, for meshes with uneven cells) |
 | `step_XX.npy` | `(n_times, n_nodes, n_channels)`, any float dtype (float16 halves the disk), one file per layer, read memory-mapped |
 | `reference.nc` | optional: physical fields on the same grid |
-| `bases/` | optional: basis files fitted on this archive (`xaig latents pca`, `xaig nn sae`), under any names. `source.files("bases")` lists them and `source.file(name)` reads one; the [app](app.md) offers every one that fits the layer shown |
+| `bases/` | optional: basis files fitted on this archive (`exege latents pca`, `exege nn sae`), under any names. `source.files("bases")` lists them and `source.file(name)` reads one; the [app](app.md) offers every one that fits the layer shown |
 
 ```json
 {
@@ -611,8 +611,8 @@ An archive kept in a Hugging Face dataset repository opens in place, with the `h
 extra:
 
 ```console
-$ uv pip install 'xaig[hf]'
-$ xaig latents info hf://datasets/<owner>/<repo>/<folder>
+$ uv pip install 'exege[hf]'
+$ exege latents info hf://datasets/<owner>/<repo>/<folder>
 ```
 
 Nothing is downloaded until something needs it, and then one file at a time, into the
@@ -633,7 +633,7 @@ the physical fields kept beside them. An adapter for a different layout register
 like any other:
 
 ```toml
-[project.entry-points."xaig.adapters"]
+[project.entry-points."exege.adapters"]
 graphcast-latents = "mypkg.latents:GraphCastLatents"
 ```
 

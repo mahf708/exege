@@ -1,12 +1,12 @@
-"""``xaig nn``: train a sparse autoencoder. Must import on a base install, so
+"""``exege nn``: train a sparse autoencoder. Must import on a base install, so
 torch and numpy are imported inside the command that needs them."""
 
 from __future__ import annotations
 
 import click
 
-from xaig.core.extras import require
-from xaig.latents.cli import open_for_cli, revision_option
+from exege.core.extras import require
+from exege.latents.cli import open_for_cli, revision_option
 
 
 @click.group(name="nn")
@@ -43,14 +43,14 @@ def nn() -> None:
 def sae_cmd(source, adapter, mask_variable, layer, out, times, k, activation, **kw) -> None:
     """Fit a sparse autoencoder to one layer of SOURCE; write a basis file.
 
-    The file is used wherever a PCA is: `xaig latents region --basis`,
+    The file is used wherever a PCA is: `exege latents region --basis`,
     `latents series --basis`, `latents fields --basis`.
     """
     # Asked for first: whoever wants to train should be pointed at the one extra that
     # brings everything, not at numpy's and then ours.
     require("torch", "nn")
-    from xaig.latents import basis_hash, parse_time, save_basis
-    from xaig.nn.train import fit_sae
+    from exege.latents import basis_hash, parse_time, save_basis
+    from exege.nn.train import fit_sae
 
     opened = open_for_cli(source, adapter, mask_variable)
     layer = opened.info().last_layer if layer is None else layer

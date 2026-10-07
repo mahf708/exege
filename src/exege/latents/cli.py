@@ -1,6 +1,6 @@
-"""``xaig latents``, the command half: a thin client of the ``xaig.latents`` APIs.
+"""``exege latents``, the command half: a thin client of the ``exege.latents`` APIs.
 
-This module must import on a base install (``xaig --help`` lists every command),
+This module must import on a base install (``exege --help`` lists every command),
 so numpy-backed modules are imported inside the commands that use them. What a
 command cannot do it learns as a ``RequestError``, which the top-level command
 prints as one line.
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import click
 
-from xaig import _render
+from exege import _render
 
 _adapter_option = click.option(
     "--adapter", default="latent-archive", show_default=True, help="How SOURCE is read."
@@ -29,14 +29,14 @@ def _remember(key: str):
 
     def callback(ctx, param, value):
         if value is not None:
-            ctx.meta[f"xaig.{key}"] = value
+            ctx.meta[f"exege.{key}"] = value
         return value
 
     return callback
 
 
 def _remembered(key: str):
-    return click.get_current_context().meta.get(f"xaig.{key}")
+    return click.get_current_context().meta.get(f"exege.{key}")
 
 
 _revision_click_option = click.option(
@@ -58,7 +58,7 @@ def revision_option(command):
         if _remembered("revision") and not any(
             isinstance(value, str) and value.startswith("hf://") for value in kwargs.values()
         ):
-            from xaig.core.errors import RequestError
+            from exege.core.errors import RequestError
 
             raise RequestError(
                 "--revision applies to hf:// sources, and none of this command's sources is one"
@@ -76,7 +76,7 @@ _basis_click_option = click.option(
     "--basis",
     "basis_path",
     type=click.Path(dir_okay=False),
-    help="A basis file (from `latents pca` or `xaig nn sae`) whose features to use.",
+    help="A basis file (from `latents pca` or `exege nn sae`) whose features to use.",
 )
 _basis_sha_option = click.option(
     "--basis-sha256",
@@ -91,7 +91,7 @@ _basis_sha_option = click.option(
 _record_option = click.option(
     "--record", "record_path", type=click.Path(dir_okay=False),
     help="Also write a compact experiment record (JSON): provenance, settings, results and "
-    "the command that reproduces it, which `xaig app` opens.",
+    "the command that reproduces it, which `exege app` opens.",
 )  # fmt: skip
 
 
@@ -124,7 +124,7 @@ _json_option = click.option(
 
 def open_for_cli(source: str, adapter: str, mask_variable: str | None):
     """Open SOURCE as the command line asks, ``--revision`` included."""
-    from xaig.latents import open_source
+    from exege.latents import open_source
 
     options = {"mask_variable": mask_variable} if mask_variable else {}
     revision = _remembered("revision")
@@ -137,17 +137,17 @@ def _basis(path: str | None):
     sha256 = _remembered("basis_sha256")
     if path is None:
         if sha256 is not None:
-            from xaig.core.errors import RequestError
+            from exege.core.errors import RequestError
 
             raise RequestError("--basis-sha256 pins the --basis file, and no --basis is given")
         return None
-    from xaig.latents import load_basis
+    from exege.latents import load_basis
 
     return load_basis(path, sha256=sha256)
 
 
 def _time(text: str) -> str | int:
-    from xaig.latents import parse_time
+    from exege.latents import parse_time
 
     return parse_time(text)
 
@@ -173,7 +173,7 @@ def latents() -> None:
 @_mask_option
 def info_cmd(source, adapter, mask_variable) -> None:
     """Describe what SOURCE holds, without loading it."""
-    from xaig.latents import ReferenceFields
+    from exege.latents import ReferenceFields
 
     opened = open_for_cli(source, adapter, mask_variable)
     info, grid = opened.info(), opened.grid()
@@ -224,8 +224,8 @@ def toy_cmd(out, steps, keep, seed, steer, overwrite, adapter) -> None:
     An MLP with a residual stream on a small Gaussian grid: no checkpoint, no
     data, a few seconds. What comes out is read like any other archive.
     """
-    from xaig.core.errors import RequestError
-    from xaig.latents.toy import parse_steps, write_toy
+    from exege.core.errors import RequestError
+    from exege.latents.toy import parse_steps, write_toy
 
     pushed = None
     if steer:
@@ -243,7 +243,7 @@ def toy_cmd(out, steps, keep, seed, steer, overwrite, adapter) -> None:
         seed=seed,
         steer=pushed,
     )
-    click.echo(f"wrote {path}; try `xaig latents info {path} --mask-variable sst`")
+    click.echo(f"wrote {path}; try `exege latents info {path} --mask-variable sst`")
 
 
 @latents.command("region")
@@ -274,7 +274,7 @@ def region_cmd(
     source, adapter, mask_variable, time, layer, as_json, lat, lon, radius_km, basis_path, **kw
 ):
     """Rank the channels that respond in a region; optionally map a decomposition."""
-    from xaig.latents import Region, analyze_region
+    from exege.latents import Region, analyze_region
 
     opened = open_for_cli(source, adapter, mask_variable)
     result = analyze_region(
@@ -324,7 +324,7 @@ def series_cmd(
     basis_path, allow_unverified_basis, as_json,
 ):  # fmt: skip
     """Follow a region's mean response through every time of SOURCE."""
-    from xaig.latents import Region, region_series
+    from exege.latents import Region, region_series
 
     if not channels and not (basis_path and features):
         raise click.UsageError("name what to follow: --channel N, or --basis FILE --feature N")
@@ -368,7 +368,7 @@ def pca_cmd(source, adapter, mask_variable, layer, components, times, out) -> No
     The baseline any learned dictionary has to beat, and usable wherever one is:
     `latents region --basis`, `latents series --basis`.
     """
-    from xaig.latents import accumulate_moments, basis_hash, pca_from_moments, save_basis
+    from exege.latents import accumulate_moments, basis_hash, pca_from_moments, save_basis
 
     opened = open_for_cli(source, adapter, mask_variable)
     layer = opened.info().last_layer if layer is None else layer
@@ -418,7 +418,7 @@ def diff_cmd(
     allow_unverified_sources, noise, as_json,
 ):  # fmt: skip
     """Set a perturbed or steered run against its CONTROL, node for node."""
-    from xaig.latents import difference, difference_growth
+    from exege.latents import difference, difference_growth
 
     if noise is not None and not growth:
         raise click.UsageError("--noise goes with --growth")
@@ -497,7 +497,7 @@ def storyline_cmd(
     """Where a physical field lives in the network, time by time: the best |r| per layer."""
     from pathlib import Path
 
-    from xaig.latents import field_storyline
+    from exege.latents import field_storyline
 
     opened = open_for_cli(source, adapter, mask_variable)
     chosen = list(layers) or [x.index for x in opened.info().layers]
@@ -548,7 +548,7 @@ def hovmoller_cmd(
     """A quantity along a latitude band, longitude against time: traveling things tilt."""
     import numpy as np
 
-    from xaig.latents import hovmoller
+    from exege.latents import hovmoller
 
     opened = open_for_cli(source, adapter, mask_variable)
     result = hovmoller(
@@ -602,7 +602,7 @@ def fields_cmd(
     allow_unverified_basis, as_json,
 ):  # fmt: skip
     """Which channels (or features) track a physical field kept beside the latents."""
-    from xaig.latents import ReferenceFields, rank_by_field
+    from exege.latents import ReferenceFields, rank_by_field
 
     opened = open_for_cli(source, adapter, mask_variable)
     if field is None:
@@ -634,7 +634,7 @@ def fields_cmd(
 
 
 def _optional_region(lat, lon, radius_km):
-    from xaig.latents import Region
+    from exege.latents import Region
 
     if (lat is None) != (lon is None):
         raise click.UsageError("give both --lat and --lon, or neither")
@@ -688,7 +688,7 @@ def census_cmd(
     threshold, allow_unverified_basis, as_json,
 ):  # fmt: skip
     """Every channel (or feature) of a layer: how much of the world it is active over."""
-    from xaig.latents import feature_census
+    from exege.latents import feature_census
 
     opened = open_for_cli(source, adapter, mask_variable)
     result = feature_census(
@@ -740,7 +740,7 @@ def profile_cmd(
     radius_km, threshold, lead, allow_unverified_basis, as_json,
 ):  # fmt: skip
     """Every physical field where one channel (or feature) is active, against where it is not."""
-    from xaig.latents import feature_profile
+    from exege.latents import feature_profile
 
     by_channel = channel is not None and basis_path is None and feature is None
     by_feature = channel is None and basis_path is not None and feature is not None
@@ -840,8 +840,8 @@ def evaluate_cmd(
     near-duplicate features. --pca sets them against a PCA fitted here, on the
     training times only; --stability matches the bases to each other.
     """
-    from xaig.core.errors import RequestError
-    from xaig.latents import (
+    from exege.core.errors import RequestError
+    from exege.latents import (
         Dictionary,
         basis_hash,
         evaluate_basis,
@@ -853,7 +853,7 @@ def evaluate_cmd(
         seed_stability,
         split_time_blocks,
     )
-    from xaig.latents.evaluate import jsonable
+    from exege.latents.evaluate import jsonable
 
     if basis_hashes and len(basis_hashes) != len(basis_paths):
         raise RequestError(
@@ -979,7 +979,7 @@ def _evaluate_command(source: str, info, settings: dict) -> str:
     """The shell command that redoes an evaluation. It pins the archive's commit, which
     an ``hf://`` source resolves, and each basis by the content hash of the file read."""
     s = settings
-    words = ["xaig", "latents", "evaluate", source, "--adapter", s["adapter"]]
+    words = ["exege", "latents", "evaluate", source, "--adapter", s["adapter"]]
     if s["mask_variable"]:
         words += ["--mask-variable", s["mask_variable"]]
     if info.commit:
@@ -1003,7 +1003,7 @@ def _evaluate_command(source: str, info, settings: dict) -> str:
 def _steer_command(source, settings: dict, spec: dict, basis_sha256: str) -> str:
     """The shell command that redoes a steering experiment, the basis pinned by content."""
     s, steer = settings, spec["steer"]
-    words = ["xaig", "latents", "steer", *([source] if source else [])]
+    words = ["exege", "latents", "steer", *([source] if source else [])]
     words += ["--adapter", s["adapter"]]
     for key, value in s["adapter_options"].items():
         words += ["--adapter-option", f"{key}={json.dumps(value)}"]
@@ -1077,14 +1077,14 @@ def steer_cmd(
     --random-draws with a random direction of the same length changed by the same amount.
     Each field's response to the feature is reported against the random directions'.
     """
-    from xaig.latents import (
+    from exege.latents import (
         Steer,
         open_intervenable,
         run_steering,
         save_record,
         steering_record,
     )
-    from xaig.latents.evaluate import jsonable, save_result
+    from exege.latents.evaluate import jsonable, save_result
 
     basis = _basis(basis_path)
     if basis is None:

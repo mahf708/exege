@@ -13,7 +13,7 @@ are ever read into memory. The reference file is opened with xarray, and only
 when a mask or a field is asked of it.
 
 An archive can also be read straight from a Hugging Face dataset repository,
-``hf://datasets/<owner>/<repo>/<folder>`` (``xaig[hf]``). Each file is downloaded
+``hf://datasets/<owner>/<repo>/<folder>`` (``exege[hf]``). Each file is downloaded
 the first time something needs it and cached, so a notebook that looks at one
 layer downloads one layer. Every file comes from the one commit the archive was
 opened at: a requested branch or tag is resolved to its SHA, and both are recorded.
@@ -34,10 +34,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from xaig.core.errors import AdapterError, RequestError
-from xaig.core.extras import missing_extra, require
-from xaig.latents.grid import Grid
-from xaig.latents.source import LatentInfo, LayerInfo, selection
+from exege.core.errors import AdapterError, RequestError
+from exege.core.extras import missing_extra, require
+from exege.latents.grid import Grid
+from exege.latents.source import LatentInfo, LayerInfo, selection
 
 try:
     import numpy as np

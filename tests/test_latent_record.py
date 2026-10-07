@@ -1,5 +1,5 @@
 """The experiment record: written by the commands, read back by anything, refused when it
-is not one this xaig knows.
+is not one this exege knows.
 
 The numbers inside are not re-derived here (``test_latent_steering.py`` and
 ``test_latent_evaluate.py`` plant and check them); what is asserted is that a record holds
@@ -19,9 +19,9 @@ np = pytest.importorskip("numpy")
 from click.testing import CliRunner  # noqa: E402
 
 from conftest import URL, write_evaluation_record, write_steering_record  # noqa: E402
-from xaig._cli import cli  # noqa: E402
-from xaig.core.errors import RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege._cli import cli  # noqa: E402
+from exege.core.errors import RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     ExperimentRecord,
     Split,
     evaluation_record,
@@ -30,7 +30,7 @@ from xaig.latents import (  # noqa: E402
     record_from_dict,
     save_record,
 )
-from xaig.latents.record import SUPPORTED, VERSION  # noqa: E402
+from exege.latents.record import SUPPORTED, VERSION  # noqa: E402
 
 
 @pytest.fixture
@@ -43,7 +43,7 @@ def test_the_steer_command_writes_a_record_of_what_it_found(steering):
     record = load_record(path)
     assert isinstance(record, ExperimentRecord)
     assert (record.kind, record.version) == ("steering", VERSION)
-    assert json.loads(path.read_text())["format"] == "xaig.experiment-record"
+    assert json.loads(path.read_text())["format"] == "exege.experiment-record"
 
     temperature = record.results["effects"]["temperature"]
     assert temperature["feature_response"] == full["effects"]["temperature"]["feature_response"]
@@ -53,7 +53,7 @@ def test_the_steer_command_writes_a_record_of_what_it_found(steering):
     # Identity: which system, with which options, and which basis by content.
     assert record.provenance["model"] == "toy-dynamics"
     assert record.provenance["options"]["masked"] == 3
-    assert record.provenance["xaig"]
+    assert record.provenance["exege"]
     assert record.bases == (full["provenance"]["basis"],)
     assert len(record.bases[0]["sha256"]) == 64 and "basis" not in record.provenance
     assert record.split is None and record.commit is None
@@ -72,7 +72,7 @@ def test_the_command_in_a_steering_record_reproduces_it(steering):
     _, path = steering
     record = load_record(path)
     argv = shlex.split(record.command)
-    assert argv[:3] == ["xaig", "latents", "steer"]
+    assert argv[:3] == ["exege", "latents", "steer"]
     assert f"--basis-sha256 {record.bases[0]['sha256']}" in record.command
     assert "--record" not in argv  # the command redoes the work, not the writing of this file
     again = CliRunner().invoke(cli, [*argv[1:], "--json"])
@@ -105,7 +105,7 @@ def test_the_evaluate_command_writes_the_split_and_the_numbers(evaluation):
 def test_the_command_in_an_evaluation_record_reproduces_it(evaluation):
     _, record, _ = evaluation
     argv = shlex.split(record.command)
-    assert argv[:3] == ["xaig", "latents", "evaluate"] and "--split-only" not in argv
+    assert argv[:3] == ["exege", "latents", "evaluate"] and "--split-only" not in argv
     again = CliRunner().invoke(cli, [*argv[1:], "--json"])
     assert again.exit_code == 0, again.output
     redone = json.loads(again.output)
@@ -145,7 +145,7 @@ def test_a_record_cannot_be_asked_of_a_split_alone(tmp_path):
 def test_a_record_names_the_commit_a_hub_archive_was_opened_at(hub):
     info = open_source(URL, revision="v1").info()
     split = Split(scheme="blocks", train=(info.times[0],), test=(info.times[1],))
-    record = evaluation_record(info, split, settings={}, command="xaig latents evaluate ...")
+    record = evaluation_record(info, split, settings={}, command="exege latents evaluate ...")
     assert record.commit == "def"
     assert record.provenance["revision"] == {"requested": "v1", "commit": "def"}
 
@@ -165,19 +165,19 @@ def test_a_record_survives_a_trip_through_its_file(steering, tmp_path):
 
 
 @pytest.mark.parametrize("version", [0, 2, 99, "1", 1.0, 1.5, None, True])
-def test_a_version_this_xaig_does_not_read_is_refused(good, version):
+def test_a_version_this_exege_does_not_read_is_refused(good, version):
     assert SUPPORTED == (1,)
     with pytest.raises(RequestError, match="schema version"):
         record_from_dict({**good, "schema_version": version})
 
 
 def test_a_newer_record_says_to_upgrade(good):
-    with pytest.raises(RequestError, match="newer xaig"):
+    with pytest.raises(RequestError, match="newer exege"):
         record_from_dict({**good, "schema_version": VERSION + 1})
 
 
 def test_what_is_not_a_record_is_refused_in_one_line(good, tmp_path):
-    with pytest.raises(RequestError, match="not an xaig experiment record"):
+    with pytest.raises(RequestError, match="not an exege experiment record"):
         record_from_dict({**good, "format": "something-else"})
     with pytest.raises(RequestError, match="must be a mapping"):
         record_from_dict([1, 2])

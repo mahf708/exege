@@ -1,6 +1,6 @@
 """latents -- what a model's internal channels respond to, on a grid.
 
-    from xaig.latents import Region, analyze_region, open_source
+    from exege.latents import Region, analyze_region, open_source
 
     source = open_source("latents/atmosphere")
     result = analyze_region(
@@ -30,7 +30,7 @@ Reading is an adapter's job (see ``LatentSource``); this package computes.
 - ``toy``       a toy emulator in numpy, so an archive can be made with no model
 
 Needs the ``latents`` extra (numpy). The names above are loaded on first use, not
-when this package is imported: ``xaig --help`` imports ``xaig.latents.cli`` on a base
+when this package is imported: ``exege --help`` imports ``exege.latents.cli`` on a base
 install, and that must not bring numpy with it. The modules say which extra they
 need the moment they are imported.
 """
@@ -41,7 +41,7 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from xaig.latents.analysis import (
+    from exege.latents.analysis import (
         AnyRegion,
         Box,
         ChannelRanking,
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
         load_channels,
         rank_channels,
     )
-    from xaig.latents.basis import (
+    from exege.latents.basis import (
         PCA,
         Decomposition,
         Dictionary,
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
         spline_knots,
         top_loadings,
     )
-    from xaig.latents.evaluate import (
+    from exege.latents.evaluate import (
         Evaluation,
         FidelityCurve,
         Split,
@@ -79,13 +79,13 @@ if TYPE_CHECKING:
         split_groups,
         split_time_blocks,
     )
-    from xaig.latents.features import (
+    from exege.latents.features import (
         FeatureCensus,
         FeatureProfile,
         feature_census,
         feature_profile,
     )
-    from xaig.latents.record import (
+    from exege.latents.record import (
         ExperimentRecord,
         evaluation_record,
         load_record,
@@ -93,13 +93,13 @@ if TYPE_CHECKING:
         save_record,
         steering_record,
     )
-    from xaig.latents.samples import (
+    from exege.latents.samples import (
         Moments,
         accumulate_moments,
         iter_batches,
         pca_from_moments,
     )
-    from xaig.latents.source import (
+    from exege.latents.source import (
         LatentInfo,
         LatentSource,
         LayerInfo,
@@ -109,7 +109,7 @@ if TYPE_CHECKING:
         parse_time,
         read_latents,
     )
-    from xaig.latents.steering import (
+    from exege.latents.steering import (
         Effect,
         Hook,
         Intervenable,
@@ -122,7 +122,7 @@ if TYPE_CHECKING:
         open_intervenable,
         run_steering,
     )
-    from xaig.latents.through import (
+    from exege.latents.through import (
         DifferenceGrowth,
         FieldRanking,
         FieldStoryline,

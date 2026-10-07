@@ -1,8 +1,8 @@
 """The latent explorer: pick a model and a region, see what its channels do there,
 and set them against a physical field the archive keeps beside them.
 
-Widgets and layout only. The analysis is ``xaig.latents`` and the figures are
-``xaig.figures``; the last tab hands back the settings, command and code that
+Widgets and layout only. The analysis is ``exege.latents`` and the figures are
+``exege.figures``; the last tab hands back the settings, command and code that
 reproduce what is on screen.
 
 Streamlit reruns this function on every interaction, so whatever is slow is
@@ -20,11 +20,11 @@ import shlex
 import numpy as np
 import streamlit as st
 
-from xaig.app.config import configured_latents
-from xaig.app.theme import dark_page
-from xaig.core.errors import RequestError, XaigError
-from xaig.figures import map_figure, profile_figure, series_figure, to_png, why_no_coastlines
-from xaig.latents import (
+from exege.app.config import configured_latents
+from exege.app.theme import dark_page
+from exege.core.errors import ExegeError, RequestError
+from exege.figures import map_figure, profile_figure, series_figure, to_png, why_no_coastlines
+from exege.latents import (
     FeatureProfile,
     FieldRanking,
     ReferenceFields,
@@ -39,7 +39,7 @@ from xaig.latents import (
     rank_by_field,
     region_series,
 )
-from xaig.latents.source import check_basis_fits, read_latents
+from exege.latents.source import check_basis_fits, read_latents
 
 _CACHED = 16
 _COLUMNS = 3
@@ -123,7 +123,7 @@ def _found_bases(
         try:
             other = _open(archive, None)
             names = other.files(_BASES) if hasattr(other, "files") else ()
-        except XaigError:
+        except ExegeError:
             continue
         run = archive.rstrip("/").rsplit("/", 1)[-1]
         for name in names:
@@ -135,7 +135,7 @@ def _found_bases(
                 if basis is None:
                     continue
                 check_basis_fits(basis, info, layer)
-            except XaigError:
+            except ExegeError:
                 continue
             kind = type(basis).__name__
             label = f"{name.rsplit('/', 1)[-1]} · {kind}, {basis.n_features} features · {run}"
@@ -220,7 +220,7 @@ def _archive_label(path: str) -> str:
     drop-down is for choosing a model, and a path alone does not say which."""
     try:
         name = _open(path, None).info().name
-    except XaigError:
+    except ExegeError:
         return path
     return f"{name}  ·  {path}"
 
@@ -295,8 +295,8 @@ def _controls(info, path: str, mask_variable: str | None, fields: tuple[str, ...
         method = st.selectbox(
             "Method",
             [_IN_REGION, *found, _FROM_FILE],
-            help="A basis file comes from `xaig latents pca` (a global PCA) or "
-            "`xaig nn sae` (a sparse autoencoder); its features that respond most "
+            help="A basis file comes from `exege latents pca` (a global PCA) or "
+            "`exege nn sae` (a sparse autoencoder); its features that respond most "
             "strongly in the region are the ones mapped. Listed by name are the basis "
             f"files in the `{_BASES}/` folder of any open archive that fit this layer.",
         )
@@ -443,11 +443,11 @@ def _field_tab(path, mask_variable, settings, field, lead, region) -> None:
         st.image(to_png(fig), width="stretch")
 
     command = [
-        f"xaig latents fields {shlex.quote(path)} --field {shlex.quote(field)}",
+        f"exege latents fields {shlex.quote(path)} --field {shlex.quote(field)}",
         f"--time {shlex.quote(time)} --layer {layer} --top {len(ranked)}",
     ]
     profile_command = [
-        f"xaig latents profile {shlex.quote(path)} --layer {layer}",
+        f"exege latents profile {shlex.quote(path)} --layer {layer}",
         *(f"--time {shlex.quote(t)}" for t in chosen),
     ]
     commit = _open(path, mask_variable).info().commit
@@ -506,7 +506,7 @@ def reproduction(
         options.append(("--revision", commit))
     if mask_variable:
         options.append(("--mask-variable", mask_variable))
-    lines = [shlex.join(["xaig", "latents", "region", path])]
+    lines = [shlex.join(["exege", "latents", "region", path])]
     lines += [shlex.join([flag, str(value)]) for flag, value in options]
     lines += ["--centered"] if s["centered"] else []
     lines += ["--allow-unverified-basis"] if s.get("allow_unverified_basis") else []
@@ -528,7 +528,7 @@ def reproduction(
         arguments.append(f"basis=load_basis({s['basis']!r}{pin})")
         names.insert(2, "load_basis")
     python = (
-        f"from xaig.latents import {', '.join(names)}\n\n"
+        f"from exege.latents import {', '.join(names)}\n\n"
         f"source = {opened}\n"
         "result = analyze_region(\n    source,\n    " + ",\n    ".join(arguments) + ",\n)"
     )
@@ -615,13 +615,13 @@ def page() -> None:
     if path is None:
         st.info(
             "Open a latent archive from the sidebar, or start the app with "
-            "`xaig app --latents PATH`."
+            "`exege app --latents PATH`."
         )
         return
     try:
         source = _open(path, mask_variable)
         info, grid = source.info(), source.grid()
-    except XaigError as exc:
+    except ExegeError as exc:
         st.error(str(exc))
         return
 

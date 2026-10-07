@@ -1,13 +1,13 @@
-"""xaig -- light, framework-agnostic tooling for E3SM AI campaigns.
+"""exege -- light, framework-agnostic tooling for E3SM AI campaigns.
 
 Domains, and the presentation downstream of them:
 
-- ``xaig.latents``  what emulators hold inside: the latent space, on a grid
-- ``xaig.nn``       torch modules trained on those latents: a sparse autoencoder
-- ``xaig.figures``  figures of what ``latents`` computes, with no web framework
-- ``xaig.app``      a local web app over all of the above; nothing imports it
+- ``exege.latents``  what emulators hold inside: the latent space, on a grid
+- ``exege.nn``       torch modules trained on those latents: a sparse autoencoder
+- ``exege.figures``  figures of what ``latents`` computes, with no web framework
+- ``exege.app``      a local web app over all of the above; nothing imports it
 
-Everything framework-specific lives in ``xaig.adapters``. See ``AGENTS.md``.
+Everything framework-specific lives in ``exege.adapters``. See ``AGENTS.md``.
 """
 
 from __future__ import annotations

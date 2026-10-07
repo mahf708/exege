@@ -13,9 +13,9 @@ np = pytest.importorskip("numpy")
 from click.testing import CliRunner  # noqa: E402
 
 from conftest import BUMP, LATENT_TIMES, N_LAT, N_LON, write_latent_archive  # noqa: E402
-from xaig._cli import cli  # noqa: E402
-from xaig.core.errors import AdapterError, RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege._cli import cli  # noqa: E402
+from exege.core.errors import AdapterError, RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     ReferenceFields,
     Region,
     accumulate_moments,
@@ -162,14 +162,14 @@ def test_runs_that_cannot_be_set_against_each_other_are_refused(pair, tmp_path):
 
 
 def test_the_experiment_and_the_way_it_was_read_travel_with_every_result(tmp_path):
-    from xaig.latents import analyze_region
+    from exege.latents import analyze_region
 
     mask = np.arange(N_LAT * N_LON) % 3 != 0
     path = write_latent_archive(tmp_path / "a", mask=mask, experiment={"seed": 7})
     plain = open_source(path).info().provenance()
     assert plain["experiment"] == {"seed": 7} and "options" not in plain
     result = analyze_region(open_source(path), time=0, layer=2, region=HERE)
-    assert result.provenance["experiment"] == {"seed": 7} and result.provenance["xaig"]
+    assert result.provenance["experiment"] == {"seed": 7} and result.provenance["exege"]
     assert open_source(path).info().name == "toy-emulator · atmosphere"
 
     manifest = json.loads((path / "manifest.json").read_text())
@@ -438,8 +438,8 @@ def test_a_channels_offset_takes_nothing_from_its_correlation(offset):
 
 def test_an_anonymous_basis_needs_the_override_through_time_and_against_fields(tmp_path):
     """The same rule as in a region: what is missing may be allowed, what is wrong may not."""
-    from xaig.latents import fit_pca
-    from xaig.latents.toy import STORM_CHANNEL, write_toy
+    from exege.latents import fit_pca
+    from exege.latents.toy import STORM_CHANNEL, write_toy
 
     source = open_source(write_toy(tmp_path / "toy"), mask_variable="sst")
     layer = source.info().last_layer
@@ -471,8 +471,8 @@ def test_an_anonymous_basis_needs_the_override_through_time_and_against_fields(t
 
 
 def test_cli_series_and_fields_take_the_override(tmp_path):
-    from xaig.latents import fit_pca, save_basis
-    from xaig.latents.toy import write_toy
+    from exege.latents import fit_pca, save_basis
+    from exege.latents.toy import write_toy
 
     archive = write_toy(tmp_path / "toy")
     basis = save_basis(

@@ -29,9 +29,9 @@ np = pytest.importorskip("numpy")
 pytest.importorskip("xarray")
 
 from conftest import write_latent_archive  # noqa: E402
-from xaig.core import registry  # noqa: E402
-from xaig.core.errors import AdapterError, RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege.core import registry  # noqa: E402
+from exege.core.errors import AdapterError, RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     Hook,
     Intervenable,
     LatentSource,
@@ -41,8 +41,8 @@ from xaig.latents import (  # noqa: E402
     read_latents,
     result_provenance,
 )
-from xaig.latents.grid import Grid  # noqa: E402
-from xaig.latents.toy import write_toy  # noqa: E402
+from exege.latents.grid import Grid  # noqa: E402
+from exege.latents.toy import write_toy  # noqa: E402
 
 # -- the planted source ------------------------------------------------------------------
 #
@@ -280,14 +280,14 @@ def test_times_carry_the_calendar_they_are_labels_of(source):
     assert all(b > a for a, b in zip(elapsed, elapsed[1:], strict=False))
 
 
-def test_provenance_names_the_network_the_options_and_this_xaig(case, source):
+def test_provenance_names_the_network_the_options_and_this_exege(case, source):
     info = source.info()
     provenance = info.provenance()
     assert {"source", "model", "component", "checkpoint"} <= provenance.keys()
     assert provenance["model"] and provenance["checkpoint"]
     assert provenance.get("options", {}) == case.options
     assert "revision" not in provenance  # a local source has no commit to name
-    assert result_provenance(info)["xaig"]
+    assert result_provenance(info)["exege"]
 
 
 def test_the_same_source_opened_twice_says_and_gives_the_same(case, tmp_path):
@@ -401,8 +401,8 @@ def test_physical_fields_come_back_at_their_times_and_leads(known):
 def _shipped() -> dict[str, type]:
     return {
         ep.name: ep.load()
-        for ep in entry_points(group="xaig.adapters")
-        if ep.dist is not None and ep.dist.name == "xaig"
+        for ep in entry_points(group="exege.adapters")
+        if ep.dist is not None and ep.dist.name == "exege"
     }
 
 
@@ -414,7 +414,7 @@ def test_every_shipped_adapter_is_under_contract():
     for name, factory in _shipped().items():
         reads = all(hasattr(factory, m) for m in ("info", "grid", "load"))
         runs = all(hasattr(factory, m) for m in ("info", "grid", "initial_state", "run"))
-        assert reads or runs, f"{name} implements no protocol xaig knows"
+        assert reads or runs, f"{name} implements no protocol exege knows"
         assert not reads or name in latent, f"{name} is a LatentSource with no case in LATENT_CASES"
         assert not runs or name in runnable, f"{name} is Intervenable with no INTERVENABLE_CASES"
     assert {"latent-archive", "bundle-dir", "toy-dynamics"} <= set(_shipped())

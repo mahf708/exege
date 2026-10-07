@@ -29,12 +29,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from xaig.core.errors import RequestError
-from xaig.core.extras import missing_extra
-from xaig.latents.basis import Dictionary
-from xaig.latents.grid import Grid
-from xaig.latents.source import LatentInfo, LayerInfo
-from xaig.latents.steering import Hook, Rollout
+from exege.core.errors import RequestError
+from exege.core.extras import missing_extra
+from exege.latents.basis import Dictionary
+from exege.latents.grid import Grid
+from exege.latents.source import LatentInfo, LayerInfo
+from exege.latents.steering import Hook, Rollout
 
 try:
     import numpy as np

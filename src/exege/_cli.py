@@ -1,6 +1,6 @@
-"""Top-level ``xaig`` command.
+"""Top-level ``exege`` command.
 
-Subcommands load lazily, so ``xaig --help`` and one command never pay for (or
+Subcommands load lazily, so ``exege --help`` and one command never pay for (or
 require) what stands behind another.
 """
 
@@ -13,8 +13,8 @@ from importlib.metadata import entry_points
 
 import click
 
-from xaig import __version__
-from xaig.core.errors import XaigError
+from exege import __version__
+from exege.core.errors import ExegeError
 
 log = logging.getLogger(__name__)
 
@@ -22,14 +22,14 @@ log = logging.getLogger(__name__)
 # module, so each must stay importable on the base tier: anything heavier is
 # imported inside the command that needs it (tests/test_purity.py holds them to it).
 _COMMANDS = {
-    "latents": "xaig.latents.cli:latents",
-    "nn": "xaig.nn.cli:nn",
-    "app": "xaig.app.cli:app",
+    "latents": "exege.latents.cli:latents",
+    "nn": "exege.nn.cli:nn",
+    "app": "exege.app.cli:app",
 }
 
 # A separate distribution adds a command by registering a ``click.Command``
 # under this entry-point group. Shipped names win a clash.
-_GROUP = "xaig.commands"
+_GROUP = "exege.commands"
 
 
 class _LazyGroup(click.Group):
@@ -54,14 +54,14 @@ class _LazyGroup(click.Group):
         ``--debug`` keeps the traceback."""
         try:
             return super().invoke(ctx)
-        except XaigError as exc:
+        except ExegeError as exc:
             if ctx.params.get("debug"):
                 raise
             raise click.ClickException(str(exc)) from exc
 
 
 @click.group(cls=_LazyGroup)
-@click.version_option(__version__, prog_name="xaig")
+@click.version_option(__version__, prog_name="exege")
 @click.option("--debug", is_flag=True, help="Verbose logging.")
 def cli(debug: bool) -> None:
     """Tooling for E3SM AI campaigns."""

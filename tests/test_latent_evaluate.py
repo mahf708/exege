@@ -16,8 +16,8 @@ import pytest
 np = pytest.importorskip("numpy")
 
 from conftest import MemorySource, write_latent_archive  # noqa: E402
-from xaig.core.errors import RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege.core.errors import RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     Dictionary,
     accumulate_moments,
     basis_hash,
@@ -33,7 +33,7 @@ from xaig.latents import (  # noqa: E402
     split_groups,
     split_time_blocks,
 )
-from xaig.latents.evaluate import assign, match_features, redundancy  # noqa: E402
+from exege.latents.evaluate import assign, match_features, redundancy  # noqa: E402
 
 N_TIMES, N_NODES, WIDTH, N_REAL = 12, 48, 6, 4
 TIMES = [f"t{i}" for i in range(N_TIMES)]
@@ -421,7 +421,7 @@ def test_results_are_json_with_the_split_and_the_basis_that_made_them(tmp_path):
     out = save_result(tmp_path / "out" / "curve.json", curve)
     loaded = json.loads(out.read_text())
     assert loaded["split"]["test"] == list(split.test) and loaded["split"]["buffer"] == ["t8"]
-    assert loaded["provenance"]["xaig"] and loaded["provenance"]["model"] == "mem"
+    assert loaded["provenance"]["exege"] and loaded["provenance"]["model"] == "mem"
     sae = [p for p in loaded["points"] if p["method"] == "sae"][0]
     assert sae["basis"]["sha256"] == basis.meta["sha256"] and sae["basis"]["status"] == "verified"
 
@@ -458,7 +458,7 @@ def _command(tmp_path):
     """A toy archive, the CLI, and a way to fit a PCA on some of its times."""
     from click.testing import CliRunner
 
-    from xaig._cli import cli
+    from exege._cli import cli
 
     run = CliRunner()
     archive = str(tmp_path / "toy")
@@ -518,7 +518,7 @@ def test_the_command_checks_each_basis_against_its_pin_and_prints_them(tmp_path)
     right = invoke(*both, "--basis-sha256", hashes[0], "--basis-sha256", hashes[1])
     assert right.exit_code == 0, right.output
     line = right.output.strip().splitlines()[-1]
-    assert line.startswith("reproduce: xaig latents evaluate ")
+    assert line.startswith("reproduce: exege latents evaluate ")
     assert line.endswith(" --allow-unverified-basis")
     for path, digest in zip(paths, hashes, strict=True):
         assert f"--basis {path} --basis-sha256 {digest}" in line

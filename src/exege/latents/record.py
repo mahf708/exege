@@ -7,7 +7,7 @@ rerunning anything:
 
 - ``provenance``: the source (model, component, checkpoint, the commit a hub archive was
   opened at, the options it was opened with, what the exporter said about the run) and the
-  version of xaig, as ``result_provenance`` gives it;
+  version of exege, as ``result_provenance`` gives it;
 - ``bases``: each basis used, by file and content hash;
 - ``settings``: what the command was asked, enough to ask it again;
 - ``split``: for an evaluation, the time labels of both sides and the buffer;
@@ -16,7 +16,7 @@ rerunning anything:
 - ``command``: the shell command that reproduces it.
 
 The file is versioned. ``load_record`` reads versions it knows and refuses the rest with a
-``RequestError``: a record from a later xaig is not guessed at, and neither is a file that
+``RequestError``: a record from a later exege is not guessed at, and neither is a file that
 is not one. A reader may rely on everything named here being present; a writer may add
 keys within a version, and a reader ignores what it does not know. A change that removes
 or renames a key, or changes what one means, is a new ``VERSION``.
@@ -34,13 +34,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from xaig.core.errors import RequestError
-from xaig.latents.basis import Decomposition, basis_provenance, result_provenance
-from xaig.latents.evaluate import Evaluation, FidelityCurve, Split, Stability, jsonable
-from xaig.latents.source import LatentInfo
-from xaig.latents.steering import SteeringResult
+from exege.core.errors import RequestError
+from exege.latents.basis import Decomposition, basis_provenance, result_provenance
+from exege.latents.evaluate import Evaluation, FidelityCurve, Split, Stability, jsonable
+from exege.latents.source import LatentInfo
+from exege.latents.steering import SteeringResult
 
-FORMAT = "xaig.experiment-record"
+FORMAT = "exege.experiment-record"
 VERSION = 1
 SUPPORTED = (1,)
 EVALUATION, STEERING = "evaluation", "steering"
@@ -250,21 +250,21 @@ def _check_steering(results: Any, where: str) -> None:
 def record_from_dict(data: Any, *, where: str = "the record") -> ExperimentRecord:
     """Validate what ``to_dict`` wrote (or a file held) and make a record of it.
 
-    ``RequestError`` for anything that is not a record this xaig reads: another format, a
+    ``RequestError`` for anything that is not a record this exege reads: another format, a
     version it does not know (older or newer), a kind it has no view of, a missing part,
     or a part of the wrong type or shape. What the readers use is checked, types and
     finiteness included; keys they do not use are not.
     """
     top = _need(data, ("format", "schema_version"), where)
     if top["format"] != FORMAT:
-        raise RequestError(f"{where} is not an xaig experiment record (format {top['format']!r})")
+        raise RequestError(f"{where} is not an exege experiment record (format {top['format']!r})")
     version = top["schema_version"]
     if type(version) is not int or version not in SUPPORTED:  # not a bool, nor 1.0
         known = ", ".join(str(v) for v in SUPPORTED)
         newer = type(version) is int and version > max(SUPPORTED)
         raise RequestError(
-            f"{where} is schema version {version!r}; this xaig reads version {known}"
-            + (" -- it is from a newer xaig, upgrade to read it" if newer else "")
+            f"{where} is schema version {version!r}; this exege reads version {known}"
+            + (" -- it is from a newer exege, upgrade to read it" if newer else "")
         )
     _need(top, ("kind", "provenance", "bases", "settings", "results", "command"), where)
     kind = top["kind"]

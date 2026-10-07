@@ -5,11 +5,11 @@ from __future__ import annotations
 import pytest
 from click.testing import CliRunner
 
-from xaig._cli import cli
+from exege._cli import cli
 
 
 def test_the_command_is_listed_and_explains_itself_without_torch():
-    """`xaig --help` imports every cli module, torch or no torch."""
+    """`exege --help` imports every cli module, torch or no torch."""
     listed = CliRunner().invoke(cli, ["nn", "sae", "--help"])
     assert listed.exit_code == 0 and "sparse autoencoder" in listed.output
 
@@ -23,7 +23,7 @@ def test_without_torch_the_command_names_the_one_extra_that_brings_everything():
         "import sys\n"
         "sys.modules['torch'] = sys.modules['numpy'] = None\n"  # as if neither were installed
         "from click.testing import CliRunner\n"
-        "from xaig._cli import cli\n"
+        "from exege._cli import cli\n"
         "print(CliRunner().invoke(cli, ['nn', 'sae', 'anywhere', '--out', 'x.npz']).output)\n"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout
@@ -34,8 +34,8 @@ np = pytest.importorskip("numpy")
 torch = pytest.importorskip("torch")
 
 from conftest import BUMP, N_CHANNELS, MemorySource  # noqa: E402
-from xaig.core.errors import RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege.core.errors import RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     Decomposition,
     Region,
     analyze_region,
@@ -44,8 +44,8 @@ from xaig.latents import (  # noqa: E402
     load_basis,
     open_source,
 )
-from xaig.nn.sae import BSplineActivation, SparseAutoencoder  # noqa: E402
-from xaig.nn.train import fit_sae  # noqa: E402
+from exege.nn.sae import BSplineActivation, SparseAutoencoder  # noqa: E402
+from exege.nn.train import fit_sae  # noqa: E402
 
 HERE = Region(lat=BUMP[0], lon=BUMP[1], radius_km=2500.0)
 
@@ -272,8 +272,8 @@ def _planted_source(n_times=12, n_nodes=48, width=6):
 
 
 def test_seeds_and_sweeps_are_trained_on_the_training_times_and_scored_held_out():
-    from xaig.latents import fidelity_curve, seed_stability, split_time_blocks
-    from xaig.nn.train import fit_sae
+    from exege.latents import fidelity_curve, seed_stability, split_time_blocks
+    from exege.nn.train import fit_sae
 
     source = _planted_source()
     split = split_time_blocks(source.info().times, n_blocks=4, test_blocks=(-1,), gap=1)
@@ -303,7 +303,7 @@ def test_seeds_and_sweeps_are_trained_on_the_training_times_and_scored_held_out(
 
 
 def test_a_dictionary_trained_with_a_held_out_time_is_caught_by_the_evaluation():
-    from xaig.latents import evaluate_basis, split_time_blocks
+    from exege.latents import evaluate_basis, split_time_blocks
 
     source = _planted_source()
     split = split_time_blocks(source.info().times, n_blocks=4, test_blocks=(-1,), gap=1)

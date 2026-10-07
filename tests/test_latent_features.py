@@ -12,9 +12,9 @@ np = pytest.importorskip("numpy")
 from click.testing import CliRunner  # noqa: E402
 
 from conftest import BUMP, LATENT_TIMES, N_LAT, N_LON, write_latent_archive  # noqa: E402
-from xaig._cli import cli  # noqa: E402
-from xaig.core.errors import RequestError  # noqa: E402
-from xaig.latents import (  # noqa: E402
+from exege._cli import cli  # noqa: E402
+from exege.core.errors import RequestError  # noqa: E402
+from exege.latents import (  # noqa: E402
     Region,
     accumulate_moments,
     feature_census,

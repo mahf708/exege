@@ -1,6 +1,6 @@
 # Sparse autoencoders
 
-`xaig.nn` holds a sparse autoencoder over a model's [latents](latents.md): one node's
+`exege.nn` holds a sparse autoencoder over a model's [latents](latents.md): one node's
 vector of channels goes in, a wide and mostly-zero vector of *features* comes out, and the
 input is rebuilt from it. Channels are entangled; features, being few at a time, are
 easier to name. It is the tool
@@ -9,7 +9,7 @@ where it found tropical cyclones, atmospheric rivers and sea ice among the featu
 let them steer a hurricane.
 
 What it produces is a [basis file](latents.md#methods-a-basis-is-a-value), used wherever
-a PCA is — `xaig latents region`, `series`, `fields`, and the
+a PCA is — `exege latents region`, `series`, `fields`, and the
 [web app](app.md) — and readable with nothing but numpy from the environment that
 runs the model.
 
@@ -20,14 +20,14 @@ is the machine's business.
 
 ```console
 $ uv sync --extra nn
-$ uv pip install 'xaig[nn]'   # elsewhere, from PyPI
+$ uv pip install 'exege[nn]'   # elsewhere, from PyPI
 ```
 
 ## Fit one
 
 ```console
-$ xaig latents toy scratch/toy/control
-$ xaig nn sae scratch/toy/control --layer 2 --features 64 --k 8 --epochs 30 \
+$ exege latents toy scratch/toy/control
+$ exege nn sae scratch/toy/control --layer 2 --features 64 --k 8 --epochs 30 \
     --batch-size 512 --out scratch/toy/sae.npz
   step     25  reconstruction 10.28
   step    300  reconstruction 0.9374
@@ -110,8 +110,8 @@ file that is not this one. What a result used is recorded under its provenance; 
 ## Python API
 
 ```python
-from xaig.latents import open_source, save_basis
-from xaig.nn.train import fit_sae
+from exege.latents import open_source, save_basis
+from exege.nn.train import fit_sae
 
 source = open_source("latents/atmosphere")
 dictionary = fit_sae(source, layer=8, n_features=1024, activation="topk", k=32)
@@ -134,12 +134,12 @@ The modules are plain `nn.Module`s that take and return tensors and know nothing
 archives, grids or loops, so they can be lifted into any harness:
 
 ```python
-from xaig.nn.sae import BSplineActivation, SparseAutoencoder
+from exege.nn.sae import BSplineActivation, SparseAutoencoder
 
 sae = SparseAutoencoder(384, 1024, activation="bspline")
 rebuilt, features = sae(x)  # x standardized, (n, 384)
 total, reconstruction, features = sae.loss(x, l1=5.0)
-sae.to_dictionary(input_mean=mean, input_scale=scale)  # plain arrays, for xaig.latents
+sae.to_dictionary(input_mean=mean, input_scale=scale)  # plain arrays, for exege.latents
 ```
 
 Trained against another layer (`target_layer=`, or `sae.loss(x, target)`), the same module
@@ -157,7 +157,7 @@ of these sharing an encoder.
    layer 8; an activation of `a` adds `a × input_scale` of it, in the layer's own units.
 3. Add a multiple of it to that layer in a forward hook, export the run as a latent
    archive whose manifest says so under `experiment`, and set it against its control:
-   `xaig latents diff control steered --growth`.
+   `exege latents diff control steered --growth`.
 
 Step 3's hook is the exporter's to grow; see [remaining tasks](#remaining-tasks).
 
