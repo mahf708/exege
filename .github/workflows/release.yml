@@ -94,12 +94,15 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           skip-existing: true  # a rehearsal of a version already rehearsed is not a failure
 
-  pypi:
+  # One job, and one environment, per project. PyPI refuses two pending publishers with
+  # the same repository, workflow and environment, and exege-core must be live before
+  # the exege that pins it.
+  pypi-core:
     if: github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: pypi-core
       url: https://pypi.org/project/exege-core/
     permissions:
       id-token: write
@@ -108,4 +111,24 @@ jobs:
         with:
           name: dist
           path: dist/
+      - name: Keep exege-core only
+        run: find dist -type f ! -name 'exege_core-*' -delete
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  pypi:
+    if: github.ref_type == 'tag'
+    needs: pypi-core
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/exege/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Keep exege only
+        run: find dist -type f -name 'exege_core-*' -delete
       - uses: pypa/gh-action-pypi-publish@release/v1

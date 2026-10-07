@@ -97,7 +97,9 @@ Two distributions are published from this repository, at the same version:
 `exege-core` (the root `pyproject.toml`: the code, Click only, and the extras) and
 `exege` (`packages/exege`: no code, only `exege-core` with every extra but `nn`). Both
 go to PyPI from `.github/workflows/release.yml`, through trusted publishing: no token
-exists, the indexes trust that workflow by name, once per project.
+exists, the indexes trust that workflow by name, once per project. On PyPI each project
+has its own job and environment (`pypi-core`, then `pypi`): PyPI refuses two pending
+publishers with the same repository, workflow and environment.
 
 1. In a PR, bump `__version__` in `src/exege/__init__.py`, and in
    `packages/exege/pyproject.toml` both `version` and the two `exege-core` pins to the
