@@ -30,6 +30,11 @@ jobs:
       run:
         shell: bash -leo pipefail {0}
     runs-on: ubuntu-latest
+    # Deploying pushes to gh-pages, and a preview comments on its PR; the repository's
+    # default token only reads.
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
