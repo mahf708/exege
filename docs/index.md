@@ -1,7 +1,8 @@
 # The `exege` package
 
-`exege` is a light, framework-agnostic package for working with AI campaigns. It lives in
-this repo alongside the guides, as a peer rather than an appendix.
+`exege` is a light, framework-agnostic package for understanding and evaluating
+scientific machine-learning models. It takes its name from the Greek stem *exēgē-*,
+associated with explanation and interpretation.
 
 | Subpackage | Scope |
 | --- | --- |
@@ -29,7 +30,7 @@ need:
 
 ```console
 $ uv pip install 'exege[latents]'
-$ uv pip install 'exege[latents] @ git+https://github.com/E3SM-Project/aigroup'   # what main holds and no release does yet
+$ uv pip install 'exege[latents] @ git+https://github.com/mahf708/exege'   # what main holds and no release does yet
 ```
 
 The base install pulls only Click. Anything heavier sits behind an extra named after the
@@ -38,7 +39,7 @@ subpackage that needs it. A missing one says so, with the command that fits how 
 
 ```console
 $ exege latents info latents/atmosphere
-Error: numpy is not installed; it comes with the 'latents' extra: uv pip install -e '/path/to/aigroup[latents]'  (in that checkout: `uv sync --extra latents`)
+Error: numpy is not installed; it comes with the 'latents' extra: uv pip install -e '/path/to/exege[latents]'  (in that checkout: `uv sync --extra latents`)
 ```
 
 | Extra | Pulls | Gets you |

@@ -1,9 +1,7 @@
-# aigroup
+# exege
 
-Two peers live here. Neither exists to serve the other.
-
-- `docs/` — the MkDocs guide site, published to gh-pages
-- `src/exege/` — the `exege` Python package
+The `exege` Python package (`src/exege/`), its tests, and its documentation site
+(`docs/`, MkDocs, published to gh-pages).
 
 ## Rules
 

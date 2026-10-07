@@ -97,7 +97,7 @@ own names win a clash, so a plugin can add adapters but never silently replace o
 
 - `toy_dynamics.py` — `toy-dynamics`: a small linear system with latent layers, noise seeds
   and a planted feature, an `Intervenable` that reads nothing. For tests and docs only;
-  nothing in it is a model of anything (`docs/package/steering.md`).
+  nothing in it is a model of anything (`docs/steering.md`).
 - `bundle_dir.py` — `bundle-dir`: a second layout, unlike the first on purpose: channels
   first `(width, n_lat, n_lon)`, one `.npy` per level and time, a JSON manifest in its own
   words, memory-mapped. It was added with no change to anything that reads latents, which
@@ -106,6 +106,6 @@ own names win a clash, so a plugin can add adapters but never silently replace o
   `unmasked`, ignores the bundle's mask.
 - `latent_archive.py` — activations recorded from a model, as a directory of
   memory-mapped arrays, with the physical fields kept beside them; `write_archive` writes
-  one (`exege[latents]`; format in `docs/package/latents.md`). The same reader takes an
+  one (`exege[latents]`; format in `docs/latents.md`). The same reader takes an
   `hf://datasets/<owner>/<repo>/<folder>` source and downloads one file at a time
   (`exege[hf]`).

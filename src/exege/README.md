@@ -1,7 +1,9 @@
 # exege
 
-Light, framework-agnostic tooling for E3SM AI campaigns: what an emulator holds inside,
-sparse autoencoders trained on it, figures, and a local app over them.
+Tools for understanding and evaluating scientific machine-learning models: what an
+emulator holds inside, sparse autoencoders trained on it, figures, and a local app over
+them. The name comes from the Greek stem *exēgē-*, associated with explanation and
+interpretation.
 
 > **Research tool.** `exege` is early. What is described here works; expect it to change.
 
@@ -52,8 +54,8 @@ result.ranking.channels  # the channels that respond most strongly there
 
 ## More
 
-- Guides: <https://e3sm-project.github.io/aigroup/package/>
-- Source and issues: <https://github.com/E3SM-Project/aigroup>
+- Documentation: <https://mahf708.github.io/exege/>
+- Source and issues: <https://github.com/mahf708/exege>
 
 BSD-3-Clause. `exege.latents`, `exege.figures` and `exege.app` grew out of
 the [latent space visualiser for weather models](https://github.com/ktempestuous/latent_space_visualiser_weather_models)

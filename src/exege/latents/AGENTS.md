@@ -67,7 +67,7 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
   passing through the dictionary does (the reconstruction arm). Edits and fields are held to
   the same finiteness rule as `read_latents`. Nothing here imports a model: a system is an
   `Intervenable`, reached through the registry, and tested on `adapters/toy_dynamics.py`,
-  whose answers are planted. See `docs/package/steering.md`.
+  whose answers are planted. See `docs/steering.md`.
 - **A record is a contract, so it is versioned and validated.** `record.py` holds the one
   file other things read (the app today): provenance with the commit and the bases by
   hash, settings, the split as time labels, the numbers, and the command that reproduces

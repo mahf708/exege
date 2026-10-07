@@ -1,15 +1,12 @@
-site_name: AI Group
-site_description: E3SM AI Group
-site_url: https://e3sm-project.github.io/aigroup
-repo_name: aigroup
+site_name: exege
+site_description: Tools for understanding and evaluating scientific machine-learning models
+site_url: https://mahf708.github.io/exege
 edit_uri: edit/main/docs
 
 theme:
   name: material
   features:
     # Navigation
-    - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
     - navigation.indexes
@@ -35,14 +32,12 @@ theme:
     - header.autohide
     - announce.dismiss
   palette:
-    # Light Mode - E3SM Ocean Blue & Earth Green
     - scheme: default
       primary: indigo
       accent: green
       toggle:
         icon: material/weather-sunny
         name: Switch to dark mode
-    # Dark Mode - E3SM Ocean Blue & Earth Green
     - scheme: slate
       primary: indigo
       accent: green
@@ -52,8 +47,6 @@ theme:
   font:
     text: Roboto
     code: Roboto Mono
-  favicon: assets/images/E3SM_Icon_270.png
-  logo: assets/images/E3SM_Logo.png
   icon:
     repo: fontawesome/brands/github
 
@@ -63,29 +56,19 @@ exclude_docs: |
 
 plugins:
   - search
-  # The package pages were renamed with their subpackages; old links still land.
-  - redirects:
-      redirect_maps:
-        package/taig.md: package/nn.md
-        package/waig.md: package/app.md
   - social:
       # Cards are drawn with cairo, a system library. CI has it; a laptop may not:
       #   MKDOCS_SOCIAL=false uv run --group docs mkdocs build --strict
       enabled: !ENV [MKDOCS_SOCIAL, true]
-      cards_layout_options:
-        logo: docs/assets/images/E3SM_Icon_270.png
 
-repo_url: https://github.com/E3SM-Project/aigroup
-repo_name: E3SM-Project/aigroup
-
-extra_css:
-  - assets/stylesheets/extra.css
+repo_url: https://github.com/mahf708/exege
+repo_name: mahf708/exege
 
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/E3SM-Project
-      name: E3SM Project on GitHub
+      link: https://github.com/mahf708/exege
+      name: exege on GitHub
   generator: false
 
 markdown_extensions:
@@ -135,21 +118,10 @@ extra_javascript:
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
-  - Home: index.md
-  - Quick Guides:
-      - Python Environment Setup: python-envs.md
-      - ACE2-ERA5 Training: ace2-workflow.md
-      - ACE2-ERA5 Training (Spatial Decomposition): ace2-spatial-decomp.md
-      - SCREAM v1 Example: screamv1-example.md
-      - ACE2-EAMv3 Inference: ace2-inference.md
-      - SamudrACE-E3SMv3 Coupled Inference: samudrace-inference.md
-      - E3SM branch runs: e3sm-branch-runs.md
-  - Package:
-      - Overview: package/index.md
-      - Latent diagnostics: package/latents.md
-      - Sparse autoencoders: package/nn.md
-      - Evaluating a dictionary: package/evaluation.md
-      - Steering: package/steering.md
-      - Experiment records: package/records.md
-      - Web app: package/app.md
-
+  - Overview: index.md
+  - Latent diagnostics: latents.md
+  - Sparse autoencoders: nn.md
+  - Evaluating a dictionary: evaluation.md
+  - Steering: steering.md
+  - Experiment records: records.md
+  - Web app: app.md

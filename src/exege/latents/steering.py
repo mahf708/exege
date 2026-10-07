@@ -2,8 +2,8 @@
 
 Everything else in this package reads. Steering is the first time an adapter
 *writes*: the model is run, and at one layer and time the latents it produced are
-replaced by an edited copy, after which the forward pass continues. ``docs/package/
-steering.md`` is the design note; in short, four arms are run from one initial
+replaced by an edited copy, after which the forward pass continues.
+``docs/steering.md`` is the design note; in short, four arms are run from one initial
 state with one noise seed, and compared pairwise with the first:
 
 - ``control``         no hooks;

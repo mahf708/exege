@@ -1,13 +1,11 @@
-# aigroup
+# exege
 
-Docs, scripts, examples, and prototypes for E3SM AI efforts.
+Tools for understanding and evaluating scientific machine-learning models. `exege` takes
+its name from the Greek stem *exēgē-*, associated with explanation and interpretation.
 
-This repo hosts two peers:
-
-- **`docs/`** — the guide site, published at <https://e3sm-project.github.io/aigroup>
-- **`src/exege/`** — `exege`, a light Python package for working with AI campaigns: so far,
-  diagnostics of an emulator's latent space (`latents`), sparse autoencoders trained on
-  it (`nn`), figures (`figures`), and a local web app over them (`app`)
+So far: diagnostics of an emulator's latent space (`latents`), sparse autoencoders trained
+on it (`nn`), figures (`figures`), and a local web app over them (`app`). Documentation is
+at <https://mahf708.github.io/exege>.
 
 ## Install
 
@@ -22,7 +20,7 @@ install it from [PyPI](https://pypi.org/project/exege/), asking for the extras y
 
 ```console
 $ uv pip install 'exege[latents]'
-$ uv pip install 'exege[latents] @ git+https://github.com/E3SM-Project/aigroup'   # what main holds and no release does yet
+$ uv pip install 'exege[latents] @ git+https://github.com/mahf708/exege'   # what main holds and no release does yet
 ```
 
 The base install pulls only Click. Anything heavier sits behind an extra named after the
@@ -51,3 +49,6 @@ $ uv run --group docs mkdocs build --strict   # MKDOCS_SOCIAL=false without cair
 
 See `AGENTS.md` for how the pieces fit together, and the `AGENTS.md` in each
 subdirectory for that directory's rules.
+
+`exege` was started as `xaig` in [E3SM-Project/aigroup](https://github.com/E3SM-Project/aigroup),
+which keeps the E3SM AI guides; its history came with it.

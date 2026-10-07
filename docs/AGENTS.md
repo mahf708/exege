@@ -11,12 +11,10 @@ the `docs` group cannot install for you; without it, build with `MKDOCS_SOCIAL=f
   ordered list beneath.
 - Long configs and scripts are collapsed in `??? example "title"`.
 - Admonitions use lowercase titles: `!!! tip "uv cache"`.
-- Guides end with a `## Remaining tasks` unchecked list.
-- Cross-links are relative (`python-envs.md`).
+- Cross-links are relative (`latents.md`).
 - Quote real measured numbers and real NERSC paths rather than genericizing them.
 
 ## Adding a page
 
 Add the file, then add it to `nav` in `mkdocs.yml` by hand — nav is explicit, not
-inferred. Package pages under `docs/package/` are written by hand, and quote real
-output: rerun the commands they show when the code behind them changes.
+inferred. Pages are written by hand, and quote real output: rerun the commands they show when the code behind them changes.

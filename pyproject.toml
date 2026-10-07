@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "exege"
 dynamic = ["version"]
-description = "Light, framework-agnostic tooling for E3SM AI campaigns: latent-space diagnostics, sparse autoencoders, figures, a local app"
+description = "Tools for understanding and evaluating scientific machine-learning models: latent-space diagnostics, sparse autoencoders, figures, a local app"
 # The repository's README is about the repository; this one is about the package, and is
 # the page PyPI shows.
 readme = "src/exege/README.md"
@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 license = "BSD-3-Clause"
 license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "E3SM AI Group" }]
-keywords = ["e3sm", "emulator", "climate", "machine-learning"]
+keywords = ["interpretability", "emulator", "climate", "e3sm", "machine-learning"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -53,7 +53,7 @@ hf = ["huggingface_hub>=0.23", "exege[latents]"]
 dev = ["pytest>=7.4", "ruff>=0.5"]
 full = ["exege[app]", "exege[hf]"]
 # mkdocs 2 drops the plugin system this site is built on.
-docs = ["mkdocs>=1.6,<2", "mkdocs-material[imaging]>=9.5", "mkdocs-redirects>=1.2"]
+docs = ["mkdocs>=1.6,<2", "mkdocs-material[imaging]>=9.5"]
 
 [tool.uv]
 default-groups = ["dev", "full"]
@@ -70,10 +70,10 @@ bundle-dir = "exege.adapters.bundle_dir:BundleDir"
 toy-dynamics = "exege.adapters.toy_dynamics:ToyDynamics"
 
 [project.urls]
-Homepage = "https://e3sm-project.github.io/aigroup"
-Documentation = "https://e3sm-project.github.io/aigroup/package/"
-Source = "https://github.com/E3SM-Project/aigroup"
-Issues = "https://github.com/E3SM-Project/aigroup/issues"
+Homepage = "https://mahf708.github.io/exege"
+Documentation = "https://mahf708.github.io/exege/"
+Source = "https://github.com/mahf708/exege"
+Issues = "https://github.com/mahf708/exege/issues"
 
 [tool.hatch.version]
 path = "src/exege/__init__.py"

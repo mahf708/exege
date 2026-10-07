@@ -29,17 +29,17 @@ class _Distribution:
         ),
         ({"url": "file:///srv/exege", "dir_info": {}}, "uv pip install '/srv/exege[heavy]'"),
         (
-            {"url": "https://github.com/E3SM-Project/aigroup", "vcs_info": {"vcs": "git"}},
-            "uv pip install 'exege[heavy] @ git+https://github.com/E3SM-Project/aigroup'",
+            {"url": "https://github.com/mahf708/exege", "vcs_info": {"vcs": "git"}},
+            "uv pip install 'exege[heavy] @ git+https://github.com/mahf708/exege'",
         ),
         # Pinned to a commit, from a branch that has moved since: adding an extra must
         # not quietly change the code that is installed.
         (
             {
-                "url": "https://github.com/E3SM-Project/aigroup",
+                "url": "https://github.com/mahf708/exege",
                 "vcs_info": {"vcs": "git", "requested_revision": "main", "commit_id": "656212e"},
             },
-            "uv pip install 'exege[heavy] @ git+https://github.com/E3SM-Project/aigroup@656212e'",
+            "uv pip install 'exege[heavy] @ git+https://github.com/mahf708/exege@656212e'",
         ),
         (
             {

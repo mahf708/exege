@@ -1,7 +1,7 @@
-name: aigdocs
+name: docs
 
 on:
-  # Runs every time master branch is updated
+  # Runs every time main branch is updated
   push:
     branches: ["main"]
     # But only if docs-related files are touched
@@ -9,7 +9,7 @@ on:
       - .github/workflows/ghp.yml
       - mkdocs.yml
       - docs/**
-  # Runs every time a PR is open against master
+  # Runs every time a PR is open against main
   pull_request:
     branches: ["main"]
     # But only if docs-related files are touched
@@ -21,11 +21,11 @@ on:
 
 concurrency:
   # Prevent 2+ copies of this workflow from running concurrently
-  group: aigdocs-action
+  group: docs-action
 
 jobs:
   ghp:
-    if: ${{ github.repository == 'E3SM-Project/aigroup' }}
+    if: ${{ github.repository == 'mahf708/exege' }}
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -48,13 +48,12 @@ jobs:
             python=3.13
             mkdocs
             mkdocs-material
-            mkdocs-redirects
             cairosvg
             pillow
-      # build every time (PR or push to master)
+      # build every time (PR or push to main)
       - name: Build
         run: mkdocs build --strict --verbose
-      # Only deploy to the main github page when there is a push to master
+      # Only deploy to the main github page when there is a push to main
       - if: ${{ github.event_name == 'push' }}
         name: GitHub Pages action
         uses: JamesIves/github-pages-deploy-action@v4
