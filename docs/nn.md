@@ -20,7 +20,7 @@ is the machine's business.
 
 ```console
 $ uv sync --extra nn
-$ uv pip install 'exege[nn]'   # elsewhere, from PyPI
+$ uv pip install 'exege-core[nn]'   # elsewhere, from PyPI
 ```
 
 ## Fit one

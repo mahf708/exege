@@ -7,10 +7,10 @@ adapters rather than by widening what exists.
 | Subpackage | Scope | Needs |
 |---|---|---|
 | `core` | errors, adapter registry, the hint for a missing extra | stdlib |
-| `latents` | what emulators hold inside: the latent space, on a grid | `exege[latents]` (numpy, xarray) |
-| `nn` | torch modules trained on those latents: a sparse autoencoder | `exege[nn]` (torch, and `latents`') |
-| `figures` | figures, with no web framework in them | `exege[figures]` (matplotlib, cartopy) |
-| `app` | a local web app: presentation only | `exege[app]` (streamlit, and `figures`') |
+| `latents` | what emulators hold inside: the latent space, on a grid | `exege-core[latents]` (numpy, xarray) |
+| `nn` | torch modules trained on those latents: a sparse autoencoder | `exege-core[nn]` (torch, and `latents`') |
+| `figures` | figures, with no web framework in them | `exege-core[figures]` (matplotlib, cartopy) |
+| `app` | a local web app: presentation only | `exege-core[app]` (streamlit, and `figures`') |
 | `adapters` | everything that knows a framework or a file layout | per adapter |
 
 ## Three concerns, kept apart
@@ -93,15 +93,23 @@ Entry points are read from installed metadata: after editing them, rerun `uv syn
 
 ## Releasing
 
-`exege` is published to PyPI by `.github/workflows/release.yml`, through trusted
-publishing: no token exists, the indexes trust that workflow by name.
+Two distributions are published from this repository, at the same version:
+`exege-core` (the root `pyproject.toml`: the code, Click only, and the extras) and
+`exege` (`packages/exege`: no code, only `exege-core` with every extra but `nn`). Both
+go to PyPI from `.github/workflows/release.yml`, through trusted publishing: no token
+exists, the indexes trust that workflow by name, once per project. On PyPI each project
+has its own job and environment (`pypi-core`, then `pypi`): PyPI refuses two pending
+publishers with the same repository, workflow and environment.
 
-1. Bump `__version__` in `src/exege/__init__.py` in a PR, and merge it.
-2. Rehearse: run the *release* workflow by hand ("Run workflow") on `main`. It builds,
-   checks the metadata, installs the wheel alone and publishes to TestPyPI.
+1. In a PR, bump `__version__` in `src/exege/__init__.py`, and in
+   `packages/exege/pyproject.toml` both `version` and the two `exege-core` pins to the
+   same number (`tests/test_packaging.py` refuses a mismatch). Merge it.
+2. Rehearse: run the *release* workflow by hand ("Run workflow") on `main`. It builds
+   both, checks the metadata, tries each wheel and publishes to TestPyPI.
 3. Tag the merged commit `vX.Y.Z` and push the tag. The same job runs, refuses a tag
-   that is not the version, and publishes to PyPI.
+   that is not the version, and publishes both to PyPI.
 
 An index never lets a version be replaced: a bad release is fixed by the next number.
-`src/exege/README.md` is the page PyPI shows. A release holds the package, its tests and
-its licences; the guide site, the run configs and these notes stay out of it.
+`src/exege/README.md` is the page PyPI shows for `exege-core`, `packages/exege/README.md`
+the one for `exege`. A release holds the package, its tests and its licenses; the guide
+site, the run configs and these notes stay out of it.

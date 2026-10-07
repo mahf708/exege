@@ -22,7 +22,7 @@ class _Distribution:
     ("direct_url", "expected"),
     [
         # A checkout installed editable -- the usual case, and the one a bare
-        # `pip install 'exege[heavy]'` gets wrong: there is no index to fetch it from.
+        # `pip install 'exege-core[heavy]'` gets wrong: there is no index to fetch it from.
         (
             {"url": "file:///home/me/ai%20group", "dir_info": {"editable": True}},
             "uv pip install -e '/home/me/ai group[heavy]'",
@@ -30,7 +30,7 @@ class _Distribution:
         ({"url": "file:///srv/exege", "dir_info": {}}, "uv pip install '/srv/exege[heavy]'"),
         (
             {"url": "https://github.com/mahf708/exege", "vcs_info": {"vcs": "git"}},
-            "uv pip install 'exege[heavy] @ git+https://github.com/mahf708/exege'",
+            "uv pip install 'exege-core[heavy] @ git+https://github.com/mahf708/exege'",
         ),
         # Pinned to a commit, from a branch that has moved since: adding an extra must
         # not quietly change the code that is installed.
@@ -39,7 +39,7 @@ class _Distribution:
                 "url": "https://github.com/mahf708/exege",
                 "vcs_info": {"vcs": "git", "requested_revision": "main", "commit_id": "656212e"},
             },
-            "uv pip install 'exege[heavy] @ git+https://github.com/mahf708/exege@656212e'",
+            "uv pip install 'exege-core[heavy] @ git+https://github.com/mahf708/exege@656212e'",
         ),
         (
             {
@@ -47,13 +47,13 @@ class _Distribution:
                 "subdirectory": "python/exege",
                 "vcs_info": {"vcs": "git", "commit_id": "abc123"},
             },
-            "uv pip install 'exege[heavy] @ git+https://example.org/mono@abc123#subdirectory=python/exege'",
+            "uv pip install 'exege-core[heavy] @ git+https://example.org/mono@abc123#subdirectory=python/exege'",
         ),
         (
             {"url": "https://example.org/exege-0.1.0.tar.gz", "archive_info": {}},
-            "uv pip install 'exege[heavy] @ https://example.org/exege-0.1.0.tar.gz'",
+            "uv pip install 'exege-core[heavy] @ https://example.org/exege-0.1.0.tar.gz'",
         ),
-        (None, "uv pip install 'exege[heavy]'"),  # from an index
+        (None, "uv pip install 'exege-core[heavy]'"),  # from an index
         (
             # a wheel on disk is not a checkout: no `uv sync` to offer
             {"url": "file:///tmp/exege-0.1.0-py3-none-any.whl", "archive_info": {}},

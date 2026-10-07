@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/ci.yml
       - pyproject.toml
+      - packages/**
       - src/**
       - tests/**
   # Whatever a PR's base is: one of a stack targets the branch below it, not main,
@@ -14,6 +15,7 @@ on:
     paths:
       - .github/workflows/ci.yml
       - pyproject.toml
+      - packages/**
       - src/**
       - tests/**
   workflow_dispatch:

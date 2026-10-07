@@ -82,7 +82,7 @@ def _coastlines() -> tuple[Any | None, str | None]:
         import cartopy.crs as ccrs
         from cartopy.io import shapereader
     except ImportError:
-        return None, "cartopy is not installed; it comes with exege[figures]"
+        return None, "cartopy is not installed; it comes with exege-core[figures]"
     waited = socket.getdefaulttimeout()
     socket.setdefaulttimeout(_FETCH_TIMEOUT_SECONDS)  # urlopen's only deadline is this one
     try:
