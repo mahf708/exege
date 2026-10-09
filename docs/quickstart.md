@@ -25,7 +25,7 @@ grid                   24x48, 1152 nodes, 1062 valid
 times                  8: 0424-02-27T06:00:00 .. 0424-03-02T00:00:00
 experiment.seed        0
 experiment.kept_steps  [1, 2, 3, 4, 9, 10, 11, 12]
-experiment.exege       0.6.0
+experiment.exege       0.7.0
 
 layers
 LAYER  CHANNELS  LABEL

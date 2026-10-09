@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 # and the release workflow refuse any disagreement.
 [project]
 name = "exege"
-version = "0.6.0"
+version = "0.7.0"
 description = "Tools for understanding and evaluating scientific machine-learning models: latent-space diagnostics, sparse autoencoders, figures, a local app"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -24,11 +24,11 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
 ]
-dependencies = ["exege-core[app,hf]==0.6.0"]
+dependencies = ["exege-core[app,hf]==0.7.0"]
 
 [project.optional-dependencies]
 # torch is left out of the default: its build (CPU, CUDA) is the machine's business.
-nn = ["exege-core[nn]==0.6.0"]
+nn = ["exege-core[nn]==0.7.0"]
 
 [project.urls]
 Homepage = "https://exege.readthedocs.io"
