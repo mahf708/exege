@@ -1,7 +1,8 @@
 name: release
 
 # A tag `vX.Y.Z` on main publishes exege-core X.Y.Z and exege X.Y.Z (the full install,
-# packages/exege) to PyPI. "Run workflow" publishes
+# packages/exege) to PyPI, then points the branch `X.Y` at it: Read the Docs keeps one
+# version of the guide per minor release, built from that branch. "Run workflow" publishes
 # whatever ref it is given to TestPyPI instead: the dress rehearsal.
 #
 # Neither needs a token. Both indexes trust this workflow by name (PyPI's "trusted
@@ -132,3 +133,25 @@ jobs:
       - name: Keep exege only
         run: find dist -type f -name 'exege_core-*' -delete
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # Read the Docs activates branches named like `0.7` (an automation rule on the project),
+  # so each minor release has one version of the guide, and a patch release moves it on
+  # rather than adding another. A pre-release tag (v0.8.0rc1) moves nothing.
+  docs-branch:
+    if: github.ref_type == 'tag'
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          show-progress: false
+      - name: Point the minor release's branch at this tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "not a final release ($version): no docs branch moved"
+            exit 0
+          fi
+          git push --force origin "HEAD:refs/heads/${version%.*}"

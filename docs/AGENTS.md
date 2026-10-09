@@ -9,6 +9,10 @@ broken links and docstrings that are not valid reST fail the build:
 $ uv run --group docs sphinx-build -M html docs docs/_build -W
 ```
 
+Versions: `latest` is `main`, `stable` the newest release, and each minor release has one
+version, built from a branch named after it (`0.7`) that the release workflow moves to
+each `vX.Y.Z` tag. Read the Docs activates those branches by an automation rule.
+
 `-M epub`, `-M singlehtml` and `-M latexpdf` (needs a TeX install with xelatex) build the
 other formats locally.
 
