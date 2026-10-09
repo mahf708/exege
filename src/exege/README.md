@@ -61,7 +61,7 @@ result.ranking.channels  # the channels that respond most strongly there
 - Documentation: <https://mahf708.github.io/exege/>
 - Source and issues: <https://github.com/mahf708/exege>
 
-BSD-3-Clause. `exege.latents`, `exege.figures` and `exege.app` grew out of
+MIT. `exege.latents`, `exege.figures` and `exege.app` grew out of
 the [latent space visualiser for weather models](https://github.com/ktempestuous/latent_space_visualiser_weather_models)
 (Tempest, Beylich & Craig 2026, arXiv:2604.20467, doi:10.1007/978-3-032-29915-4_10); see
 `NOTICE`. The sparse autoencoders follow MacMillan & Ouellette (2025, arXiv:2512.24440);

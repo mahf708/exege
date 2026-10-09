@@ -25,4 +25,4 @@ $ pip install 'exege-core[latents]'
 - Documentation: <https://mahf708.github.io/exege/>
 - Source and issues: <https://github.com/mahf708/exege>
 
-BSD-3-Clause.
+MIT.

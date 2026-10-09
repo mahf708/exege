@@ -12,8 +12,8 @@ version = "0.6.0"
 description = "Tools for understanding and evaluating scientific machine-learning models: latent-space diagnostics, sparse autoencoders, figures, a local app"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "BSD-3-Clause"
-authors = [{ name = "E3SM AI Group" }]
+license = "MIT"
+authors = [{ name = "mahf708" }]
 keywords = ["interpretability", "emulator", "climate", "e3sm", "machine-learning"]
 classifiers = [
     "Development Status :: 3 - Alpha",

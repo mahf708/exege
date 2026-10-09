@@ -10,9 +10,9 @@ description = "Tools for understanding and evaluating scientific machine-learnin
 # the page PyPI shows.
 readme = "src/exege/README.md"
 requires-python = ">=3.11"
-license = "BSD-3-Clause"
+license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
-authors = [{ name = "E3SM AI Group" }]
+authors = [{ name = "mahf708" }]
 keywords = ["interpretability", "emulator", "climate", "e3sm", "machine-learning"]
 classifiers = [
     "Development Status :: 3 - Alpha",
