@@ -41,7 +41,7 @@ intersphinx_mapping = {
 # AGENTS.md files are contracts for contributors, not published pages.
 exclude_patterns = ["AGENTS.md", "_build"]
 
-# `[text](latents.md#python-api)` links reach headings down to ####.
+# `[text](time.md#storylines)` links reach headings down to ####.
 myst_heading_anchors = 4
 myst_enable_extensions = ["colon_fence", "deflist"]
 

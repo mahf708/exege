@@ -14,7 +14,7 @@ a PCA is — `exege latents region`, `series`, `fields`, and the
 runs the model.
 
 It needs the `nn` extra, which brings torch: `uv sync --extra nn` in a checkout,
-`uv pip install 'exege-core[nn]'` elsewhere ([Installation](installing.md)).
+`uv pip install 'exege[nn]'` elsewhere ([Installation](installing.md)).
 
 ## Fitting one
 
@@ -36,6 +36,11 @@ options above are the ones used here. The percentage, the active count and the d
 fraction describe the dictionary that is written; the running `reconstruction` lines are
 the loop's own, taken while the weights were changing.
 
+On a real layer — layer 8 of the SamudrACE-E3SMv3 atmosphere, the archive the other pages
+quote — a top-32 dictionary (`sae8.npz`) trains in eleven seconds and explains 82.1% of
+the variance, where a 32-component PCA explains 69.1%. The numbers below are from that
+layer too.
+
 | Option | Meaning |
 | --- | --- |
 | `--layer` | the layer read; the last by default |
@@ -51,13 +56,15 @@ the loop's own, taken while the weights were changing.
 ### Activation functions
 
 - **`topk`** keeps each node's `k` largest features and needs no penalty, so the sparsity
-  is exactly what was asked for from the first step. It is the default for that reason, and
-  the form MacMillan & Ouellette (2025) use: TopK, with decoder directions of unit length.
-  Exactly `k`: a tie at the cut goes to the lowest index, in torch and in numpy alike.
+  is exactly what was asked for from the first step. It is the command's default for that
+  reason (`fit_sae` defaults to `relu`), and the form MacMillan & Ouellette (2025) use:
+  TopK, with decoder directions of unit length. Exactly `k`: a tie at the cut goes to the
+  lowest index, in torch and in numpy alike.
 - **`relu`** gets its sparsity from an L1 penalty on the features, weighted by their decoder
-  norms: the standard form, and the baseline Cheon (2026) calls LIN-SAE. The penalty takes more steps than the two-epoch default to settle: at two epochs
-  this layer is rebuilt to 53.2% with 55 features active per node; with `--epochs 10`,
-  64.5% with 40, in 28 s. At equal sparsity `topk` rebuilds better.
+  norms: the standard form, and the baseline Cheon (2026) calls LIN-SAE. The penalty
+  takes more steps than the two-epoch default to settle: at two epochs layer 8 is rebuilt
+  to 53.2% with 55 features active per node; with `--epochs 10`, 64.5% with 40, in 28 s.
+  At equal sparsity `topk` rebuilds better.
 - **`bspline`** replaces the ReLU with a learnable activation per feature: zero for
   `z ≤ 0`, a uniform cubic B-spline on `(0, 6]`, a line of slope one beyond. It *starts* as
   a ReLU exactly — a B-spline whose coefficients sit at its Greville abscissae is the
@@ -152,8 +159,10 @@ of these sharing an encoder.
 2. Read its direction in the model's environment, which needs only numpy:
    `np.load("sae8.npz")["decoder"][676]` is the unit direction feature 676 writes to
    layer 8; an activation of `a` adds `a × input_scale` of it, in the layer's own units.
-3. Add a multiple of it to that layer in a forward hook, export the run as a latent
-   archive whose manifest says so under `experiment`, and set it against its control:
+3. Steer along it and measure what the model does: [Steering](steering.md) runs the
+   edit against a control, a reconstruction-only arm and random directions. Against a
+   real model that needs an adapter in the model's environment, which is not written yet
+   ([roadmap](roadmap.md#steering)); until then, add a multiple of the direction in a
+   forward hook, export the run as a latent archive whose manifest says so under
+   `experiment`, and set it against its control with
    `exege latents diff control steered --growth`.
-
-Step 3's hook is the exporter's to grow; see the [roadmap](roadmap.md#sparse-autoencoders), and [Steering](steering.md) for the experiment design.

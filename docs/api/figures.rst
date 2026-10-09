@@ -16,6 +16,9 @@ a plain ``matplotlib.figure.Figure`` and never touches ``pyplot``.
 
 .. autofunction:: exege.figures.response_figure
 
+Helpers
+-------
+
 .. autofunction:: exege.figures.to_png
 
 .. autofunction:: exege.figures.have_coastlines

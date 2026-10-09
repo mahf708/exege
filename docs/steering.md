@@ -2,10 +2,9 @@
 
 Everything in `exege` so far *reads*: an adapter hands over activations a model produced,
 and the package computes on them. A steering experiment asks a different question, "what
-does the model do if this feature is changed?", and answering it means the first time an
-adapter **writes into** the model. This page is the design note for that, written before
-the code and kept as its record, then updated as it shipped. Each section says what is
-**implemented** and what is **planned**.
+does the model do if this feature is changed?", and answering it means an adapter
+**writes into** the model. This page describes the experiment, the adapter protocol that
+makes it possible, and what is measured.
 
 ```{admonition} Status
 :class: note
@@ -35,7 +34,7 @@ is what makes the arms below separable.
 
 ## The adapter contract
 
-The contract in `adapters/AGENTS.md` is a set of read protocols (`LatentSource`,
+The adapter contract is otherwise a set of read protocols (`LatentSource`,
 `ReferenceFields`): the adapter is passive, and a result is a function of files that exist.
 A steer is a *run*: the adapter owns the model, and the experiment owns what
 happens to the latents at a point inside it. Three consequences:
@@ -51,9 +50,7 @@ happens to the latents at a point inside it. Three consequences:
    time it is read. A run is the same only if the adapter makes its noise a function of a
    seed it is given, which the paired design below needs.
 
-The protocol (`latents.Intervenable`; its consumers all sit on `latents`, so by the
-rule in `src/exege/AGENTS.md` it lives there and moves to `core` only when something
-outside needs it):
+The protocol is `latents.Intervenable`:
 
 ```python
 class Intervenable(Protocol):
@@ -129,7 +126,7 @@ nonfinite value, and empty selections (no seeds, no fields, no steps, no draws) 
 `RequestError`s, as for every other read in the package. An edit never changes a masked
 node.
 
-Implemented: `run_steering` returns a `SteeringResult` holding every `Run` (arm, seed,
+`run_steering` returns a `SteeringResult` holding every `Run` (arm, seed,
 draw, outcome series, latent RMS), every `Pairing` against the control of its seed, and
 an `Effect` per field: the feature's signed response and its standard error across
 seeds, the reconstruction arm's, the random draws', and the feature's `effect_size`,
@@ -200,10 +197,6 @@ temperature  0.4099    0.0045  0.3335      0.1375         2.52         1/21  100
 and every random draw, the basis by hash and the `reproduce:` command, in 4.8 KB where `--out`
 is 110 KB. `exege app --record FILE` draws each field's response against the draws.
 
-From Python, `run_steering(system, basis, Steer(layer=1, feature=0, amount=1.5,
-times=(1,)), steps=5, seeds=(0, 1, 2))` returns the same as an object, and `save_result`
-writes it.
-
 ## Non-goals
 
 - No real model is run, loaded or downloaded by `exege`; a real adapter is a later piece
@@ -214,3 +207,18 @@ writes it.
   the runner varies one feature).
 - No gradients: an edit is a forward-pass substitution.
 - No plotting here; figures and the app may draw a result later.
+
+## From Python
+
+```python
+from exege.adapters.toy_dynamics import ToyDynamics
+from exege.latents import Steer, load_basis, run_steering, save_result
+
+system = ToyDynamics(masked=3)
+basis = load_basis("scratch/steer/planted.npz")
+result = run_steering(
+    system, basis, Steer(layer=1, feature=0, amount=1.5, times=(1,)), steps=5, seeds=(0, 1, 2)
+)
+result.effects["temperature"].rank  # 1: larger than every random direction
+save_result("steer.json", result)
+```

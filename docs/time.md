@@ -16,7 +16,7 @@ TIME                 HOURS  45        107
 0425-01-07T00:00:00  78     0.1314    4.9
 ```
 
-`HOURS` comes from the archive's own calendar, by hand: positions are not lead times. This
+`HOURS` comes from the archive's own calendar: positions are not lead times. This
 exporter kept two runs of steps a day and a half apart, and a plot against position would
 hide that. Uncentered, only the region's nodes are read — a series over every time of the
 7.6 GB archive is a few MB — and `--basis … --feature N` follows a feature instead.
@@ -44,10 +44,11 @@ time and writes the next. A field at the same time is what the pass read — rig
 input such as sunlight — but for an output it is the *previous* pass's, which this one never
 saw. `--lead 1` (`lead=1` in Python) sets the latents against the field one reference time
 later, what the pass itself produced; `fields`, `storyline` and `profile` all take it.
-Precipitation, the best SAE feature per layer:
+Precipitation, the best SAE feature per layer, in `latents/atmosphere-2015`: a second
+archive, of a run that starts in 2015 and keeps more times than the one above:
 
 ```console
-$ exege latents storyline latents/atmosphere --field surface_precipitation_rate \
+$ exege latents storyline latents/atmosphere-2015 --field surface_precipitation_rate \
     --layer 0 --layer 4 --layer 6 --layer 8 --time 4 --time 7 --time 19 \
     --bases 'bases/sae_L{layer:02d}.npz' --lead 1
 best |r| of any feature (basis) with surface_precipitation_rate, by layer and time

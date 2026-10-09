@@ -8,7 +8,8 @@ not need numpy.
 Sources
 -------
 
-Defined in ``exege.latents.source``.
+Defined in ``exege.latents.source``. ``source.grid()`` returns a :class:`~exege.latents.grid.Grid`: masks, area weights,
+regions (``within``) and maps (``to_map``).
 
 .. autoclass:: exege.latents.LatentInfo
    :members:
@@ -76,8 +77,6 @@ Defined in ``exege.latents.basis``.
 
 .. autofunction:: exege.latents.basis_provenance
 
-.. autofunction:: exege.latents.bspline_activation
-
 .. autofunction:: exege.latents.result_provenance
 
 .. autofunction:: exege.latents.fit_pca
@@ -85,8 +84,6 @@ Defined in ``exege.latents.basis``.
 .. autofunction:: exege.latents.load_basis
 
 .. autofunction:: exege.latents.save_basis
-
-.. autofunction:: exege.latents.spline_knots
 
 .. autofunction:: exege.latents.top_loadings
 
@@ -270,3 +267,13 @@ Defined in ``exege.latents.toy``.
    :members:
 
 .. autofunction:: exege.latents.toy.toy_grid
+
+Low level
+---------
+
+The numpy pieces of the ``bspline`` activation, for code that reads a dictionary's
+arrays directly.
+
+.. autofunction:: exege.latents.bspline_activation
+
+.. autofunction:: exege.latents.spline_knots

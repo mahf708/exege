@@ -74,18 +74,11 @@ and the file's `record` says which archive, layer and times it was fitted on.
 
 ## Reusing a region's PCA
 
-A PCA fitted by `analyze_region(..., n_components=2)` accepts raw latents, even
-when the analysis uses `centered=True`. Centering changes channel ranking and similarity;
-the basis carries its own mean. Save `result.pca` with `save_basis` and reload it with
-`load_basis` to reuse it through `basis=` or the region command's `--basis` option.
-The file retains the fitting layer, time, region and source provenance automatically.
-
-Reusing a basis checks its layer, model, component and checkpoint against the source.
-Incomplete identity on either side requires `allow_unverified_basis=True` in the API
-or `--allow-unverified-basis` in the CLI. This choice appears in the result settings;
-known identity mismatches and channel-width mismatches still fail. A PCA fitted directly
-from arrays with `fit_pca` has no source identity unless the caller supplies fitting
-metadata when saving it.
+The PCA `analyze_region(..., n_components=2)` fits is a basis like any other: save
+`result.pca` with `save_basis`, and the file keeps the layer, time, region and source it
+was fitted on, so it is checked like the rest when it is used again through `basis=` or
+`--basis`. It takes raw latents even when the analysis was `centered=True`, since it
+carries its own mean.
 
 ## From Python
 
@@ -104,7 +97,7 @@ from exege.latents import (
 source = open_source("latents/atmosphere")
 region = Region(lat=5, lon=-140, radius_km=1500)
 moments = accumulate_moments(source, layer=8)  # area-weighted, over every time
-save_basis("pca8.npz", pca_from_moments(moments, 32), provenance=source.info().provenance())
+save_basis("pca8.npz", pca_from_moments(moments, 32))  # records where it was fitted
 
 basis = load_basis("sae8.npz")
 result = analyze_region(source, time=0, layer=8, region=region, n_components=3, basis=basis)

@@ -15,9 +15,9 @@ Three papers are behind what is here, and behind what comes next. Cite them if y
   physical features*
   ([code](https://github.com/theodoremacmillan/graphcast-interpretability)). Sparse
   autoencoders on GraphCast's node embeddings, and interventions on the features they
-  find. The TopK autoencoder in [`nn`](nn.md) is theirs in form; their auxiliary
-  loss for dead features and their steering are not here yet; held-out
-  [evaluation](evaluation.md) is.
+  find. The TopK autoencoder in [`nn`](nn.md) is theirs in form; held-out
+  [evaluation](evaluation.md) and [steering](steering.md), against a toy system so far,
+  follow them; their auxiliary loss for dead features is not here yet.
 - [Cheon (2026)](https://arxiv.org/abs/2605.17493), *Beyond Linear Superposition:
   Discovering Climate Features in AI Weather Models with KAN-SAE*. A sparse autoencoder
   whose ReLU is replaced by a learnable B-spline per feature. **Not implemented here

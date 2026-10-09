@@ -1,17 +1,8 @@
 # Reading an archive
 
-`exege.latents` asks what a model's internal channels respond to: which ones
-light up over a region, where else the model looks the same, what the main patterns are,
-how they evolve from one physics step to the next, and what a perturbation did to them.
-It grew out of the [latent space visualiser](https://github.com/ktempestuous/latent_space_visualiser_weather_models)
-(Tempest, Beylich & Craig 2026, [arXiv:2604.20467](https://arxiv.org/abs/2604.20467),
-[doi:10.1007/978-3-032-29915-4_10](https://doi.org/10.1007/978-3-032-29915-4_10); cite it
-if you use this), with the science lifted out of the app so that a notebook, a batch job
-and the CLI all run the same code. Finding features with a learned dictionary, and testing
-one by setting a steered run against its control, follows
-[MacMillan & Ouellette (2025)](https://arxiv.org/abs/2512.24440).
-
-It reads a [latent archive](archive-format.md): a directory of activations an exporter
+`exege.latents` asks what a model's internal channels respond to, with the science of the
+[latent space visualiser](background.md) lifted out of its app so that a notebook, a
+batch job and the CLI all run the same code. It reads a [latent archive](archive-format.md): a directory of activations an exporter
 wrote from inside the model, one per model component. It needs the `latents` extra.
 
 ## What is in an archive
@@ -81,7 +72,7 @@ for batch in iter_batches(source, layer=8, batch_size=4096):  # to train on
 
 `source.load(time, layer, channels=..., nodes=...)` reads only what it is asked for.
 
-```{admonition} Area, again
+```{admonition} Weight by area
 :class: warning
 
 A 1° grid has as many nodes in its last row as on the equator, covering 1/115 of the

@@ -49,7 +49,7 @@ identity.
 
 ## Reproducing a result
 
-The [app](app.md)'s *Reproduce* tab and the commands above give `--revision <commit>`
+The [app](app.md)'s *Reproduce* tab and the `reproduce:` line a command prints give `--revision <commit>`
 (never the tag) and `--basis-sha256 <hash>`; the Python gives
 `open_source(path, revision=<commit>)` and `load_basis(path, sha256=<hash>)`. Either refuses
 a basis whose content is not the one named, and `--basis-sha256` without `--basis` is

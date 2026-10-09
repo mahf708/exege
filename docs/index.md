@@ -12,7 +12,7 @@ sparse autoencoders whose features are easier to name than channels, scores them
 they never saw, and steers a model along one of them to see what it does.
 
 ```{admonition} Research tool
-:class: warning
+:class: note
 
 exege is early. What these pages describe works; expect it to change.
 ```
@@ -43,8 +43,6 @@ papers behind it. Cite them if you use it.
 
 installing
 quickstart
-background
-roadmap
 ```
 
 ```{toctree}
@@ -69,17 +67,11 @@ evaluation
 ```
 
 ```{toctree}
-:caption: Experiments
+:caption: Experiments and the app
 :maxdepth: 1
 
 steering
 records
-```
-
-```{toctree}
-:caption: Tools
-:maxdepth: 1
-
 app
 ```
 
@@ -101,4 +93,12 @@ api/latents
 api/nn
 api/figures
 api/adapters
+```
+
+```{toctree}
+:caption: About
+:maxdepth: 1
+
+background
+roadmap
 ```

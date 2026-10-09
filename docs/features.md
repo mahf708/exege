@@ -1,5 +1,8 @@
 # Finding features
 
+Which channels or features go with a physical field, and, when no field is in mind, what
+a feature goes with.
+
 ## Correlating with a field
 
 An archive that keeps physical fields beside its latents (`reference.nc`) can say which
@@ -45,10 +48,12 @@ features instead.
 
 A **census** lists every channel of a layer at one time, or every feature of a basis, with
 how much of the area it is active over, its mean, its mean where active (*strength*), and
-where it peaks. It is a catalog to browse:
+where it peaks. It is a catalog to browse. The examples in this section use
+`latents/atmosphere-2015`, an archive of a run that starts in 2015, with a dictionary
+fitted on each of its layers:
 
 ```console
-$ exege latents census latents/atmosphere --time 4 --layer 4 --basis bases/sae_L04.npz --top 3
+$ exege latents census latents/atmosphere-2015 --time 4 --layer 4 --basis bases/sae_L04.npz --top 3
 features of layer 4 at 2015-01-04T12:00:00, by coverage
 
 FEATURE  COVERAGE  MEAN   STRENGTH  PEAK  AT
@@ -63,7 +68,7 @@ fields of any unit share one axis. Here is the feature that followed sunlight at
 with |r| = 0.42 only:
 
 ```console
-$ exege latents profile latents/atmosphere --layer 4 --basis bases/sae_L04.npz --feature 883 \
+$ exege latents profile latents/atmosphere-2015 --layer 4 --basis bases/sae_L04.npz --feature 883 \
     --time 1 --time 6 --time 11 --time 16
 feature 883 of layer 4: active over 4.3% of the area and 4 time(s)
 
@@ -91,7 +96,7 @@ goes with, not what it does.
 ```python
 from exege.latents import feature_census, feature_profile, load_basis, open_source
 
-source = open_source("latents/atmosphere")
+source = open_source("latents/atmosphere-2015")
 basis = load_basis("bases/sae_L04.npz")
 census = feature_census(source, time=4, layer=4, basis=basis)
 census.ranked("coverage", top=20)  # or "mean", "strength", "peak"

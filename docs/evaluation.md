@@ -125,8 +125,8 @@ nothing about which is better for steering or naming a feature.
 The command ends with a `reproduce:` line that names the archive's commit (for an `hf://`
 source), the split, every basis file and the thresholds, and `--record FILE` writes the
 numbers, the split and that command as an [experiment record](records.md), which
-`exege app --record FILE` opens. `--out` still writes the whole result. The line does not
-pin the bases by hash, since `--basis-sha256` holds one; the record lists each basis's hash.
+`exege app --record FILE` opens. `--out` still writes the whole result. The line pins
+each basis by hash, as [above](#the-protocol), and the record lists the same hashes.
 
 ## From Python
 
@@ -154,8 +154,7 @@ seed_stability(seeds).fraction_recurring
 evaluate_basis(seeds[0], source, split, layer=8).test.explained_variance
 ```
 
-`evaluate_basis` checks the basis against the layer as every other analysis does
-(`check_basis_fits`), and puts `result_provenance(info, basis=basis)` in the result: the
+`evaluate_basis` checks the basis against the layer as every other analysis does, and puts `result_provenance(info, basis=basis)` in the result: the
 commit the archive was opened at and the content hash of the basis. A `fidelity_curve` and
 a `seed_stability` carry the hash of every basis in them. With `split_archives` the
 held-out archive is passed as `test_source` and its provenance is recorded beside the

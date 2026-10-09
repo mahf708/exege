@@ -15,7 +15,7 @@ are no accounts, and no tracking service is involved.
 ```
 
 The `app` extra brings Streamlit and everything `figures` and `latents` need: `uv sync`
-in a checkout, `uv pip install 'exege-core[app]'` elsewhere
+in a checkout, `uv pip install exege` elsewhere
 ([Installation](installing.md)).
 
 ````{admonition} Coastlines on a compute node

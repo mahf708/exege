@@ -20,6 +20,18 @@ group; see :doc:`Writing an adapter <../adapters>`.
 .. autoclass:: exege.adapters.toy_dynamics.ToyDynamics
    :members:
 
+Registry
+--------
+
+Adapters are found through the ``exege.adapters`` entry-point group; ``register`` adds
+one for the current process, which tests and notebooks use.
+
+.. autofunction:: exege.core.registry.available
+
+.. autofunction:: exege.core.registry.register
+
+.. autofunction:: exege.core.registry.create
+
 Errors
 ------
 

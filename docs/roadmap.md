@@ -29,10 +29,6 @@ roughly in the order we mean to take them.
 - An auxiliary loss that revives dead features (MacMillan & Ouellette 2025, after
   [Gao et al. 2024](https://arxiv.org/abs/2406.04093)): what has not fired in a long while
   is made to rebuild the residual
-- Steering a feature as MacMillan & Ouellette do it: keep the autoencoder's
-  reconstruction error, scale one feature's activation, add the error back and let the
-  model run on. The [toy emulator](quickstart.md) can do this in numpy today; a real model
-  needs a hook in its exporter
 - A cross-layer transcoder (several decoders on one encoder), and tracing a
   feature to its antecedents in an earlier layer, as Cheon (2026) does by correlation
 - Features compared across seeds of the ablation campaign
@@ -47,7 +43,7 @@ roughly in the order we mean to take them.
 
 ## Steering
 
-- A real adapter, in the model's environment
+- A real adapter, in the model's environment: the hook that lets a real model be steered
 - Fitted dictionaries on the toy system, to show a learned feature that is not planted
 
 ## Experiment records
