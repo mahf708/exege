@@ -54,7 +54,13 @@ hf = ["huggingface_hub>=0.23", "exege-core[latents]"]
 dev = ["pytest>=7.4", "ruff>=0.5"]
 full = ["exege-core[app]", "exege-core[hf]"]
 # The guide: Sphinx, Furo and MyST, built on Read the Docs (.readthedocs.yaml).
-docs = ["sphinx>=8", "furo>=2024.8", "myst-parser>=4", "sphinx-copybutton>=0.5"]
+docs = [
+    "sphinx>=8",
+    "furo>=2024.8",
+    "myst-parser>=4",
+    "sphinx-click>=6",
+    "sphinx-copybutton>=0.5",
+]
 
 [tool.uv]
 default-groups = ["dev", "full"]

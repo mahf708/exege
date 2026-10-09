@@ -7,13 +7,13 @@ adapter **writes into** the model. This page is the design note for that, writte
 the code and kept as its record, then updated as it shipped. Each section says what is
 **implemented** and what is **planned**.
 
-```{admonition} status
+```{admonition} Status
 :class: note
 
 Implemented: the protocol (`Intervenable`, `Hook`, `Steer`), the runner
 (`run_steering`), the `exege latents steer` command and a toy system to test them
 against. Planned: a real adapter, a view and a figure in the app, and fitted
-dictionaries on the toy system; see [Remaining tasks](#remaining-tasks).
+dictionaries on the toy system; see the [roadmap](roadmap.md#steering).
 ```
 
 ## What a steer is
@@ -33,7 +33,7 @@ The edit is made on the model's own latents (`h' = h + delta * direction`), not 
 reconstruction of them, so whatever the dictionary fails to explain is left as it was. That
 is what makes the arms below separable.
 
-## Why this changes the adapter contract
+## The adapter contract
 
 The contract in `adapters/AGENTS.md` is a set of read protocols (`LatentSource`,
 `ReferenceFields`): the adapter is passive, and a result is a function of files that exist.
@@ -146,7 +146,7 @@ so a printed reproduction command pins what moves: `exege latents steer` ends wi
 `reproduce:` line that carries the adapter and its options, `--basis-sha256`, and every
 setting. A result saved with `save_result` is the same record as JSON.
 
-## Trying it
+## Example
 
 The synthetic system is linear and its latents do not read its state back, so the answer is
 known: adding `a` to channel 0 of layer 1 moves temperature by `gain * a` on that step and by
@@ -214,12 +214,3 @@ writes it.
   the runner varies one feature).
 - No gradients: an edit is a forward-pass substitution.
 - No plotting here; figures and the app may draw a result later.
-
-## Remaining tasks
-
-- [x] The protocol, the runner and a toy system to test it against.
-- [x] `exege latents steer`.
-- [ ] A real adapter, in the model's environment.
-- [x] A view in the app, and a figure of the feature's response against the random draws
-      ([records](records.md); `exege.figures.response_figure`).
-- [ ] Fitted dictionaries on the toy system, to show a learned feature that is not planted.

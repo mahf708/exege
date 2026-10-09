@@ -7,11 +7,11 @@ build:
   tools:
     python: "3.13"
   jobs:
-    # The guide's dependencies are pyproject.toml's `docs` group, which pip reads
-    # from 25.1 on. exege itself is not installed: the pages do not import it.
+    # The guide's dependencies are pyproject.toml's `docs` group, which pip reads from
+    # 25.1 on, and exege with the extras its API reference imports (torch is mocked).
     post_install:
       - pip install --upgrade "pip>=25.1"
-      - pip install --group docs
+      - pip install --group docs ".[figures]"
 
 sphinx:
   configuration: docs/conf.py

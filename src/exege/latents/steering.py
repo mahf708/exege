@@ -64,7 +64,7 @@ class Rollout:
 
     ``fields[name]`` is ``(steps, n_nodes)``: what forward step ``t`` wrote, NaN where
     the field means nothing (the ``lead=1`` convention of ``ReferenceFields``).
-    ``latents[(layer, time)]`` is the tensor at each ``record``ed place, taken *after*
+    ``latents[(layer, time)]`` is the tensor at each place in ``record``, taken *after*
     any hook there: what the pass actually continued with.
     """
 

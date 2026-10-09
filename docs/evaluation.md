@@ -57,7 +57,7 @@ sae_k4  4.00    97.7%    98.3%
 sae_k8  8.00    98.2%    100.0%
 ```
 
-That is the [toy emulator](latents.md), eight times, so these are numbers about the
+That is the [toy emulator](quickstart.md), eight times, so these are numbers about the
 command, not about any model. They do show the shape of a result: a dictionary with two
 features active rebuilds 93% of a held-out layer where two principal components rebuild
 72%, and from four active on the toy's low-rank layer the PCA is as good or better.
@@ -68,7 +68,7 @@ split is for. `--out FILE` (and `--json`) write all of it with its provenance.
 order, or none; a file whose content has another hash is refused. The command ends with a
 `reproduce:` line that repeats the invocation with the hash of every basis it scored.
 
-## What each number tells you, and what it does not
+## Reading the metrics
 
 **Explained variance** is one minus the area-weighted squared error over the variance of
 the target about the *training* mean the basis carries, summed over channels, so channels
@@ -120,7 +120,7 @@ It compares *at equal L0*, which is not equal cost, equal interpretability or eq
 width: a dictionary has more features than channels and a PCA has not. It says
 nothing about which is better for steering or naming a feature.
 
-## Keeping a run
+## Saving a run
 
 The command ends with a `reproduce:` line that names the archive's commit (for an `hf://`
 source), the split, every basis file and the thresholds, and `--record FILE` writes the
@@ -128,7 +128,7 @@ numbers, the split and that command as an [experiment record](records.md), which
 `exege app --record FILE` opens. `--out` still writes the whole result. The line does not
 pin the bases by hash, since `--basis-sha256` holds one; the record lists each basis's hash.
 
-## Python API
+## From Python
 
 ```python
 from exege.latents import (
@@ -160,11 +160,3 @@ commit the archive was opened at and the content hash of the basis. A `fidelity_
 a `seed_stability` carry the hash of every basis in them. With `split_archives` the
 held-out archive is passed as `test_source` and its provenance is recorded beside the
 first's.
-
-## Remaining tasks
-
-- [ ] Block-bootstrapped intervals on the held-out numbers: eight held-out times is a
-      point estimate, not a distribution
-- [ ] Splits that buffer by elapsed time (`LatentInfo.elapsed_seconds`) rather than by
-      position, for archives that keep irregular steps
-- [ ] The same evaluation for a cross-layer transcoder, when there is one

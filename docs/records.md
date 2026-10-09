@@ -19,7 +19,7 @@ $ exege app --record scratch/rec/steer.json --record scratch/rec/eval.json
 `--record` is beside `--out`, which still writes the whole result. A record cannot be asked
 of `--split-only`, which computes nothing to keep.
 
-## What is in one
+## Contents
 
 ```json
 {
@@ -40,7 +40,7 @@ of `--split-only`, which computes nothing to keep.
 
 | Key | Holds |
 | --- | --- |
-| `provenance` | the source's model, component and checkpoint; for a hub archive the **commit** it was opened at and the revision that was asked for; the options it was opened with; what the exporter recorded about the run (`experiment`); the version of exege. The same as `result_provenance` writes into every result ([provenance](latents.md#provenance-what-a-result-was-made-from)). |
+| `provenance` | the source's model, component and checkpoint; for a hub archive the **commit** it was opened at and the revision that was asked for; the options it was opened with; what the exporter recorded about the run (`experiment`); the version of exege. The same as `result_provenance` writes into every result ([provenance](provenance.md)). |
 | `bases` | every basis used, by file and **content hash** |
 | `settings` | what the command was asked: enough to ask it again |
 | `split` | for an evaluation, the time labels of both sides and the buffer, held once. `null` for a steering record |
@@ -80,7 +80,7 @@ bases=…, settings=…, command=…)` and `steering_record(result, settings=…
 one and `save_record` writes it. The commands are one client of these, as the app is
 another.
 
-## In the app
+## Viewing records
 
 Under **Records**, the app opens a record from `--record`, or from a path typed in the
 sidebar. It shows *where it came from* (source, network, commit, options, bases by hash),
@@ -91,10 +91,3 @@ reconstruction arm marked on it. The last section is the `command` and a downloa
 record. The test suite runs that command and checks it agrees with what is on screen. A file the
 validator lets through that the view still cannot show is a warning on the page, not a
 traceback.
-
-## Remaining tasks
-
-- [ ] Check a record against the files it names (`bases`, the archive's commit) and say
-      which have changed
-- [ ] Records of the other commands (`diff`, `growth`), if anyone comes back to them
-- [ ] Two records side by side in the app

@@ -7,7 +7,8 @@ PDF, an EPUB and a zipped single-page HTML from this file (`.readthedocs.yaml`).
 import re
 from pathlib import Path
 
-# The version is read rather than imported: the guide builds without exege installed.
+# The version is read rather than imported, so it is this checkout's even where an older
+# exege is installed.
 _init = (Path(__file__).parents[1] / "src" / "exege" / "__init__.py").read_text()
 release = re.search(r'^__version__ = "(.+)"$', _init, re.MULTILINE)[1]
 version = release
@@ -17,7 +18,25 @@ author = "mahf708"
 copyright = "2026, mahf708"
 language = "en"
 
-extensions = ["myst_parser", "sphinx_copybutton"]
+extensions = [
+    "myst_parser",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx_click",
+    "sphinx_copybutton",
+]
+
+# The API reference is read from the code. torch is mocked rather than installed: Read the
+# Docs has no use for a gigabyte of it to print docstrings.
+autodoc_mock_imports = ["torch"]
+autodoc_member_order = "bysource"
+# Quotes and ellipses only: `--headless` in a docstring or a command's help stays two dashes.
+smartquotes_action = "qe"
+autodoc_typehints = "description"
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+}
 
 # AGENTS.md files are contracts for contributors, not published pages.
 exclude_patterns = ["AGENTS.md", "_build"]
@@ -33,7 +52,7 @@ copybutton_only_copy_prompt_lines = True
 # -- HTML --------------------------------------------------------------------
 
 html_theme = "furo"
-html_title = f"exege {release}"
+html_title = "exege documentation"
 html_theme_options = {
     "source_repository": "https://github.com/mahf708/exege",
     "source_branch": "main",

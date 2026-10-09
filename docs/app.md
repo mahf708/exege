@@ -1,29 +1,24 @@
 # The web app
 
 `exege app` is a local web app over the rest of the package: an explorer for
-[latent archives](latents.md) — pick a model, a region and a method — after the tool of
+[latent archives](archives.md) — pick a model, a region and a method — after the tool of
 [Tempest, Beylich & Craig (2026)](https://arxiv.org/abs/2604.20467).
 It is presentation only — every number on screen comes from `exege.latents` and every
 figure from `exege.figures` — so anything you see there can be redone in a notebook or a
 batch job, and the app tells you how.
 
-```{admonition} local, not a service
+```{admonition} Local, not a service
 :class: warning
 
 The app runs on your machine and reads what is on disk. Nothing is uploaded, there
 are no accounts, and no tracking service is involved.
 ```
 
-## Install
+The `app` extra brings Streamlit and everything `figures` and `latents` need: `uv sync`
+in a checkout, `uv pip install 'exege-core[app]'` elsewhere
+([Installation](installing.md)).
 
-```console
-$ uv sync                      # in a checkout: everything
-$ uv pip install 'exege-core[app]'   # elsewhere, from PyPI
-```
-
-The `app` extra brings Streamlit and everything `figures` and `latents` need.
-
-````{admonition} coastlines on a compute node
+````{admonition} Coastlines on a compute node
 :class: tip
 
 Cartopy downloads its coastline data the first time it draws, and a compute node has
@@ -39,7 +34,7 @@ $ python -c "from cartopy.io import shapereader as s; s.natural_earth('110m', 'p
 Set `EXEGE_NO_COASTLINES=1` to skip the attempt altogether.
 ````
 
-## Start it
+## Starting it
 
 ```console
 $ uv run exege app --latents latents/atmosphere --latents latents/ocean
@@ -56,7 +51,7 @@ Every option is optional: archives can also be opened from the sidebar.
 | `--address` | the interface to listen on; `localhost` by default, so the app is reachable from this machine only |
 | `--headless` | do not open a browser |
 
-```{admonition} on a remote system
+```{admonition} On a remote system
 :class: tip
 
 Start it with `--headless` and reach the port the way you reach a notebook. It
@@ -66,12 +61,12 @@ JupyterHub proxy that is `https://<hub>/user/<you>/proxy/8501/`; through SSH,
 `ssh -L 8501:localhost:8501 <host>`.
 ```
 
-## Latents
+## The Latents page
 
 Pick a model in the sidebar — the drop-down names each archive by the model and component
 its manifest declares, so SFNO's atmosphere, its ocean and a steered twin of either are
 told apart — then a time, a layer and a region. The view is
-[`analyze_region`](latents.md#python-api) with widgets on it:
+[`analyze_region`](regions.md) with widgets on it:
 
 - **Channels** — the channels that respond most strongly in the region, and a map of
   each. *One color scale for every map* makes them comparable by eye; otherwise each
@@ -80,24 +75,24 @@ told apart — then a time, a layer and a region. The view is
   and over all of them, on the fixed scale −1 to 1.
 - **Features** — by the *Method* chosen in the sidebar: principal components fitted in
   the region and projected everywhere, or the features of a
-  [basis file](latents.md#methods-a-basis-is-a-value) — a global PCA, a
+  [basis file](bases.md) — a global PCA, a
   [sparse autoencoder](nn.md) — that respond most strongly there. Either way, with the
   channels that weigh most in each. A region too small for the components asked of it, or
   a basis that does not fit the layer, still shows everything else, and says why here.
   A basis that does not say which model and layer it was fitted on is refused until
   *Allow an unverified basis* is ticked, as `--allow-unverified-basis` does for the command.
   The *Method* drop-down also lists, by name, every basis file kept in the
-  [`bases/` folder](latents.md#the-latent-archive) of any open archive that fits the layer
+  [`bases/` folder](archive-format.md) of any open archive that fits the layer
   shown — fitted on the same network and layer, which the file says — so the control's
   bases serve every run of the same model without a path being typed.
 - **Field** — for an archive that keeps physical fields beside its latents, pick one under
   *A physical field*: its map, the channels (or the chosen basis's features) that follow
   it most closely at this time, and a map of each. Below, one of them
-  [profiled](latents.md#browsing-features-and-what-one-goes-with) against every field —
+  [profiled](features.md#census-and-profile) against every field —
   where it is active against where it is not — over a few times spread through the
   archive, on request. *Set it against* chooses what the pass reads (the field at the same
   time, for an input) or what it writes (the next, for an output such as precipitation):
-  [why it matters](latents.md#what-a-pass-reads-and-what-it-writes). The `latents fields`
+  [why it matters](time.md#inputs-outputs-and-lead-times). The `latents fields`
   and `latents profile` commands that give the same numbers are under *Reproduce*.
 - **Through time** — the region's mean of the ranked channels (or the basis's features)
   at every time the archive holds, placed by its own calendar so that a gap between kept
@@ -107,9 +102,9 @@ told apart — then a time, a layer and a region. The view is
   test suite runs that command and that code and checks they agree with the app. For an
   archive on the hub they name the commit it was opened at, and for a basis its content
   hash, so they rerun the same inputs
-  ([provenance](latents.md#provenance-what-a-result-was-made-from)).
+  ([provenance](provenance.md)).
 
-## Records
+## The Records page
 
 The second page, *Records*, opens an [experiment record](records.md): choose one from
 `--record` or type a path in the sidebar. It is presentation only, like the page above — it
@@ -138,7 +133,7 @@ channels, 7.6 GB) the analysis takes 0.1 s and each map 0.07 s on an Apple M1 Ma
 change of region redraws the default twelve maps in about a second. One layer is read per
 analysis, and results and rendered maps are cached, bounded.
 
-## The same figures without the app
+## Figures from Python
 
 ```python
 from exege.latents import Region, analyze_region, open_source
@@ -160,13 +155,3 @@ fig.savefig("similarity.png", dpi=150)
 ```
 
 `map_figure` returns a plain `matplotlib.figure.Figure` and never touches `pyplot`.
-
-## Remaining tasks
-
-- [ ] A reference-field panel beside the latent maps (needs `FieldSource`)
-- [ ] Click on a map to move the region
-- [ ] A run against its control (`latents diff`), and two archives side by side
-- [x] Rank channels and features against a reference field (`latents fields`),
-      and profile one
-- [ ] A PDF report of a session
-- [ ] Two records side by side, and a record against the files it names

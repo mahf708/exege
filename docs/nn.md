@@ -1,6 +1,6 @@
 # Sparse autoencoders
 
-`exege.nn` holds a sparse autoencoder over a model's [latents](latents.md): one node's
+`exege.nn` holds a sparse autoencoder over a model's [latents](archives.md): one node's
 vector of channels goes in, a wide and mostly-zero vector of *features* comes out, and the
 input is rebuilt from it. Channels are entangled; features, being few at a time, are
 easier to name. It is the tool
@@ -8,22 +8,15 @@ easier to name. It is the tool
 where it found tropical cyclones, atmospheric rivers and sea ice among the features, and
 let them steer a hurricane.
 
-What it produces is a [basis file](latents.md#methods-a-basis-is-a-value), used wherever
+What it produces is a [basis file](bases.md), used wherever
 a PCA is — `exege latents region`, `series`, `fields`, and the
 [web app](app.md) — and readable with nothing but numpy from the environment that
 runs the model.
 
-## Install
+It needs the `nn` extra, which brings torch: `uv sync --extra nn` in a checkout,
+`uv pip install 'exege-core[nn]'` elsewhere ([Installation](installing.md)).
 
-`uv sync` leaves torch out: it is large, and whether it should be the CPU or a CUDA build
-is the machine's business.
-
-```console
-$ uv sync --extra nn
-$ uv pip install 'exege-core[nn]'   # elsewhere, from PyPI
-```
-
-## Fit one
+## Fitting one
 
 ```console
 $ exege latents toy scratch/toy/control
@@ -35,7 +28,7 @@ $ exege nn sae scratch/toy/control --layer 2 --features 64 --k 8 --epochs 30 \
 wrote scratch/toy/sae.npz: 64 feature(s) of layer 2; 98.6% of the variance explained, 8.0 active per node, 14.1% dead; --basis-sha256 <sha256 of scratch/toy/sae.npz>
 ```
 
-That is the [toy system](index.md) (1,152 nodes, a few seconds on a CPU), not a real
+That is the [toy system](quickstart.md) (1,152 nodes, a few seconds on a CPU), not a real
 model: its numbers show what the output looks like and say nothing about what a dictionary
 will explain on a real layer. The defaults (1,024 features, `k` of 32, two epochs) are
 sized for a layer of a million node-times, and on a toy this small they underfit; the
@@ -55,7 +48,7 @@ the loop's own, taken while the weights were changing.
 | `--time` | fit on some times only; repeatable |
 | `--device` | `cpu`, `cuda` or `mps`; the best there is by default |
 
-### Three ways of being sparse
+### Activation functions
 
 - **`topk`** keeps each node's `k` largest features and needs no penalty, so the sparsity
   is exactly what was asked for from the first step. It is the default for that reason, and
@@ -88,7 +81,7 @@ the size of its control points. The activation above was written before we read 
 paper and differs on every one of those points. Do not report it as KAN-SAE.
 ```
 
-```{admonition} a toy loop, on purpose
+```{admonition} A toy loop, on purpose
 :class: warning
 
 Adam, a fixed learning rate, no resampling of dead features, and its own metrics are
@@ -103,15 +96,15 @@ their relative sizes. That standardization travels in the file: an analysis hand
 basis raw latents. Every feature's direction is kept at unit length throughout training,
 so an activation is in the same units for every feature — how much of the standardized
 layer it accounts for at that node — and two features can be compared by it. Batches come from
-[`iter_batches`](latents.md#python-api) — valid nodes only, drawn in proportion to area —
+[`iter_batches`](archives.md#from-python) — valid nodes only, drawn in proportion to area —
 so the plain mean the loop takes is already the area-weighted loss.
 
 The file carries a content hash, checked whenever it is loaded, and the line ends with it:
 `--basis-sha256` hands it back to any command that takes `--basis`, which then refuses a
 file that is not this one. What a result used is recorded under its provenance; see
-[Provenance](latents.md#provenance-what-a-result-was-made-from).
+[Provenance](provenance.md).
 
-## Python API
+## From Python
 
 ```python
 from exege.latents import open_source, save_basis
@@ -163,23 +156,4 @@ of these sharing an encoder.
    archive whose manifest says so under `experiment`, and set it against its control:
    `exege latents diff control steered --growth`.
 
-Step 3's hook is the exporter's to grow; see [remaining tasks](#remaining-tasks).
-
-## Remaining tasks
-
-In the order we mean to take them, and after whom:
-
-- [ ] The B-spline autoencoder as Cheon (2026) has it, replacing `bspline`, beside the
-      `relu` baseline it is measured against, with that paper's table: explained variance,
-      features alive and dead, mean L1 norm, redundancy between features. Two things its
-      text leaves open need an answer first: what a spline does outside its knots, and
-      whether the knot vector is extended past the measured range
-- [ ] An auxiliary loss that revives dead features (MacMillan & Ouellette 2025, after
-      [Gao et al. 2024](https://arxiv.org/abs/2406.04093)): what has not fired in a long while is made to rebuild the residual
-- [ ] Steering a feature as MacMillan & Ouellette do it: keep the autoencoder's
-      reconstruction error, scale one feature's activation, add the error back and let the
-      model run on. The [toy emulator](latents.md) can do this in numpy today; a real model
-      needs a hook in its exporter
-- [ ] A cross-layer transcoder (several decoders on one encoder), and tracing a
-      feature to its antecedents in an earlier layer, as Cheon (2026) does by correlation
-- [ ] Features compared across seeds of the ablation campaign
+Step 3's hook is the exporter's to grow; see the [roadmap](roadmap.md#sparse-autoencoders), and [Steering](steering.md) for the experiment design.

@@ -494,7 +494,10 @@ def storyline_cmd(
     source, adapter, mask_variable, field, layers, bases, times, lead, allow_unverified_basis,
     as_json,
 ):  # fmt: skip
-    """Where a physical field lives in the network, time by time: the best |r| per layer."""
+    """Where a physical field lives in the network, time by time.
+
+    The best absolute correlation any channel (or feature) of each layer reaches.
+    """
     from pathlib import Path
 
     from exege.latents import field_storyline
