@@ -5,6 +5,8 @@ on:
     branches: ["main"]
     paths:
       - .github/workflows/ci.yml
+      - .readthedocs.yaml
+      - docs/**
       - pyproject.toml
       - packages/**
       - src/**
@@ -14,6 +16,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/ci.yml
+      - .readthedocs.yaml
+      - docs/**
       - pyproject.toml
       - packages/**
       - src/**
@@ -86,3 +90,19 @@ jobs:
           assert not present, f"base tier unexpectedly has {present}"
           print("base tier is light")
           PY
+
+  # Read the Docs builds and publishes the guide; this only checks that it builds, so a
+  # broken link fails the PR whether or not Read the Docs previews it.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          show-progress: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - name: Build
+        run: uv run --no-default-groups --group docs sphinx-build -M html docs docs/_build -W --keep-going

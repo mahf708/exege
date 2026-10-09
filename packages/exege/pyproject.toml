@@ -31,8 +31,8 @@ dependencies = ["exege-core[app,hf]==0.6.0"]
 nn = ["exege-core[nn]==0.6.0"]
 
 [project.urls]
-Homepage = "https://mahf708.github.io/exege"
-Documentation = "https://mahf708.github.io/exege/"
+Homepage = "https://exege.readthedocs.io"
+Documentation = "https://exege.readthedocs.io"
 Source = "https://github.com/mahf708/exege"
 Issues = "https://github.com/mahf708/exege/issues"
 

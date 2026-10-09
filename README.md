@@ -5,7 +5,7 @@ its name from the Greek stem *exēgē-*, associated with explanation and interpr
 
 So far: diagnostics of an emulator's latent space (`latents`), sparse autoencoders trained
 on it (`nn`), figures (`figures`), and a local web app over them (`app`). Documentation is
-at <https://mahf708.github.io/exege>.
+at <https://exege.readthedocs.io>.
 
 ## Install
 
@@ -47,7 +47,7 @@ $ exege app --latents /path/to/latents/   # the same, in a local web app
 ```console
 $ uv run ruff check && uv run ruff format --check
 $ uv run pytest
-$ uv run --group docs mkdocs build --strict   # MKDOCS_SOCIAL=false without cairo
+$ uv run --group docs sphinx-build -M html docs docs/_build -W   # docs/_build/html/index.html
 ```
 
 See `AGENTS.md` for how the pieces fit together, and the `AGENTS.md` in each

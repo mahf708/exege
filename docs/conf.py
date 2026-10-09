@@ -1,0 +1,53 @@
+"""Sphinx configuration for the exege guide, built on Read the Docs.
+
+The pages are Markdown, read by MyST; the theme is Furo. Read the Docs builds HTML, a
+PDF, an EPUB and a zipped single-page HTML from this file (`.readthedocs.yaml`).
+"""
+
+import re
+from pathlib import Path
+
+# The version is read rather than imported: the guide builds without exege installed.
+_init = (Path(__file__).parents[1] / "src" / "exege" / "__init__.py").read_text()
+release = re.search(r'^__version__ = "(.+)"$', _init, re.MULTILINE)[1]
+version = release
+
+project = "exege"
+author = "mahf708"
+copyright = "2026, mahf708"
+language = "en"
+
+extensions = ["myst_parser", "sphinx_copybutton"]
+
+# AGENTS.md files are contracts for contributors, not published pages.
+exclude_patterns = ["AGENTS.md", "_build"]
+
+# `[text](latents.md#python-api)` links reach headings down to ####.
+myst_heading_anchors = 4
+myst_enable_extensions = ["colon_fence", "deflist"]
+
+# `console` blocks copy without their `$ ` prompts or their output.
+copybutton_prompt_text = "$ "
+copybutton_only_copy_prompt_lines = True
+
+# -- HTML --------------------------------------------------------------------
+
+html_theme = "furo"
+html_title = f"exege {release}"
+html_theme_options = {
+    "source_repository": "https://github.com/mahf708/exege",
+    "source_branch": "main",
+    "source_directory": "docs/",
+}
+
+# -- PDF ---------------------------------------------------------------------
+
+# xelatex, for the em dashes and the ē the pages are written with.
+latex_engine = "xelatex"
+latex_documents = [("index", "exege.tex", "exege", author, "manual")]
+latex_elements = {"papersize": "letterpaper", "pointsize": "10pt"}
+
+# -- EPUB --------------------------------------------------------------------
+
+epub_basename = "exege"
+epub_show_urls = "no"

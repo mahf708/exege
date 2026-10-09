@@ -7,10 +7,12 @@ It is presentation only — every number on screen comes from `exege.latents` an
 figure from `exege.figures` — so anything you see there can be redone in a notebook or a
 batch job, and the app tells you how.
 
-!!! warning "local, not a service"
+```{admonition} local, not a service
+:class: warning
 
-    The app runs on your machine and reads what is on disk. Nothing is uploaded, there
-    are no accounts, and no tracking service is involved.
+The app runs on your machine and reads what is on disk. Nothing is uploaded, there
+are no accounts, and no tracking service is involved.
+```
 
 ## Install
 
@@ -21,19 +23,21 @@ $ uv pip install 'exege-core[app]'   # elsewhere, from PyPI
 
 The `app` extra brings Streamlit and everything `figures` and `latents` need.
 
-!!! tip "coastlines on a compute node"
+````{admonition} coastlines on a compute node
+:class: tip
 
-    Cartopy downloads its coastline data the first time it draws, and a compute node has
-    no network. Maps are then still drawn — on plain axes, with the archive's own mask
-    outlined where it has one — and the app says why, after at most ten seconds: the
-    fetch has a deadline, because a node that drops packets never refuses. To have
-    coastlines there, fetch the data once from a login node:
+Cartopy downloads its coastline data the first time it draws, and a compute node has
+no network. Maps are then still drawn — on plain axes, with the archive's own mask
+outlined where it has one — and the app says why, after at most ten seconds: the
+fetch has a deadline, because a node that drops packets never refuses. To have
+coastlines there, fetch the data once from a login node:
 
-    ```console
-    $ python -c "from cartopy.io import shapereader as s; s.natural_earth('110m', 'physical', 'coastline')"
-    ```
+```console
+$ python -c "from cartopy.io import shapereader as s; s.natural_earth('110m', 'physical', 'coastline')"
+```
 
-    Set `EXEGE_NO_COASTLINES=1` to skip the attempt altogether.
+Set `EXEGE_NO_COASTLINES=1` to skip the attempt altogether.
+````
 
 ## Start it
 
@@ -52,13 +56,15 @@ Every option is optional: archives can also be opened from the sidebar.
 | `--address` | the interface to listen on; `localhost` by default, so the app is reachable from this machine only |
 | `--headless` | do not open a browser |
 
-!!! tip "on a remote system"
+```{admonition} on a remote system
+:class: tip
 
-    Start it with `--headless` and reach the port the way you reach a notebook. It
-    listens on `localhost` only — on a shared login node anything wider would show your
-    files to everyone — which is all a tunnel or a proxy needs. Through a
-    JupyterHub proxy that is `https://<hub>/user/<you>/proxy/8501/`; through SSH,
-    `ssh -L 8501:localhost:8501 <host>`.
+Start it with `--headless` and reach the port the way you reach a notebook. It
+listens on `localhost` only — on a shared login node anything wider would show your
+files to everyone — which is all a tunnel or a proxy needs. Through a
+JupyterHub proxy that is `https://<hub>/user/<you>/proxy/8501/`; through SSH,
+`ssh -L 8501:localhost:8501 <host>`.
+```
 
 ## Latents
 

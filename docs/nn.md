@@ -76,22 +76,26 @@ the loop's own, taken while the weights were changing.
   activation still counts as active. It is a starting point for the experiment, not a
   result; the design is one class, `BSplineActivation`, and meant to be changed.
 
-!!! warning "`bspline` is not KAN-SAE"
+```{admonition} `bspline` is not KAN-SAE
+:class: warning
 
-    [Cheon (2026)](https://arxiv.org/abs/2605.17493) replaces the ReLU with a
-    learnable cubic B-spline per feature and nothing else: no hard zero, nine control
-    points that start at zero, one knot vector over the 1st–99th percentile of the
-    pre-activations measured on a calibration sample, sparsity from the L1 penalty alone
-    (annealed), decoder directions renormalized every step, and a feature counted alive by
-    the size of its control points. The activation above was written before we read that
-    paper and differs on every one of those points. Do not report it as KAN-SAE.
+[Cheon (2026)](https://arxiv.org/abs/2605.17493) replaces the ReLU with a
+learnable cubic B-spline per feature and nothing else: no hard zero, nine control
+points that start at zero, one knot vector over the 1st–99th percentile of the
+pre-activations measured on a calibration sample, sparsity from the L1 penalty alone
+(annealed), decoder directions renormalized every step, and a feature counted alive by
+the size of its control points. The activation above was written before we read that
+paper and differs on every one of those points. Do not report it as KAN-SAE.
+```
 
-!!! warning "a toy loop, on purpose"
+```{admonition} a toy loop, on purpose
+:class: warning
 
-    Adam, a fixed learning rate, no resampling of dead features, and its own metrics are
-    in-sample (the [evaluation](evaluation.md) holds times out). It trains a useful
-    dictionary on a laptop in seconds and says how good it is; making it better is what
-    the modules being separate is for.
+Adam, a fixed learning rate, no resampling of dead features, and its own metrics are
+in-sample (the [evaluation](evaluation.md) holds times out). It trains a useful
+dictionary on a laptop in seconds and says how good it is; making it better is what
+the modules being separate is for.
+```
 
 Inputs are centered on the layer's area-weighted mean over the times used and divided by
 one number, so a node's vector has unit mean square per channel and the channels keep

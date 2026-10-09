@@ -22,7 +22,7 @@ Click only, with each subpackage's dependencies added as you need them:
 $ pip install 'exege-core[latents]'
 ```
 
-- Documentation: <https://mahf708.github.io/exege/>
+- Documentation: <https://exege.readthedocs.io>
 - Source and issues: <https://github.com/mahf708/exege>
 
 MIT.

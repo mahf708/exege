@@ -11,12 +11,14 @@ and the CLI all run the same code. Finding features with a learned dictionary, a
 one by setting a steered run against its control, follows
 [MacMillan & Ouellette (2025)](https://arxiv.org/abs/2512.24440).
 
-!!! tip "two environments, one directory between them"
+```{admonition} two environments, one directory between them
+:class: tip
 
-    Recording activations needs the model's own environment — torch, the framework, a
-    checkpoint, usually a pinned Python. Studying them needs numpy. The
-    [latent archive](#the-latent-archive) is the hand-off, so neither side installs the
-    other's stack.
+Recording activations needs the model's own environment — torch, the framework, a
+checkpoint, usually a pinned Python. Studying them needs numpy. The
+[latent archive](#the-latent-archive) is the hand-off, so neither side installs the
+other's stack.
+```
 
 ## Install
 
@@ -128,32 +130,36 @@ computed, so a map of three features out of 1,024 does not cost the other 1,021.
 ranked by what each *contributes* in the region — its activation times the length of its
 direction — because a dictionary is free to trade one for the other.
 
-!!! warning "an index is not an identity"
+````{admonition} an index is not an identity
+:class: warning
 
-    Every layer of this model is 384 channels wide, and so is every seed of a campaign, so
-    a basis *fits* anywhere and means something in one place. Its file records the
-    network and layer it was fitted on, and it is refused anywhere else:
+Every layer of this model is 384 channels wide, and so is every seed of a campaign, so
+a basis *fits* anywhere and means something in one place. Its file records the
+network and layer it was fitted on, and it is refused anywhere else:
 
-    ```console
-    $ exege latents region latents/atmosphere --lat 5 --lon -140 --layer 4 --rank-layer 4 \
-        --features 3 --basis sae8.npz
-    Error: the basis (sae8.npz) was not fitted here: layer 4 against the layer 8 it was fitted on
-    ```
+```console
+$ exege latents region latents/atmosphere --lat 5 --lon -140 --layer 4 --rank-layer 4 \
+    --features 3 --basis sae8.npz
+Error: the basis (sae8.npz) was not fitted here: layer 4 against the layer 8 it was fitted on
+```
 
-    A basis that does not say where it was fitted — one made with `fit_pca` from plain
-    arrays, say — is refused too, until you pass `--allow-unverified-basis`
-    (`allow_unverified_basis=True` from Python, on `analyze_region`, `region_series` and
-    `rank_by_field` alike); the choice is recorded in the result's settings. To put a basis
-    to a layer it says it was *not* fitted on, strip what it says first,
-    `dataclasses.replace(basis, meta={})`, and then allow it: along a residual stream, a
-    dictionary from one layer can be a fair question to put to the next.
+A basis that does not say where it was fitted — one made with `fit_pca` from plain
+arrays, say — is refused too, until you pass `--allow-unverified-basis`
+(`allow_unverified_basis=True` from Python, on `analyze_region`, `region_series` and
+`rank_by_field` alike); the choice is recorded in the result's settings. To put a basis
+to a layer it says it was *not* fitted on, strip what it says first,
+`dataclasses.replace(basis, meta={})`, and then allow it: along a residual stream, a
+dictionary from one layer can be a fair question to put to the next.
+````
 
-!!! tip "the way back to the model"
+```{admonition} the way back to the model
+:class: tip
 
-    The same file is the hand-off to a steering experiment. The model's environment
-    needs nothing but numpy to read it — `np.load("sae8.npz")["decoder"][676]` is the
-    direction feature 676 writes, and `["components"][0]` the first principal component —
-    and the file's `record` says which archive, layer and times it was fitted on.
+The same file is the hand-off to a steering experiment. The model's environment
+needs nothing but numpy to read it — `np.load("sae8.npz")["decoder"][676]` is the
+direction feature 676 writes, and `["components"][0]` the first principal component —
+and the file's `record` says which archive, layer and times it was fitted on.
+```
 
 ## Through time
 
@@ -493,12 +499,14 @@ profile = feature_profile(source, layer=4, column=883, basis=basis, times=range(
 profile.fields, profile.effect  # largest effect first; exege.figures.profile_figure draws it
 ```
 
-!!! warning "area, again"
+```{admonition} area, again
+:class: warning
 
-    A 1° grid has as many nodes in its last row as on the equator, covering 1/115 of the
-    area, and a third of an ocean model's nodes are land. `iter_batches` draws nodes by
-    area and never where the grid is invalid, so a plain mean over a batch is already the
-    area-weighted loss. Anything trained on `source.load(...)` directly should do the same.
+A 1° grid has as many nodes in its last row as on the equator, covering 1/115 of the
+area, and a third of an ocean model's nodes are land. `iter_batches` draws nodes by
+area and never where the grid is invalid, so a plain mean over a batch is already the
+area-weighted loss. Anything trained on `source.load(...)` directly should do the same.
+```
 
 What a request cannot have — a layer that is not there, an empty region, a basis for a
 different width — is a `RequestError` (an `ExegeError` and a `ValueError`), raised before

@@ -7,11 +7,14 @@ adapter **writes into** the model. This page is the design note for that, writte
 the code and kept as its record, then updated as it shipped. Each section says what is
 **implemented** and what is **planned**.
 
-!!! note "status"
-    Implemented: the protocol (`Intervenable`, `Hook`, `Steer`), the runner
-    (`run_steering`), the `exege latents steer` command and a toy system to test them
-    against. Planned: a real adapter, a view and a figure in the app, and fitted
-    dictionaries on the toy system; see [Remaining tasks](#remaining-tasks).
+```{admonition} status
+:class: note
+
+Implemented: the protocol (`Intervenable`, `Hook`, `Steer`), the runner
+(`run_steering`), the `exege latents steer` command and a toy system to test them
+against. Planned: a real adapter, a view and a figure in the app, and fitted
+dictionaries on the toy system; see [Remaining tasks](#remaining-tasks).
+```
 
 ## What a steer is
 

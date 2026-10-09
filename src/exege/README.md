@@ -58,7 +58,7 @@ result.ranking.channels  # the channels that respond most strongly there
 
 ## More
 
-- Documentation: <https://mahf708.github.io/exege/>
+- Documentation: <https://exege.readthedocs.io>
 - Source and issues: <https://github.com/mahf708/exege>
 
 MIT. `exege.latents`, `exege.figures` and `exege.app` grew out of

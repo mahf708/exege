@@ -11,9 +11,11 @@ associated with explanation and interpretation.
 | `figures` | figures, with no web framework in them |
 | `app` | [a local web app](app.md) over `latents` |
 
-!!! warning "research tool"
+```{admonition} research tool
+:class: warning
 
-    `exege` is early. What this page describes works; expect it to change.
+`exege` is early. What this page describes works; expect it to change.
+```
 
 ## Install
 
@@ -57,13 +59,15 @@ Error: numpy is not installed; it comes with the 'latents' extra: uv pip install
 | `nn` | torch | [`exege.nn`](nn.md) and `exege nn` (not part of a plain `uv sync`) |
 | `hf` | huggingface_hub | [archives read from a Hugging Face repository](latents.md#from-a-hugging-face-repository) (brings `latents`) |
 
-!!! tip "uv cache"
+````{admonition} uv cache
+:class: tip
 
-    On NERSC, keep the cache off `$HOME`:
+On NERSC, keep the cache off `$HOME`:
 
-    ```console
-    $ export UV_CACHE_DIR="$PSCRATCH/.cache/uv"
-    ```
+```console
+$ export UV_CACHE_DIR="$PSCRATCH/.cache/uv"
+```
+````
 
 ## Why it is built this way
 
@@ -228,3 +232,27 @@ Three papers are behind what is here, and behind what comes next. Cite them if y
       adapter, with a steering hook
 - [ ] `nn`: the B-spline autoencoder as its paper has it, an
       auxiliary loss for dead features, steering — in that order ([the list](nn.md#remaining-tasks))
+
+```{toctree}
+:hidden:
+:caption: Latents
+
+latents
+steering
+records
+```
+
+```{toctree}
+:hidden:
+:caption: Sparse autoencoders
+
+nn
+evaluation
+```
+
+```{toctree}
+:hidden:
+:caption: Tools
+
+app
+```
