@@ -45,9 +45,11 @@ exclude_patterns = ["AGENTS.md", "_build"]
 myst_heading_anchors = 4
 myst_enable_extensions = ["colon_fence", "deflist"]
 
-# `console` blocks copy without their `$ ` prompts or their output.
+# `console` blocks copy without their `$ ` prompts or their output, and a command
+# continued with a trailing `\` copies whole.
 copybutton_prompt_text = "$ "
 copybutton_only_copy_prompt_lines = True
+copybutton_line_continuation_character = "\\"
 
 # -- HTML --------------------------------------------------------------------
 
