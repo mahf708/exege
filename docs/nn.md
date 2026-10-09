@@ -1,6 +1,6 @@
 # Sparse autoencoders
 
-`exege.nn` holds a sparse autoencoder over a model's [latents](latents.md): one node's
+`exege.nn` holds a sparse autoencoder over a model's [latents](archives.md): one node's
 vector of channels goes in, a wide and mostly-zero vector of *features* comes out, and the
 input is rebuilt from it. Channels are entangled; features, being few at a time, are
 easier to name. It is the tool
@@ -8,22 +8,15 @@ easier to name. It is the tool
 where it found tropical cyclones, atmospheric rivers and sea ice among the features, and
 let them steer a hurricane.
 
-What it produces is a [basis file](latents.md#methods-a-basis-is-a-value), used wherever
+What it produces is a [basis file](bases.md), used wherever
 a PCA is — `exege latents region`, `series`, `fields`, and the
 [web app](app.md) — and readable with nothing but numpy from the environment that
 runs the model.
 
-## Install
+It needs the `nn` extra, which brings torch: `uv sync --extra nn` in a checkout,
+`uv pip install 'exege[nn]'` elsewhere ([Installation](installing.md)).
 
-`uv sync` leaves torch out: it is large, and whether it should be the CPU or a CUDA build
-is the machine's business.
-
-```console
-$ uv sync --extra nn
-$ uv pip install 'exege-core[nn]'   # elsewhere, from PyPI
-```
-
-## Fit one
+## Fitting one
 
 ```console
 $ exege latents toy scratch/toy/control
@@ -35,13 +28,18 @@ $ exege nn sae scratch/toy/control --layer 2 --features 64 --k 8 --epochs 30 \
 wrote scratch/toy/sae.npz: 64 feature(s) of layer 2; 98.6% of the variance explained, 8.0 active per node, 14.1% dead; --basis-sha256 <sha256 of scratch/toy/sae.npz>
 ```
 
-That is the [toy system](index.md) (1,152 nodes, a few seconds on a CPU), not a real
+That is the [toy system](quickstart.md) (1,152 nodes, a few seconds on a CPU), not a real
 model: its numbers show what the output looks like and say nothing about what a dictionary
 will explain on a real layer. The defaults (1,024 features, `k` of 32, two epochs) are
 sized for a layer of a million node-times, and on a toy this small they underfit; the
 options above are the ones used here. The percentage, the active count and the dead
 fraction describe the dictionary that is written; the running `reconstruction` lines are
 the loop's own, taken while the weights were changing.
+
+On a real layer — layer 8 of the SamudrACE-E3SMv3 atmosphere, the archive the other pages
+quote — a top-32 dictionary (`sae8.npz`) trains in eleven seconds and explains 82.1% of
+the variance, where a 32-component PCA explains 69.1%. The numbers below are from that
+layer too.
 
 | Option | Meaning |
 | --- | --- |
@@ -55,16 +53,18 @@ the loop's own, taken while the weights were changing.
 | `--time` | fit on some times only; repeatable |
 | `--device` | `cpu`, `cuda` or `mps`; the best there is by default |
 
-### Three ways of being sparse
+### Activation functions
 
 - **`topk`** keeps each node's `k` largest features and needs no penalty, so the sparsity
-  is exactly what was asked for from the first step. It is the default for that reason, and
-  the form MacMillan & Ouellette (2025) use: TopK, with decoder directions of unit length.
-  Exactly `k`: a tie at the cut goes to the lowest index, in torch and in numpy alike.
+  is exactly what was asked for from the first step. It is the command's default for that
+  reason (`fit_sae` defaults to `relu`), and the form MacMillan & Ouellette (2025) use:
+  TopK, with decoder directions of unit length. Exactly `k`: a tie at the cut goes to the
+  lowest index, in torch and in numpy alike.
 - **`relu`** gets its sparsity from an L1 penalty on the features, weighted by their decoder
-  norms: the standard form, and the baseline Cheon (2026) calls LIN-SAE. The penalty takes more steps than the two-epoch default to settle: at two epochs
-  this layer is rebuilt to 53.2% with 55 features active per node; with `--epochs 10`,
-  64.5% with 40, in 28 s. At equal sparsity `topk` rebuilds better.
+  norms: the standard form, and the baseline Cheon (2026) calls LIN-SAE. The penalty
+  takes more steps than the two-epoch default to settle: at two epochs layer 8 is rebuilt
+  to 53.2% with 55 features active per node; with `--epochs 10`, 64.5% with 40, in 28 s.
+  At equal sparsity `topk` rebuilds better.
 - **`bspline`** replaces the ReLU with a learnable activation per feature: zero for
   `z ≤ 0`, a uniform cubic B-spline on `(0, 6]`, a line of slope one beyond. It *starts* as
   a ReLU exactly — a B-spline whose coefficients sit at its Greville abscissae is the
@@ -76,22 +76,26 @@ the loop's own, taken while the weights were changing.
   activation still counts as active. It is a starting point for the experiment, not a
   result; the design is one class, `BSplineActivation`, and meant to be changed.
 
-!!! warning "`bspline` is not KAN-SAE"
+```{admonition} `bspline` is not KAN-SAE
+:class: warning
 
-    [Cheon (2026)](https://arxiv.org/abs/2605.17493) replaces the ReLU with a
-    learnable cubic B-spline per feature and nothing else: no hard zero, nine control
-    points that start at zero, one knot vector over the 1st–99th percentile of the
-    pre-activations measured on a calibration sample, sparsity from the L1 penalty alone
-    (annealed), decoder directions renormalized every step, and a feature counted alive by
-    the size of its control points. The activation above was written before we read that
-    paper and differs on every one of those points. Do not report it as KAN-SAE.
+[Cheon (2026)](https://arxiv.org/abs/2605.17493) replaces the ReLU with a
+learnable cubic B-spline per feature and nothing else: no hard zero, nine control
+points that start at zero, one knot vector over the 1st–99th percentile of the
+pre-activations measured on a calibration sample, sparsity from the L1 penalty alone
+(annealed), decoder directions renormalized every step, and a feature counted alive by
+the size of its control points. The activation above was written before we read that
+paper and differs on every one of those points. Do not report it as KAN-SAE.
+```
 
-!!! warning "a toy loop, on purpose"
+```{admonition} A toy loop, on purpose
+:class: warning
 
-    Adam, a fixed learning rate, no resampling of dead features, and its own metrics are
-    in-sample (the [evaluation](evaluation.md) holds times out). It trains a useful
-    dictionary on a laptop in seconds and says how good it is; making it better is what
-    the modules being separate is for.
+Adam, a fixed learning rate, no resampling of dead features, and its own metrics are
+in-sample (the [evaluation](evaluation.md) holds times out). It trains a useful
+dictionary on a laptop in seconds and says how good it is; making it better is what
+the modules being separate is for.
+```
 
 Inputs are centered on the layer's area-weighted mean over the times used and divided by
 one number, so a node's vector has unit mean square per channel and the channels keep
@@ -99,15 +103,15 @@ their relative sizes. That standardization travels in the file: an analysis hand
 basis raw latents. Every feature's direction is kept at unit length throughout training,
 so an activation is in the same units for every feature — how much of the standardized
 layer it accounts for at that node — and two features can be compared by it. Batches come from
-[`iter_batches`](latents.md#python-api) — valid nodes only, drawn in proportion to area —
+[`iter_batches`](archives.md#from-python) — valid nodes only, drawn in proportion to area —
 so the plain mean the loop takes is already the area-weighted loss.
 
 The file carries a content hash, checked whenever it is loaded, and the line ends with it:
 `--basis-sha256` hands it back to any command that takes `--basis`, which then refuses a
 file that is not this one. What a result used is recorded under its provenance; see
-[Provenance](latents.md#provenance-what-a-result-was-made-from).
+[Provenance](provenance.md).
 
-## Python API
+## From Python
 
 ```python
 from exege.latents import open_source, save_basis
@@ -155,27 +159,10 @@ of these sharing an encoder.
 2. Read its direction in the model's environment, which needs only numpy:
    `np.load("sae8.npz")["decoder"][676]` is the unit direction feature 676 writes to
    layer 8; an activation of `a` adds `a × input_scale` of it, in the layer's own units.
-3. Add a multiple of it to that layer in a forward hook, export the run as a latent
-   archive whose manifest says so under `experiment`, and set it against its control:
+3. Steer along it and measure what the model does: [Steering](steering.md) runs the
+   edit against a control, a reconstruction-only arm and random directions. Against a
+   real model that needs an adapter in the model's environment, which is not written yet
+   ([roadmap](roadmap.md#steering)); until then, add a multiple of the direction in a
+   forward hook, export the run as a latent archive whose manifest says so under
+   `experiment`, and set it against its control with
    `exege latents diff control steered --growth`.
-
-Step 3's hook is the exporter's to grow; see [remaining tasks](#remaining-tasks).
-
-## Remaining tasks
-
-In the order we mean to take them, and after whom:
-
-- [ ] The B-spline autoencoder as Cheon (2026) has it, replacing `bspline`, beside the
-      `relu` baseline it is measured against, with that paper's table: explained variance,
-      features alive and dead, mean L1 norm, redundancy between features. Two things its
-      text leaves open need an answer first: what a spline does outside its knots, and
-      whether the knot vector is extended past the measured range
-- [ ] An auxiliary loss that revives dead features (MacMillan & Ouellette 2025, after
-      [Gao et al. 2024](https://arxiv.org/abs/2406.04093)): what has not fired in a long while is made to rebuild the residual
-- [ ] Steering a feature as MacMillan & Ouellette do it: keep the autoencoder's
-      reconstruction error, scale one feature's activation, add the error back and let the
-      model run on. The [toy emulator](latents.md) can do this in numpy today; a real model
-      needs a hook in its exporter
-- [ ] A cross-layer transcoder (several decoders on one encoder), and tracing a
-      feature to its antecedents in an earlier layer, as Cheon (2026) does by correlation
-- [ ] Features compared across seeds of the ablation campaign

@@ -1,14 +1,14 @@
 # exege
 
 The `exege` Python package (`src/exege/`), its tests, and its documentation site
-(`docs/`, MkDocs, published to gh-pages).
+(`docs/`, Sphinx, built on Read the Docs).
 
 ## Rules
 
 - Work on `user/topic` branches; merge to `main` via PR. Short lowercase imperative
   commit subjects.
-- `uv run --group docs mkdocs build --strict` must pass. New pages must be added to `nav`
-  in `mkdocs.yml` by hand.
+- `uv run --group docs sphinx-build -M html docs docs/_build -W` must pass. New pages
+  must be added to a `toctree` in `docs/index.md` by hand.
 - `ruff check`, `ruff format --check` and `pytest` must pass. All run in
   `.github/workflows/ci.yml`, on three tiers: a base install (Click only), a full
   one, and one with torch. Tests that need numpy skip on the first, and those that need

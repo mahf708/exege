@@ -106,6 +106,6 @@ own names win a clash, so a plugin can add adapters but never silently replace o
   `unmasked`, ignores the bundle's mask.
 - `latent_archive.py` — activations recorded from a model, as a directory of
   memory-mapped arrays, with the physical fields kept beside them; `write_archive` writes
-  one (`exege-core[latents]`; format in `docs/latents.md`). The same reader takes an
+  one (`exege-core[latents]`; format in `docs/archive-format.md`). The same reader takes an
   `hf://datasets/<owner>/<repo>/<folder>` source and downloads one file at a time
   (`exege-core[hf]`).

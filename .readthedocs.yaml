@@ -1,0 +1,23 @@
+# Read the Docs builds the guide from docs/conf.py: HTML at
+# https://exege.readthedocs.io, plus a PDF, an EPUB and a zipped HTML to download.
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.13"
+  jobs:
+    # The guide's dependencies are pyproject.toml's `docs` group, which pip reads from
+    # 25.1 on, and exege with the extras its API reference imports (torch is mocked).
+    post_install:
+      - pip install --upgrade "pip>=25.1"
+      - pip install --group docs ".[figures]"
+
+sphinx:
+  configuration: docs/conf.py
+  fail_on_warning: true
+
+formats:
+  - pdf
+  - epub
+  - htmlzip
