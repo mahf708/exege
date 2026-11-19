@@ -411,13 +411,16 @@ def test_every_shipped_adapter_is_under_contract():
     one means passing the contract and not remembering to."""
     latent = {c.adapter for c in LATENT_CASES}
     runnable = {name for name, _ in INTERVENABLE_CASES}
+    patchable = {name for name, _ in PATCHABLE_CASES}
     for name, factory in _shipped().items():
         reads = all(hasattr(factory, m) for m in ("info", "grid", "load"))
         runs = all(hasattr(factory, m) for m in ("info", "grid", "initial_state", "run"))
-        assert reads or runs, f"{name} implements no protocol exege knows"
+        patches = all(hasattr(factory, m) for m in ("graph", "grid", "states", "perturb", "step"))
+        assert reads or runs or patches, f"{name} implements no protocol exege knows"
         assert not reads or name in latent, f"{name} is a LatentSource with no case in LATENT_CASES"
         assert not runs or name in runnable, f"{name} is Intervenable with no INTERVENABLE_CASES"
-    assert {"latent-archive", "bundle-dir", "toy-dynamics"} <= set(_shipped())
+        assert not patches or name in patchable, f"{name} is Patchable with no PATCHABLE_CASES"
+    assert {"latent-archive", "bundle-dir", "toy-dynamics", "toy-transformer"} <= set(_shipped())
 
 
 def test_a_planted_case_needs_a_writer():
@@ -523,3 +526,109 @@ def test_a_system_reads_no_source_so_it_takes_options_by_keyword_and_refuses_the
     name = next(n for n, _ in INTERVENABLE_CASES)
     with pytest.raises(AdapterError, match=r"does not accept option\(s\) no_such_option"):
         registry.create(name, options={"no_such_option": 1})
+
+
+# -- Patchable -------------------------------------------------------------------------------
+
+from exege.circuits import (  # noqa: E402
+    ComponentPatch,
+    EdgeGradients,
+    EdgePatch,
+    LinearMetric,
+    Patchable,
+)
+
+PATCHABLE_CASES = [("toy-transformer", {"n_lat": 2, "n_lon": 6})]
+
+
+@pytest.fixture(params=PATCHABLE_CASES, ids=lambda c: c[0])
+def patchable(request):
+    name, options = request.param
+    built = registry.create(name, options=options)
+    assert isinstance(built, Patchable)
+    return built
+
+
+def _base_and_source(system):
+    return system.states([0, 1]), system.states([2, 3])
+
+
+def _same_fields(a, b):
+    assert set(a) == set(b)
+    for name in a:
+        np.testing.assert_allclose(a[name], b[name], rtol=1e-6, atol=1e-6)
+
+
+def test_a_step_writes_every_field_per_batch_and_node(patchable):
+    base, _ = _base_and_source(patchable)
+    out = patchable.step(base)
+    assert tuple(out) == patchable.field_names()
+    for x in out.values():
+        assert np.asarray(x).shape == (2, patchable.grid().n_nodes)
+        assert np.issubdtype(np.asarray(x).dtype, np.floating)
+    g = patchable.graph()
+    assert g.n_edges > 0 and g.edges.shape == (len(g.senders), len(g.receivers))
+
+
+def test_edge_patching_is_exact_at_both_ends(patchable):
+    base, source = _base_and_source(patchable)
+    g = patchable.graph()
+    _same_fields(patchable.step(base, EdgePatch(source, g.mask(1.0))), patchable.step(base))
+    _same_fields(patchable.step(base, EdgePatch(source, g.mask(0.0))), patchable.step(source))
+
+
+def test_component_patching_is_exact_at_both_ends(patchable):
+    base, source = _base_and_source(patchable)
+    every = patchable.graph().senders
+    _same_fields(patchable.step(base, ComponentPatch(source, ())), patchable.step(base))
+    _same_fields(patchable.step(base, ComponentPatch(source, every)), patchable.step(source))
+
+
+def test_a_perturbation_adds_to_the_fields_and_leaves_the_state_alone(patchable):
+    base, _ = _base_and_source(patchable)
+    before = {k: v.copy() for k, v in patchable.fields(base).items()}
+    out_before = patchable.step(base)
+    name = next(iter(before))
+    delta = np.linspace(0, 1, patchable.grid().n_nodes)
+    moved = patchable.perturb(base, {name: delta})
+    np.testing.assert_allclose(patchable.fields(moved)[name], before[name] + delta)
+    _same_fields(patchable.fields(base), before)
+    _same_fields(patchable.step(patchable.perturb(base, {name: 0 * delta})), out_before)
+    patchable.step(base, EdgePatch(moved, patchable.graph().mask(0.5)))
+    _same_fields(patchable.fields(base), before)
+
+
+def test_what_cannot_be_had_is_refused(patchable):
+    base, source = _base_and_source(patchable)
+    g = patchable.graph()
+    with pytest.raises(RequestError):
+        patchable.step(base, EdgePatch(source, np.ones((2, 2))))
+    with pytest.raises(RequestError):
+        patchable.step(base, ComponentPatch(source, ("no-such-component",)))
+    with pytest.raises(RequestError):
+        patchable.step(base, EdgePatch(patchable.states([0]), g.mask()))
+    with pytest.raises(RequestError):
+        patchable.perturb(base, {"no-such-field": np.zeros(patchable.grid().n_nodes)})
+    with pytest.raises(RequestError):
+        patchable.states([10**6])
+
+
+def test_edge_gradients_are_the_derivative_of_the_patched_metric(patchable):
+    if not isinstance(patchable, EdgeGradients):
+        pytest.skip("no EdgeGradients")
+    base, source = _base_and_source(patchable)
+    g = patchable.graph()
+    n = patchable.grid().n_nodes
+    weights = {f: np.linspace(-1, 1, n) * (k + 1) for k, f in enumerate(patchable.field_names())}
+    metric = LinearMetric(weights)
+    grad = patchable.edge_gradients(base, source, weights)
+    assert grad.shape == g.shape and not grad[~g.edges].any()
+    for e in g.edge_index()[:: max(1, g.n_edges // 6)]:
+        up, down = g.mask(), g.mask()
+        up[e] += 1e-4
+        down[e] -= 1e-4
+        fd = (
+            metric(patchable.step(base, EdgePatch(source, up)))
+            - metric(patchable.step(base, EdgePatch(source, down)))
+        ) / 2e-4
+        assert grad[e] == pytest.approx(fd, rel=1e-4, abs=1e-6)

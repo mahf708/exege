@@ -28,6 +28,8 @@ with `isinstance`, so everything one framework can supply travels under one name
 |---|---|---|
 | `latents.LatentSource` | `info()`, `grid()`, `load(time, layer, …)` | `latents`, `nn` |
 | `latents.ReferenceFields` | `field_names()`, `field(name, time)` → per-node values | `latents` |
+| `circuits.Patchable` | `graph()`, `grid()`, `field_names()`, `states(starts)`, `fields(state)`, `perturb(state, delta)`, `step(state, patch=None)` | `circuits` |
+| `circuits.EdgeGradients` | `edge_gradients(state, source, weights)` → d metric / d mask | `circuits.attribute` (EAP) |
 | `latents.Intervenable` | `info()`, `grid()`, `initial_state()`, `run(state, steps, hooks, noise_seed=, record=)` → `Rollout` | `latents.intervene` |
 
 `Intervenable` is the one protocol that *writes into a model*: a hook at `(layer, time)`
@@ -95,6 +97,10 @@ own names win a clash, so a plugin can add adapters but never silently replace o
 
 ## Present adapters
 
+- `toy_transformer.py` — `toy-transformer`: two blocks of two heads and an MLP with fixed
+  attention patterns and no normalization, whose circuits are planted (a tracer advected by
+  one head, a ripple through most of the graph). `Patchable` and `EdgeGradients`; reads
+  nothing. For tests and docs only (`docs/circuits.md`).
 - `toy_dynamics.py` — `toy-dynamics`: a small linear system with latent layers, noise seeds
   and a planted feature, an `Intervenable` that reads nothing. For tests and docs only;
   nothing in it is a model of anything (`docs/steering.md`).
