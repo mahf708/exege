@@ -151,3 +151,40 @@ def test_phase_rate_reads_a_rotation_and_a_growth():
     band = Envelope(45, 10)
     v = band(g.lat) * np.cos(3 * np.deg2rad(g.lon))
     assert abs(projection(g, v, 3, band)) > 0 and abs(projection(g, v, 4, band)) < 1e-9
+
+
+def test_the_advection_command_scores_and_searches_the_toy():
+    from click.testing import CliRunner
+
+    from exege._cli import cli
+
+    args = [
+        "laws",
+        "advection",
+        "--adapter",
+        "toy-transformer",
+        "--option",
+        "n_lon=24",
+        "--field",
+        "tracer",
+        "--speed",
+        str(np.deg2rad(15) / 2),
+        "--wavenumbers",
+        "1-6",
+        "--phi0",
+        "0",
+        "--sigma",
+        "40",
+        "--dt",
+        "1",
+        "--radius",
+        "1",
+        "--starts",
+        "0-2",
+        "--search",
+        "--taus",
+        "0.9",
+    ]
+    r = CliRunner().invoke(cli, args)
+    assert r.exit_code == 0, r.output
+    assert "M = 1.0000" in r.output and "a1.h0" in r.output

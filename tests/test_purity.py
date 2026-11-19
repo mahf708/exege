@@ -33,8 +33,8 @@ ALLOWED: dict[str, set[str]] = {
     "latents": {"core", "_render"},
     "figures": {"core", "latents"},
     "nn": {"core", "latents"},  # trains on latent batches, returns a Dictionary
-    "circuits": {"core", "latents"},  # edges of a patchable system, on latents' grid
-    "laws": {"core", "latents", "circuits"},  # LAWFUL: a law against a patchable system
+    "circuits": {"core", "latents", "_render"},  # edges of a patchable system, on latents' grid
+    "laws": {"core", "latents", "circuits", "_render"},  # LAWFUL: a law against a patchable system
     "app": {"core", "latents", "figures"},  # downstream of everything; nothing imports it
 }
 

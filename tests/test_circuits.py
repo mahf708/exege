@@ -162,3 +162,46 @@ def test_a_linear_metric_refuses_nan_where_it_reads():
     assert m({"x": np.array([[np.nan, 2.0]])}) == 2.0  # a zero weight ignores the node
     with pytest.raises(RequestError):
         m({"x": np.array([[1.0, np.nan]])})
+
+
+# -- the command line --------------------------------------------------------------------------
+
+
+def test_the_prune_command_prints_the_planted_circuit_and_writes_json(tmp_path):
+    import json
+
+    from click.testing import CliRunner
+
+    from exege._cli import cli
+
+    out = tmp_path / "c.json"
+    args = [
+        "circuits",
+        "prune",
+        "--adapter",
+        "toy-transformer",
+        "--field",
+        "tracer",
+        "--lat",
+        "0",
+        "--lon",
+        "90",
+        "--radius-km",
+        "4000",
+        "--base",
+        "0-2",
+        "--source-starts",
+        "3,4,5",
+        "--tau",
+        "1e-6",
+        "--out",
+        str(out),
+    ]
+    r = CliRunner().invoke(cli, args)
+    assert r.exit_code == 0, r.output
+    assert "3 of 21" in r.output and "a1.h0->out" in r.output
+    assert sorted(json.loads(out.read_text())["edges"]) == sorted(PLANTED)
+    bad = CliRunner().invoke(
+        cli, ["circuits", "graph", "--adapter", "toy-transformer", "--option", "nonsense"]
+    )
+    assert bad.exit_code != 0 and "key=value" in bad.output
