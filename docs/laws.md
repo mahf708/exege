@@ -83,6 +83,12 @@ Components are every sender but the input embedding, since patching the embeddin
 route the whole perturbation. A run with components patched keeps the base state as its
 input and takes those components' outputs from a run on the perturbed state.
 
+Choosing the next component costs one patched sweep of the family per candidate, and
+necessity is measured only for the circuits tested. With 56 heads and MLPs that adds up, so
+search over whole blocks first: `search(..., groups=blocks(system))` (`--by-block`) has 8
+candidates. Then search single components inside the blocks it finds
+(`candidates=[...]`).
+
 Ask for controls by passing other states as `controls=`. Their perturbed runs supply the
 patched components instead (LAWFUL's source-randomized control). A circuit that its
 controls also recover is not evidence of anything.

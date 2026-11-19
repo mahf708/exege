@@ -22,8 +22,8 @@ def _names(text: str) -> tuple[str, ...]:
     return tuple(n.strip() for n in text.split(",") if n.strip())
 
 
-def _report(system, base, law, do_search, taus, controls, out, score) -> None:
-    from exege.laws.lawful import measure, search
+def _report(system, base, law, do_search, taus, controls, out, score, by_block) -> None:
+    from exege.laws.lawful import blocks, measure, search
 
     r = measure(system, base, law, score=score)
     meaning = (
@@ -37,7 +37,13 @@ def _report(system, base, law, do_search, taus, controls, out, score) -> None:
     if do_search:
         ctl = [system.states(parse_starts(c)) for c in controls]
         s = search(
-            system, base, law, taus=[float(t) for t in taus.split(",")], controls=ctl, score=score
+            system,
+            base,
+            law,
+            taus=[float(t) for t in taus.split(",")],
+            controls=ctl,
+            score=score,
+            groups=blocks(system) if by_block else None,
         )
         rows = [
             {
@@ -45,7 +51,7 @@ def _report(system, base, law, do_search, taus, controls, out, score) -> None:
                 "size": len(c.components),
                 "d_suf": c.deviations.d_suf,
                 "d_nec": c.deviations.d_nec,
-                "components": " ".join(c.components),
+                "components": " ".join(c.units or c.components),
             }
             for c in s.circuits
         ]
@@ -74,6 +80,12 @@ def _common(command):
                 help="Other starts for a source-randomized control; repeatable.",
             ),
             click.option("--out", type=click.Path(dir_okay=False), help="Write JSON here."),
+            click.option(
+                "--by-block",
+                "by_block",
+                is_flag=True,
+                help="Search over whole blocks (8 candidates) instead of single heads and MLPs.",
+            ),
             click.option(
                 "--score",
                 type=click.Choice(["eq10", "correlation"]),
@@ -122,6 +134,7 @@ def rossby_cmd(
     controls,
     out,
     score,
+    by_block,
     u,
     v,
     observe,
@@ -149,7 +162,17 @@ def rossby_cmd(
         intrinsic=not doppler,
         dt=dt,
     )
-    _report(system, system.states(parse_starts(starts)), law, do_search, taus, controls, out, score)
+    _report(
+        system,
+        system.states(parse_starts(starts)),
+        law,
+        do_search,
+        taus,
+        controls,
+        out,
+        score,
+        by_block,
+    )
 
 
 @laws.command("advection")
@@ -172,6 +195,7 @@ def advection_cmd(
     controls,
     out,
     score,
+    by_block,
     field,
     speed,
     wavenumbers,
@@ -186,4 +210,14 @@ def advection_cmd(
     law = ZonalAdvection(
         field, speed, _wavenumbers(wavenumbers), Envelope(phi0, sigma), dt=dt, radius=radius
     )
-    _report(system, system.states(parse_starts(starts)), law, do_search, taus, controls, out, score)
+    _report(
+        system,
+        system.states(parse_starts(starts)),
+        law,
+        do_search,
+        taus,
+        controls,
+        out,
+        score,
+        by_block,
+    )

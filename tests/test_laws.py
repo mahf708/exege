@@ -200,3 +200,13 @@ def test_the_correlation_score_reads_shape_and_not_offset(toy):
     assert pytest.approx(1.0) == r.M and r.to_dict()["score"] == "correlation"
     s = search(toy, toy.states([0, 1]), _advection(), taus=(0.9,), score="correlation")
     assert s.circuits[0].components == ("a1.h0",)
+
+
+def test_a_search_over_blocks_finds_the_block_that_carries_the_law(toy):
+    from exege.laws import blocks
+
+    g = blocks(toy)
+    assert g == {"block0": ("a0.h0", "a0.h1", "m0"), "block1": ("a1.h0", "a1.h1", "m1")}
+    s = search(toy, toy.states([0, 1]), _advection(), taus=(0.5, 0.9), groups=g)
+    assert [c.units for c in s.circuits] == [("block1",), ("block1",)]
+    assert "a1.h0" in s.circuits[-1].components and s.of == 2

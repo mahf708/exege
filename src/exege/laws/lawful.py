@@ -202,13 +202,17 @@ def deviations(
 class LawCircuit:
     tau: float
     deviations: Deviations
+    units: tuple[str, ...] = ()
 
     @property
     def components(self) -> tuple[str, ...]:
         return self.deviations.components
 
     def to_dict(self) -> dict[str, Any]:
-        return {"tau": self.tau, "size": len(self.components), **self.deviations.to_dict()}
+        d = {"tau": self.tau, "size": len(self.components), **self.deviations.to_dict()}
+        if self.units:
+            d["units"] = list(self.units)
+        return d
 
 
 @dataclass(frozen=True)
@@ -227,6 +231,16 @@ class Search:
         }
 
 
+def blocks(system: Patchable) -> dict[str, tuple[str, ...]]:
+    """The components of each block -- its heads and its MLP -- as search groups: a coarse
+    first pass (8 candidates instead of 56) before searching inside the blocks it finds."""
+    out: dict[str, list[str]] = {}
+    for c in components(system):
+        layer = c.split(".")[0][1:]  # a3.h2 -> 3, m3 -> 3
+        out.setdefault(f"block{layer}", []).append(c)
+    return {k: tuple(v) for k, v in out.items()}
+
+
 def search(
     system: Patchable,
     base: Any,
@@ -234,6 +248,7 @@ def search(
     taus: Sequence[float] = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
     *,
     candidates: Sequence[str] | None = None,
+    groups: Mapping[str, Sequence[str]] | None = None,
     controls: Sequence[Any] = (),
     max_size: int | None = None,
     score: str = "eq10",
@@ -241,46 +256,75 @@ def search(
     """LAWFUL's incremental greedy search for tau-physically-consistent circuits.
 
     Circuits are nested (each tau starts from the last circuit). A tau no circuit within
-    ``max_size`` meets ends the search. Each candidate costs one patched step per alpha.
+    ``max_size`` units meets ends the search. The units added are single components
+    (``candidates``, default all) or named ``groups`` of them patched together (``blocks``
+    gives one per block). Choosing the next unit costs one patched sweep of the family per
+    candidate (sufficiency); necessity is measured only for the circuits tested.
     """
     every = components(system)
-    pool = tuple(candidates) if candidates is not None else every
-    system.graph().check_components(pool)
+    if groups is not None:
+        units = {name: tuple(cs) for name, cs in groups.items()}
+    else:
+        units = {c: (c,) for c in (tuple(candidates) if candidates is not None else every)}
+    for cs in units.values():
+        system.graph().check_components(cs)
+        if INPUT in cs:
+            raise RequestError("the input embedding is not a component LAWFUL patches")
     M0 = measure(system, base, law, score=score).M
     if M0 <= 0:
         raise RequestError(f"the model is not consistent with the law (M0 = {M0:.3g}): no circuit")
-    limit = len(pool) if max_size is None else max_size
-    cache: dict[tuple[str, ...], Deviations] = {}
+    limit = len(units) if max_size is None else max_size
+    m_suf: dict[tuple[str, ...], float] = {}
+    m_nec: dict[tuple[str, ...], float] = {}
 
-    def dev(c: Sequence[str]) -> Deviations:
-        key = tuple(sorted(c, key=every.index))
-        if key not in cache:
-            cache[key] = deviations(system, base, law, key, M0=M0, score=score)
-        return cache[key]
+    def comps_of(us: Sequence[str]) -> tuple[str, ...]:
+        chosen = {c for u in us for c in units[u]}
+        return tuple(c for c in every if c in chosen)
+
+    def suf(us: Sequence[str]) -> float:
+        key = comps_of(us)
+        if key not in m_suf:
+            m_suf[key] = measure(system, base, law, key, mode="sufficiency", score=score).M
+        return m_suf[key]
+
+    def nec(us: Sequence[str]) -> float:
+        key = comps_of(us)
+        if key not in m_nec:
+            rest = tuple(c for c in every if c not in key)
+            m_nec[key] = measure(system, base, law, rest, mode="necessity", score=score).M
+        return m_nec[key]
+
+    def dev(us: Sequence[str]) -> Deviations:
+        return Deviations(comps_of(us), M0, suf(us), nec(us))
+
+    def consistent(us: Sequence[str], tau: float) -> bool:
+        # sufficiency first: necessity is only measured when sufficiency already holds
+        return M0 - suf(us) <= (1 - tau) * M0 and dev(us).consistent(tau)
 
     circuit: list[str] = []
     found = []
     for tau in sorted(taus):
         added: list[str] = []
-        while not dev(circuit).consistent(tau) and len(circuit) < limit:
-            options = [c for c in pool if c not in circuit]
+        while not consistent(circuit, tau) and len(circuit) < limit:
+            options = [u for u in units if u not in circuit]
             if not options:
                 break
-            best = min(options, key=lambda c: dev([*circuit, c]).d_suf)
+            best = max(options, key=lambda u: suf([*circuit, u]))
             circuit.append(best)
             added.append(best)
-        if not dev(circuit).consistent(tau):
+        if not consistent(circuit, tau):
             break
-        for c in reversed(added):  # minimal among supersets of the previous circuit
-            trial = [x for x in circuit if x != c]
-            if dev(trial).consistent(tau):
+        for u in reversed(added):  # minimal among supersets of the previous circuit
+            trial = [x for x in circuit if x != u]
+            if consistent(trial, tau):
                 circuit = trial
         final = dev(circuit)
         if controls:
             final = deviations(
                 system, base, law, final.components, M0=M0, controls=controls, score=score
             )
-        found.append(LawCircuit(float(tau), final))
-    return Search(
-        M0, tuple(found), len(pool), {"law": law.to_dict(), "taus": list(taus), "score": score}
-    )
+        found.append(LawCircuit(float(tau), final, tuple(circuit) if groups is not None else ()))
+    settings = {"law": law.to_dict(), "taus": list(taus), "score": score}
+    if groups is not None:
+        settings["groups"] = {k: list(v) for k, v in units.items()}
+    return Search(M0, tuple(found), len(units), settings)
