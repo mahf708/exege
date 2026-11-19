@@ -22,16 +22,23 @@ def _names(text: str) -> tuple[str, ...]:
     return tuple(n.strip() for n in text.split(",") if n.strip())
 
 
-def _report(system, base, law, do_search, taus, controls, out) -> None:
+def _report(system, base, law, do_search, taus, controls, out, score) -> None:
     from exege.laws.lawful import measure, search
 
-    r = measure(system, base, law)
-    click.echo(f"{law.name}: M = {r.M:.4f}  (1: follows the law; 0: no better than its mean)")
+    r = measure(system, base, law, score=score)
+    meaning = (
+        "1: follows the law; 0: no better than its mean"
+        if score == "eq10"
+        else ("correlation with the law across the family")
+    )
+    click.echo(f"{law.name}: M = {r.M:.4f}  ({meaning})")
     click.echo(_render.table(r.rows()))
     payload = {"measure": r.to_dict()}
     if do_search:
         ctl = [system.states(parse_starts(c)) for c in controls]
-        s = search(system, base, law, taus=[float(t) for t in taus.split(",")], controls=ctl)
+        s = search(
+            system, base, law, taus=[float(t) for t in taus.split(",")], controls=ctl, score=score
+        )
         rows = [
             {
                 "tau": c.tau,
@@ -67,6 +74,14 @@ def _common(command):
                 help="Other starts for a source-randomized control; repeatable.",
             ),
             click.option("--out", type=click.Path(dir_okay=False), help="Write JSON here."),
+            click.option(
+                "--score",
+                type=click.Choice(["eq10", "correlation"]),
+                default="eq10",
+                show_default=True,
+                help="eq10: LAWFUL's misfit score; correlation: "
+                "whether the model follows the law's shape across the family.",
+            ),
         ]
     ):
         command = option(command)
@@ -106,6 +121,7 @@ def rossby_cmd(
     taus,
     controls,
     out,
+    score,
     u,
     v,
     observe,
@@ -133,7 +149,7 @@ def rossby_cmd(
         intrinsic=not doppler,
         dt=dt,
     )
-    _report(system, system.states(parse_starts(starts)), law, do_search, taus, controls, out)
+    _report(system, system.states(parse_starts(starts)), law, do_search, taus, controls, out, score)
 
 
 @laws.command("advection")
@@ -155,6 +171,7 @@ def advection_cmd(
     taus,
     controls,
     out,
+    score,
     field,
     speed,
     wavenumbers,
@@ -169,4 +186,4 @@ def advection_cmd(
     law = ZonalAdvection(
         field, speed, _wavenumbers(wavenumbers), Envelope(phi0, sigma), dt=dt, radius=radius
     )
-    _report(system, system.states(parse_starts(starts)), law, do_search, taus, controls, out)
+    _report(system, system.states(parse_starts(starts)), law, do_search, taus, controls, out, score)

@@ -188,3 +188,15 @@ def test_the_advection_command_scores_and_searches_the_toy():
     r = CliRunner().invoke(cli, args)
     assert r.exit_code == 0, r.output
     assert "M = 1.0000" in r.output and "a1.h0" in r.output
+
+
+def test_the_correlation_score_reads_shape_and_not_offset(toy):
+    assert consistency([11, 12, 13], [1, 2, 3], score="correlation") == pytest.approx(1.0)
+    assert consistency([11, 12, 13], [1, 2, 3]) < -10  # eq. 10 pays for the offset
+    assert consistency([3, 2, 1], [1, 2, 3], score="correlation") == pytest.approx(-1.0)
+    with pytest.raises(RequestError, match="score"):
+        consistency([1, 2], [1, 2], score="nope")
+    r = measure(toy, toy.states([0, 1]), _advection(), score="correlation")
+    assert pytest.approx(1.0) == r.M and r.to_dict()["score"] == "correlation"
+    s = search(toy, toy.states([0, 1]), _advection(), taus=(0.9,), score="correlation")
+    assert s.circuits[0].components == ("a1.h0",)

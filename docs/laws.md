@@ -36,6 +36,12 @@ follows the law exactly, 0 when it is no better than the law's mean, and negativ
 is worse. The law must vary across the family for it to mean anything, which is why the
 wave laws are scored on frequency and not on phase speed.
 
+With `score="correlation"` (`--score correlation`), M is instead the correlation of the
+model's values with the law's across the family: LAWFUL's similarity-based choice of the
+scoring function. It asks whether the model follows the law's *shape* whatever its offset
+and scale, which is the more useful question when the bridge has a free choice in it, such
+as which level's wind steers the wave.
+
 The model's response is its *tendency* response, `[step(x') - x'] - [step(x) - x]`. A
 time-stepper carries any perturbation forward through its skip connection, and that is not
 physics any component did.

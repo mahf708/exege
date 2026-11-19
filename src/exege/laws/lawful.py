@@ -48,6 +48,7 @@ class LawResult:
     M: float
     mode: str = "model"
     patched: tuple[str, ...] | None = None
+    score: str = "eq10"
 
     def rows(self) -> list[dict[str, float]]:
         return [
@@ -59,6 +60,7 @@ class LawResult:
         return {
             "law": dict(self.law),
             "mode": self.mode,
+            "score": self.score,
             "M": self.M,
             "patched": None if self.patched is None else list(self.patched),
             "rows": self.rows(),
@@ -82,6 +84,7 @@ def measure(
     *,
     mode: str = "model",
     source_base: Any = None,
+    score: str = "eq10",
 ) -> LawResult:
     """M of ``system`` against ``law`` on the batch ``base``.
 
@@ -114,7 +117,7 @@ def measure(
             response = _minus(system.step(base, ComponentPatch(source, patched)), base_out)
         model.append(float(law.observe(grid, fields, delta, response, alpha)))
         expected.append(float(law.expect(grid, fields, alpha)))
-    M = consistency(model, expected)
+    M = consistency(model, expected, score)
     return LawResult(
         law.to_dict(),
         tuple(law.alphas),
@@ -123,6 +126,7 @@ def measure(
         M,
         mode,
         None if patched is None else tuple(patched),
+        score,
     )
 
 
@@ -171,6 +175,7 @@ def deviations(
     *,
     M0: float | None = None,
     controls: Sequence[Any] = (),
+    score: str = "eq10",
 ) -> Deviations:
     """Sufficiency and necessity of ``comps``. Each entry of ``controls`` is a batch of
     other states, of the base's size, whose perturbed runs supply the patched components
@@ -179,14 +184,16 @@ def deviations(
     comps = tuple(comps)
     rest = tuple(c for c in every if c not in comps)
     if M0 is None:
-        M0 = measure(system, base, law).M
-    M_suf = measure(system, base, law, comps, mode="sufficiency").M
-    M_nec = measure(system, base, law, rest, mode="necessity").M
+        M0 = measure(system, base, law, score=score).M
+    M_suf = measure(system, base, law, comps, mode="sufficiency", score=score).M
+    M_nec = measure(system, base, law, rest, mode="necessity", score=score).M
     r_suf = tuple(
-        measure(system, base, law, comps, mode="control", source_base=c).M for c in controls
+        measure(system, base, law, comps, mode="control", source_base=c, score=score).M
+        for c in controls
     )
     r_nec = tuple(
-        measure(system, base, law, rest, mode="control", source_base=c).M for c in controls
+        measure(system, base, law, rest, mode="control", source_base=c, score=score).M
+        for c in controls
     )
     return Deviations(comps, M0, M_suf, M_nec, r_suf, r_nec)
 
@@ -229,6 +236,7 @@ def search(
     candidates: Sequence[str] | None = None,
     controls: Sequence[Any] = (),
     max_size: int | None = None,
+    score: str = "eq10",
 ) -> Search:
     """LAWFUL's incremental greedy search for tau-physically-consistent circuits.
 
@@ -238,7 +246,7 @@ def search(
     every = components(system)
     pool = tuple(candidates) if candidates is not None else every
     system.graph().check_components(pool)
-    M0 = measure(system, base, law).M
+    M0 = measure(system, base, law, score=score).M
     if M0 <= 0:
         raise RequestError(f"the model is not consistent with the law (M0 = {M0:.3g}): no circuit")
     limit = len(pool) if max_size is None else max_size
@@ -247,7 +255,7 @@ def search(
     def dev(c: Sequence[str]) -> Deviations:
         key = tuple(sorted(c, key=every.index))
         if key not in cache:
-            cache[key] = deviations(system, base, law, key, M0=M0)
+            cache[key] = deviations(system, base, law, key, M0=M0, score=score)
         return cache[key]
 
     circuit: list[str] = []
@@ -269,6 +277,10 @@ def search(
                 circuit = trial
         final = dev(circuit)
         if controls:
-            final = deviations(system, base, law, final.components, M0=M0, controls=controls)
+            final = deviations(
+                system, base, law, final.components, M0=M0, controls=controls, score=score
+            )
         found.append(LawCircuit(float(tau), final))
-    return Search(M0, tuple(found), len(pool), {"law": law.to_dict(), "taus": list(taus)})
+    return Search(
+        M0, tuple(found), len(pool), {"law": law.to_dict(), "taus": list(taus), "score": score}
+    )

@@ -70,9 +70,19 @@ class Law(Protocol):
     def to_dict(self) -> dict[str, Any]: ...
 
 
-def consistency(m_f: Sequence[float], m_g: Sequence[float]) -> float:
-    """LAWFUL's eq. 10: ``1 - sum (m_f - m_g)^2 / sum (m_g - mean m_g)^2``. At most 1, and 1
-    exactly when the model matches the law at every alpha."""
+SCORES = ("eq10", "correlation")
+
+
+def consistency(m_f: Sequence[float], m_g: Sequence[float], score: str = "eq10") -> float:
+    """How well the model's values follow the law's across the family.
+
+    ``"eq10"`` is LAWFUL's eq. 10, ``1 - sum (m_f - m_g)^2 / sum (m_g - mean m_g)^2``: at most
+    1, and 1 exactly when the model matches the law at every alpha; an offset or a wrong
+    scale costs as much as a wrong shape. ``"correlation"`` is the Pearson correlation of the
+    two across the family (LAWFUL's "similarity-based" choice of Phi): 1 when the model
+    follows the law's shape, whatever its offset and scale."""
+    if score not in SCORES:
+        raise RequestError(f"score must be one of {', '.join(SCORES)}, not {score!r}")
     f, g = np.asarray(m_f, dtype=np.float64), np.asarray(m_g, dtype=np.float64)
     if f.shape != g.shape or f.ndim != 1 or f.size < 2:
         raise RequestError("consistency needs the same two or more alphas on both sides")
@@ -81,6 +91,10 @@ def consistency(m_f: Sequence[float], m_g: Sequence[float]) -> float:
         raise RequestError("the law predicts the same value at every alpha: nothing to score")
     if not (np.isfinite(f).all() and np.isfinite(g).all()):
         raise RequestError("a model or law value is not finite")
+    if score == "correlation":
+        df, dg = f - f.mean(), g - g.mean()
+        norm = np.sqrt((df**2).sum() * (dg**2).sum())
+        return 0.0 if norm == 0 else float((df * dg).sum() / norm)
     return float(1 - ((f - g) ** 2).sum() / spread)
 
 
