@@ -85,6 +85,12 @@ def laws() -> None:
 @click.option("--v", "v", required=True, help="Meridional wind fields, in the same order.")
 @click.option("--observe", required=True, help="The meridional wind field to read.")
 @click.option("--ps", help="Surface pressure field, for a geostrophically balanced wave.")
+@click.option(
+    "--u-bar",
+    "u_bar",
+    help="Zonal wind whose band mean is the flow the law "
+    "Doppler-shifts by.  [default: the u at the observed level]",
+)
 @click.option("--wavenumbers", default="2-14", show_default=True)
 @click.option("--amplitude", type=float, default=1.0, show_default=True, help="Peak v', m/s.")
 @click.option("--dt", type=float, default=21600.0, show_default=True, help="Seconds per step.")
@@ -104,6 +110,7 @@ def rossby_cmd(
     v,
     observe,
     ps,
+    u_bar,
     wavenumbers,
     amplitude,
     dt,
@@ -119,6 +126,7 @@ def rossby_cmd(
         v=_names(v),
         observe_field=observe,
         ps=ps,
+        u_bar=u_bar,
         wavenumbers=_wavenumbers(wavenumbers),
         band=Envelope(phi0, sigma),
         amplitude=amplitude,
