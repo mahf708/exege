@@ -9,15 +9,18 @@ be worked out by hand. Fields ``tracer`` and ``ripple``; residual channels::
     c2  ripple, copied  a0.h0 (pattern: itself)
     c3  a distractor    a0.h1 (pattern: the global mean of c0), m0 (relu of c2), a1.h1
                         (pattern: the eastern neighbour of c1)
-    c4  tracer, west    a1.h0 (pattern: the western neighbour, reading c0)
+    c4  advection       a1.h0 (pattern: the western neighbour minus itself, reading c0)
 
-    tracer' = (1 - courant) * c0 + courant * c4      upwind advection, eastward
+    tracer' = c0 + courant * c4      upwind advection, eastward: q + courant (q_west - q)
     ripple' = c1 + 0.1 * c3
 
 So a metric of ``tracer'`` runs through exactly three edges -- ``embed->a1`` (a1.h0 reads
 c0), ``a1.h0->out`` and ``embed->out`` -- and nothing else; a metric of ``ripple'`` runs
-through most of the graph. A planted wave ``cos(s * lon)`` in the tracer moves east by
-``arg(1 - courant + courant * exp(-i s dlon))`` per step: the discrete advection law.
+through most of the graph. A planted wave ``cos(s * lon)`` in the tracer is multiplied by
+``1 - courant + courant * exp(-i s dlon)`` per step: with ``courant = 0.5`` that is a
+phase advance of exactly ``s * dlon / 2``, the advection law ``omega = k U`` with no
+numerical dispersion, carried by ``a1.h0`` alone (``exege.laws`` is tested on it). Its
+pattern is not a softmax: the toy's patterns are fixed matrices, not attention weights.
 
 A state is a batch of fields drawn from a seed and the start (positions only), and reads
 no source, so the options are keyword-only. Edge gradients are central differences: the
@@ -84,7 +87,7 @@ class ToyTransformer:
         self._heads = {
             "a0.h0": (np.eye(n), e[1], e[2]),
             "a0.h1": (np.full((n, n), 1.0 / n), e[0], e[3]),
-            "a1.h0": (west, e[0], e[4]),
+            "a1.h0": (west - np.eye(n), e[0], e[4]),
             "a1.h1": (east, e[1], e[3]),
         }
         self._mlps = {"m0": (e[2], e[3] * 0.5), "m1": (e[3], e[1] * 0.2)}  # relu(x.r) * w
@@ -130,7 +133,7 @@ class ToyTransformer:
     def step(self, state: ToyState, patch: Patch | None = None) -> dict[str, np.ndarray]:
         out = self._forward(state, patch)
         return {
-            "tracer": (1 - self.courant) * out[..., 0] + self.courant * out[..., 4],
+            "tracer": out[..., 0] + self.courant * out[..., 4],
             "ripple": out[..., 1] + 0.1 * out[..., 3],
         }
 

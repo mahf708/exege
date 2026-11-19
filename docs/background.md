@@ -32,6 +32,12 @@ These papers are behind what is here, and behind what comes next. Cite them if y
   the target logit. Its pruning order and EAP baseline come from
   [Conmy et al. (2023)](https://arxiv.org/abs/2304.14997) and
   [Syed et al. (2024)](https://arxiv.org/abs/2310.10348).
+- [Chen, Parker & Arora (2026)](https://arxiv.org/abs/2607.28672), *LAWFUL: Law-Aligned
+  Witness for Faithful Use of Latents* ([code](https://github.com/aciculachen/LAWFUL)).
+  A physics law paired with a model through bridges and a family of counterfactuals; a
+  consistency score over the family; circuits that carry it, by sufficiency and necessity
+  patching with source-randomized controls. [`laws`](laws.md) implements it for laws of
+  the atmosphere, starting with Rossby waves.
 
 exege was started as `xaig` in
 [E3SM-Project/aigroup](https://github.com/E3SM-Project/aigroup).
