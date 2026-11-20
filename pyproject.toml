@@ -84,6 +84,7 @@ latent-archive = "exege.adapters.latent_archive:LatentArchive"
 bundle-dir = "exege.adapters.bundle_dir:BundleDir"
 toy-dynamics = "exege.adapters.toy_dynamics:ToyDynamics"
 toy-transformer = "exege.adapters.toy_transformer:ToyTransformer"
+samudra = "exege.adapters.samudra:Samudra"
 
 [project.urls]
 Homepage = "https://exege.readthedocs.io"

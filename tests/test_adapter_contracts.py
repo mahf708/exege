@@ -17,6 +17,7 @@ The ``Intervenable`` contract is asked the same way of every system that can be 
 
 from __future__ import annotations
 
+import importlib.util
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
@@ -539,11 +540,17 @@ from exege.circuits import (  # noqa: E402
 )
 
 PATCHABLE_CASES = [("toy-transformer", {"n_lat": 2, "n_lon": 6})]
+# the samudra adapter's toy is a tiny random fme Samudra; skipped without fme or torch
+PATCHABLE_CASES.append(("samudra", {"n_lat": 16, "n_lon": 32}))
+_NEEDS = {"samudra": ("fme", "torch")}
 
 
 @pytest.fixture(params=PATCHABLE_CASES, ids=lambda c: c[0])
 def patchable(request):
     name, options = request.param
+    missing = [m for m in _NEEDS.get(name, ()) if importlib.util.find_spec(m) is None]
+    if missing:
+        pytest.skip(f"{name} needs {', '.join(missing)}")
     built = registry.create(name, options=options)
     assert isinstance(built, Patchable)
     return built
