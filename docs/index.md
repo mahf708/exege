@@ -22,6 +22,10 @@ exege is early. What these pages describe works; expect it to change.
 - **`exege.latents`** — [latent diagnostics](archives.md): regions, bases, time series,
   comparisons between runs, and the fields a feature goes with. Also
   [steering](steering.md) and [experiment records](records.md).
+- **`exege.circuits`** — [circuits](circuits.md): which edges between heads and MLPs a
+  behaviour runs through, found by patching (Vi-CD, ACDC, EAP).
+- **`exege.laws`** — [physical laws](laws.md): whether a model obeys one (Rossby waves,
+  advection) and which heads and MLPs carry it (LAWFUL).
 - **`exege.nn`** — [sparse autoencoders](nn.md) trained on those latents, and their
   [held-out evaluation](evaluation.md).
 - **`exege.figures`** — maps and figures, with no web framework in them.
@@ -67,6 +71,14 @@ evaluation
 ```
 
 ```{toctree}
+:caption: Circuits and laws
+:maxdepth: 1
+
+circuits
+laws
+```
+
+```{toctree}
 :caption: Experiments and the app
 :maxdepth: 1
 
@@ -90,6 +102,8 @@ adapters
 cli
 archive-format
 api/latents
+api/circuits
+api/laws
 api/nn
 api/figures
 api/adapters

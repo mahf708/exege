@@ -29,10 +29,12 @@ ALLOWED: dict[str, set[str]] = {
     "_cli": {"core"},  # subcommands are named by string and loaded lazily
     "_render": set(),
     "core": set(),
-    "adapters": {"core", "latents"},  # an adapter imports the contract it implements
+    "adapters": {"core", "latents", "circuits"},  # an adapter imports the contracts it implements
     "latents": {"core", "_render"},
     "figures": {"core", "latents"},
     "nn": {"core", "latents"},  # trains on latent batches, returns a Dictionary
+    "circuits": {"core", "latents", "_render"},  # edges of a patchable system, on latents' grid
+    "laws": {"core", "latents", "circuits", "_render"},  # LAWFUL: a law against a patchable system
     "app": {"core", "latents", "figures"},  # downstream of everything; nothing imports it
 }
 
@@ -46,6 +48,8 @@ THIRD_PARTY: dict[str, set[str]] = {
     "latents": {"click", "numpy"},  # the science stays free of any UI or file format
     "figures": {"cartopy", "matplotlib", "numpy"},  # figures, with no web framework in them
     "nn": {"click", "numpy", "torch"},  # modules over tensors; no training harness
+    "circuits": {"click", "numpy"},  # the search is numpy; the model stays behind Patchable
+    "laws": {"click", "numpy"},  # laws are numpy physics; the model stays behind Patchable
     "app": {"click", "numpy", "streamlit"},  # presentation; the figures are imported
 }
 

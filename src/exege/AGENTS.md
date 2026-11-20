@@ -8,6 +8,8 @@ adapters rather than by widening what exists.
 |---|---|---|
 | `core` | errors, adapter registry, the hint for a missing extra | stdlib |
 | `latents` | what emulators hold inside: the latent space, on a grid | `exege-core[latents]` (numpy, xarray) |
+| `circuits` | edges of a network a behaviour runs through, found by patching | `exege-core[circuits]` (numpy, and `latents`') |
+| `laws` | whether a model obeys a physical law, and which components carry it (LAWFUL) | `exege-core[laws]` (numpy, and `circuits`') |
 | `nn` | torch modules trained on those latents: a sparse autoencoder | `exege-core[nn]` (torch, and `latents`') |
 | `figures` | figures, with no web framework in them | `exege-core[figures]` (matplotlib, cartopy) |
 | `app` | a local web app: presentation only | `exege-core[app]` (streamlit, and `figures`') |
@@ -36,6 +38,8 @@ answer.
 core        <-  everything; imports nothing of exege, and no third party
 adapters    ->  core, and the domain contract each one implements
 latents     ->  core (and _render, for its cli)
+circuits    ->  core, latents (its grid)
+laws        ->  core, latents, circuits
 nn          ->  core, latents
 figures     ->  core, latents
 app         ->  core, latents, figures;  nothing imports app

@@ -24,6 +24,8 @@ log = logging.getLogger(__name__)
 _COMMANDS = {
     "latents": "exege.latents.cli:latents",
     "nn": "exege.nn.cli:nn",
+    "circuits": "exege.circuits.cli:circuits",
+    "laws": "exege.laws.cli:laws",
     "app": "exege.app.cli:app",
 }
 
