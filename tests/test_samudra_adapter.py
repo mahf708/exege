@@ -2,8 +2,9 @@
 
 import importlib.util
 
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 pytestmark = pytest.mark.skipif(
     importlib.util.find_spec("fme") is None or importlib.util.find_spec("torch") is None,
