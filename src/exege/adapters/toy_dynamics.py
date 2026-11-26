@@ -5,6 +5,7 @@ that what an edit at a latent layer does to the physical fields can be worked ou
 
     state x (n_nodes, 3): temperature, moisture, pressure
     forcing u (n_nodes, 3): drifts on its own, with noise: u' = 0.9 u + noise * eps_u
+                            (+ feedback * x, temperature and moisture swapped)
     layer 0   h0 = u @ E          (4 channels)
     layer 1   h1 = h0 @ M         (M swaps channels 0 and 1)
     next      x' = decay * x + h1 @ D + noise * eps_x
@@ -15,6 +16,11 @@ that what an edit at a latent layer does to the physical fields can be worked ou
 as much on each step after, and nothing else; the same edit at layer 0 reaches moisture
 instead, by way of ``M``; and a random direction mostly does neither. The latents do not
 read ``x`` back, so no edit feeds into the next one's input: responses are exactly those.
+With ``feedback`` set they do: ``u`` takes ``feedback * x`` each step with temperature and
+moisture swapped, so that each of the first two features of layer 1 reads back, through
+the mixer, what it wrote the step before. That is what makes
+a steer worked out from the arm's own latents (closed loop) differ from one worked out
+from the control's (open loop).
 
 Noise is a function of the seed alone (drawn up front, not from the state), so two runs
 with one seed differ only by what the hooks did. The initial state is ``(n_nodes, 6)``:
@@ -59,14 +65,15 @@ class ToyDynamics:
         noise: float = 0.05,
         masked: int = 0,
         seed: int = 0,
+        feedback: float = 0.0,
     ) -> None:
         if not 0 <= masked < n_lat * n_lon:
             raise RequestError(f"masked must leave a node valid: 0 <= masked < {n_lat * n_lon}")
         self._options = {
             "n_lat": n_lat, "n_lon": n_lon, "gain": gain, "decay": decay, "noise": noise,
-            "masked": masked, "seed": seed,
+            "masked": masked, "seed": seed, "feedback": feedback,
         }  # fmt: skip
-        self.decay, self.noise, self.seed = decay, noise, seed
+        self.decay, self.noise, self.seed, self.feedback = decay, noise, seed, feedback
         lat, lon = np.meshgrid(
             np.linspace(-75.0, 75.0, n_lat), np.arange(n_lon) * (360.0 / n_lon), indexing="ij"
         )
@@ -143,6 +150,8 @@ class ToyDynamics:
             h1 = hooked(h0.astype(np.float64) @ self.mixer, 1, t)
             x = self.decay * x + h1.astype(np.float64) @ self.decoder
             u = 0.9 * u
+            if self.feedback:
+                u = u + self.feedback * x[:, [1, 0, 2]]
             if eps is not None:
                 x = x + self.noise * eps[t, :, : len(FIELDS)]
                 u = u + self.noise * eps[t, :, len(FIELDS) :]

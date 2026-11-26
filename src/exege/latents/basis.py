@@ -211,6 +211,72 @@ def fit_pca(latents: np.ndarray, n_components: int, weights: np.ndarray | None =
     )
 
 
+# -- named directions -------------------------------------------------------
+
+
+@dataclass(frozen=True, eq=False)
+class Directions:
+    """Directions chosen rather than fitted to explain variance: a difference of means
+    between two sets of times, a probe's weights. ``directions`` is ``(k, n_channels)``
+    with unit rows; a feature's activation is the projection of the latents, less
+    ``mean``, onto its row. ``meta["labels"]`` may name them.
+
+    It is what a steering experiment's comparison arm pushes along: the same edit, in a
+    direction nobody's dictionary chose.
+    """
+
+    mean: np.ndarray
+    directions_: np.ndarray
+    meta: Mapping[str, Any] = field(default_factory=dict)
+    kind = "directions"
+
+    def __post_init__(self) -> None:
+        if self.directions_.ndim != 2 or self.mean.shape != (self.directions_.shape[1],):
+            raise ValueError("directions are (k, n_channels), with one mean per channel")
+        norms = np.linalg.norm(self.directions_, axis=1)
+        if not np.allclose(norms, 1.0, atol=1e-5):
+            raise ValueError("each direction must have unit length")
+
+    @property
+    def n_features(self) -> int:
+        return int(self.directions_.shape[0])
+
+    @property
+    def n_channels(self) -> int:
+        return int(self.directions_.shape[1])
+
+    def transform(self, latents: np.ndarray, features: Sequence[int] | None = None) -> np.ndarray:
+        latents = np.asarray(latents)
+        if latents.ndim != 2 or latents.shape[1] != self.n_channels:
+            raise RequestError(
+                f"these directions read {self.n_channels} channel(s); got {latents.shape}"
+            )
+        chosen = _chosen(features, self.n_features)
+        rows = self.directions_ if chosen is None else self.directions_[chosen]
+        rows = rows.astype(np.float64)
+        out = np.empty((latents.shape[0], rows.shape[0]), dtype=np.float64)
+        for start in range(0, latents.shape[0], _BLOCK):
+            out[start : start + _BLOCK] = (
+                latents[start : start + _BLOCK].astype(np.float64) - self.mean
+            ) @ rows.T
+        return out
+
+    def directions(self) -> np.ndarray:
+        return self.directions_
+
+    def reconstruct(self, latents: np.ndarray) -> np.ndarray:
+        """``latents`` projected onto the span of the directions, about the mean: what
+        they keep of the layer, in its own units (the directions need not be orthogonal)."""
+        rows = self.directions_.astype(np.float64)
+        gram = np.linalg.pinv(rows @ rows.T)
+        scores = self.transform(latents)
+        return (scores @ gram @ rows + self.mean).astype(np.float64)
+
+    def describe(self, feature: int) -> dict[str, Any]:
+        labels = self.meta.get("labels") or []
+        return {"label": labels[feature] if feature < len(labels) else None}
+
+
 # -- sparse dictionaries ----------------------------------------------------
 
 
@@ -491,6 +557,7 @@ def token_normalized_dictionary(
 # -- the file ---------------------------------------------------------------
 
 _PCA_ARRAYS = ("mean", "components", "explained_variance_ratio")
+_DIRECTIONS_ARRAYS = {"mean": "mean", "directions": "directions_"}  # in the file: attribute
 _DICTIONARY_ARRAYS = (
     "encoder", "encoder_bias", "decoder", "decoder_bias", "input_mean", "output_mean", "spline",
 )  # fmt: skip
@@ -505,6 +572,8 @@ def _parts(basis: Decomposition) -> tuple[dict[str, np.ndarray], dict[str, Any]]
     """The arrays and scalars a basis file holds, by name."""
     if isinstance(basis, PCA):
         return {name: getattr(basis, name) for name in _PCA_ARRAYS}, {}
+    if isinstance(basis, Directions):
+        return {name: getattr(basis, attr) for name, attr in _DIRECTIONS_ARRAYS.items()}, {}
     if isinstance(basis, Dictionary):
         arrays = {n: getattr(basis, n) for n in _DICTIONARY_ARRAYS if getattr(basis, n) is not None}
         scalars = {n: getattr(basis, n) for n in _DICTIONARY_SCALARS}
@@ -591,7 +660,7 @@ def save_basis(path: str | Path, basis: Decomposition, **meta: Any) -> Path:
     return path
 
 
-def load_basis(path: str | Path, *, sha256: str | None = None) -> PCA | Dictionary:
+def load_basis(path: str | Path, *, sha256: str | None = None) -> PCA | Dictionary | Directions:
     """Read what ``save_basis`` wrote. The file's own path, and its content hash, are
     noted in ``meta`` so a result can say which basis it used.
 
@@ -635,6 +704,9 @@ def load_basis(path: str | Path, *, sha256: str | None = None) -> PCA | Dictiona
             return PCA(**arrays, meta=meta)
         if kind == "dictionary":
             return Dictionary(**arrays, **record, meta=meta)
+        if kind == "directions":
+            renamed = {_DIRECTIONS_ARRAYS[name]: values for name, values in arrays.items()}
+            return Directions(**renamed, meta=meta)
     except (TypeError, ValueError) as exc:
         raise RequestError(f"{path}: not a usable {kind} basis ({exc})") from exc
     raise RequestError(f"{path}: unknown kind of basis {kind!r}")

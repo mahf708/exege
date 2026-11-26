@@ -1356,23 +1356,53 @@ def _evaluate_command(source: str, info, settings: dict) -> str:
     return shlex.join(str(w) for w in words)
 
 
-def _steer_command(source, settings: dict, spec: dict, basis_sha256: str) -> str:
-    """The shell command that redoes a steering experiment, the basis pinned by content."""
+def _steer_command(source, settings: dict, spec: dict, basis_sha256: str, command="steer") -> str:
+    """The shell command that redoes a steering experiment (or a dose curve), the basis
+    pinned by content."""
     s, steer = settings, spec["steer"]
-    words = ["exege", "latents", "steer", *([source] if source else [])]
+    words = ["exege", "latents", command, *([source] if source else [])]
     words += ["--adapter", s["adapter"]]
     for key, value in s["adapter_options"].items():
         words += ["--adapter-option", f"{key}={json.dumps(value)}"]
     words += ["--basis", s["basis"], "--basis-sha256", basis_sha256]
-    words += ["--layer", steer["layer"], "--feature", steer["feature"]]
-    words += ["--mode", steer["mode"], "--amount", f"{steer['amount']!r}"]
+    words += ["--layer", steer["layer"], "--feature", steer["feature"], "--mode", steer["mode"]]
+    if command in ("steer", "mediate"):
+        words += ["--amount", f"{steer['amount']!r}"]
+    else:
+        words += ["--amounts", ",".join(f"{a!r}" for a in spec["amounts"])]
+    if steer.get("loop", "open") != "open":
+        words += ["--loop", steer["loop"]]
     for t in steer["times"]:
         words += ["--time", t]
     words += ["--steps", spec["steps"], "--seeds", ",".join(map(str, spec["seeds"]))]
-    words += ["--random-draws", spec["n_random"], "--random-seed", spec["random_seed"]]
+    if command == "steer":
+        words += ["--random-draws", spec["n_random"], "--random-seed", spec["random_seed"]]
+    if s.get("reference_from"):
+        words += ["--reference-from", s["reference_from"]]
+        words += ["--reference-adapter", s["reference_adapter"]]
+        for t in s["reference_times"]:
+            words += ["--reference-time", t]
+        words += ["--reference-sha256", spec["steer"]["reference"]["sha256"]]
+    for name, (path, feature) in s.get("compare", {}).items():
+        words += ["--compare", f"{name}={path}:{feature}"]
+        words += ["--compare-sha256", f"{name}={s['compare_sha256'][name]}"]
+    if s.get("matched"):
+        words += ["--matched", s["matched"], "--max-cosine", repr(s["max_cosine"])]
+        if s.get("matched_references_sha256"):
+            words += ["--matched-references-sha256", s["matched_references_sha256"]]
+    if s.get("outcome", "mean") != "mean":
+        words += ["--outcome", s["outcome"]]
+    if s.get("region"):
+        r = s["region"]
+        words += ["--lat", repr(r["lat"]), "--lon", repr(r["lon"])]
+        words += ["--radius-km", repr(r["radius_km"])]
+    for start in s.get("starts", []):
+        words += ["--start", start]
+    if s.get("targets"):
+        words += ["--targets", s["targets"], "--targets-sha256", s["targets_sha256"]]
     for name in s["fields"]:
         words += ["--field", name]
-    for layer in s["record_layers"]:
+    for layer in s.get("record_layers", []):
         words += ["--record-layer", layer]
     if s["allow_unverified_basis"]:
         words.append("--allow-unverified-basis")
@@ -1394,27 +1424,186 @@ def _adapter_options(pairs: tuple[str, ...]) -> dict:
     return options
 
 
+def _named_hashes(pairs: tuple[str, ...]) -> dict:
+    hashes = {}
+    for pair in pairs:
+        name, equals, value = pair.partition("=")
+        if not equals or not name or not value:
+            raise click.BadParameter(f"{pair!r} is not NAME=HASH", param_hint="--compare-sha256")
+        hashes[name] = value
+    return hashes
+
+
+def _comparisons(pairs: tuple[str, ...], pins: tuple[str, ...] = ()) -> tuple[dict, dict, dict]:
+    """``NAME=BASIS[:FEATURE]`` pairs as comparison directions, as they were given, and the
+    content hash of each; ``pins`` (``NAME=HASH``) refuses a file whose content differs."""
+    from exege.core.errors import RequestError
+    from exege.latents import load_basis
+
+    hashes = _named_hashes(pins)
+    loaded, given = {}, {}
+    for pair in pairs:
+        name, equals, rest = pair.partition("=")
+        if not equals or not name or not rest:
+            raise click.BadParameter(
+                f"{pair!r} is not NAME=BASIS[:FEATURE]", param_hint="--compare"
+            )
+        path, colon, feature = rest.rpartition(":")
+        if not colon or not feature.isdigit():
+            path, feature = rest, "0"
+        loaded[name] = (load_basis(path, sha256=hashes.get(name)), int(feature))
+        given[name] = (path, int(feature))
+    if unknown := sorted(set(hashes) - set(loaded)):
+        raise RequestError(f"--compare-sha256 names no --compare: {', '.join(unknown)}")
+    return loaded, given, {name: basis.meta["sha256"] for name, (basis, _) in loaded.items()}
+
+
+def _steer_parts(
+    source, adapter, adapter_options, basis_path, layer, feature, mode, amount, times, loop,
+    reference_from, reference_adapter, reference_times, lat, lon, radius_km, outcome_stat,
+    starts, allow_unverified_basis, reference_sha256=None,
+):  # fmt: skip
+    """What `steer` and `dose` share: the system, the basis, the steer, its reference, the
+    outcome and the cases, from the options as given."""
+    from exege.latents import Case, Outcome, Steer, feature_reference, open_intervenable
+
+    basis = _basis(basis_path)
+    if basis is None:
+        raise click.UsageError("--basis FILE is required")
+    if mode in ("toward", "excess") and not reference_from:
+        raise click.UsageError(f"--mode {mode} needs --reference-from SOURCE --reference-time T")
+    if reference_from and mode not in ("toward", "excess"):
+        raise click.UsageError("--reference-from is for --mode toward or excess")
+    if reference_from and not reference_times:
+        raise click.UsageError("--reference-from needs at least one --reference-time")
+    options = _adapter_options(adapter_options)
+    system = open_intervenable(source, adapter, **options)
+    reference_for = None
+    reference = meta = None
+    if reference_from:
+        archive = open_for_cli(reference_from, reference_adapter, None)
+        labels = [_time(t) for t in reference_times]
+
+        def reference_for(j):
+            return feature_reference(
+                archive, basis, layer=layer, feature=j, times=labels,
+                allow_unverified_basis=allow_unverified_basis,
+            )[0]  # fmt: skip
+
+        reference, meta = feature_reference(
+            archive, basis, layer=layer, feature=feature, times=labels,
+            allow_unverified_basis=allow_unverified_basis,
+        )  # fmt: skip
+        from exege.latents.steering import array_digest
+
+        if reference_sha256 and array_digest(reference) != reference_sha256:
+            from exege.core.errors import RequestError
+
+            raise RequestError(
+                f"the reference read from {reference_from} has content sha256 "
+                f"{array_digest(reference)[:12]}, not the {reference_sha256[:12]} pinned"
+            )
+    steer = Steer(
+        layer=layer, feature=feature, mode=mode, amount=amount, times=tuple(times) or (0,),
+        loop=loop, reference=reference, reference_meta=meta,
+    )  # fmt: skip
+    region = _optional_region(lat, lon, radius_km)
+    cases = [Case(start=_time(s), region=region) for s in starts] or (
+        [Case(start=0, region=region)] if region is not None else []
+    )
+    return system, basis, steer, Outcome(statistic=outcome_stat), cases, reference_for, options
+
+
+def _steer_options(command):
+    """The options `steer` and `dose` share."""
+    for option in reversed(
+        [
+            click.option("--adapter", required=True,
+                         help="An adapter that can be run (Intervenable)."),
+            click.option("--adapter-option", "adapter_options", multiple=True, metavar="KEY=VALUE",
+                         help="An option of the adapter; repeatable."),
+            _basis_click_option,
+            _basis_sha_option,
+            click.option("--layer", type=int, required=True,
+                         help="Layer the basis reads; the edit acts here."),
+            click.option("--feature", type=int, required=True,
+                         help="The feature of the basis to change."),
+            click.option("--mode", type=click.Choice(["add", "scale", "clamp", "toward", "excess"]),
+                         default="add", show_default=True,
+                         help="What the amount does to the activation: add it, scale by it, "
+                         "clamp to it, move that share of the way to the reference, or scale the "
+                         "excess above the reference by it."),
+            click.option("--loop", type=click.Choice(["open", "closed"]), default="open",
+                         show_default=True,
+                         help="Work the change out from the control's latents (open) or from "
+                         "the steered run's own (closed)."),
+            click.option("--time", "times", type=int, multiple=True,
+                         help="Forward step to act at; repeatable.  [default: 0]"),
+            click.option("--steps", type=int, required=True, help="Forward steps to run."),
+            click.option("--seeds", "seeds_text", default="0", show_default=True,
+                         metavar="N,N,...",
+                         help="Noise seeds; every arm of a seed shares its noise."),
+            click.option("--reference-from", help="An archive of the same network to read the "
+                         "reference from, for --mode toward or excess."),
+            click.option("--reference-adapter", default="latent-archive", show_default=True,
+                         help="How --reference-from is read."),
+            click.option("--reference-sha256", metavar="HASH",
+                         help="Refuse the reference unless its content has this sha256."),
+            click.option("--reference-time", "reference_times", multiple=True,
+                         help="A time of --reference-from to average the feature over; "
+                         "repeatable."),
+            click.option("--lat", type=float,
+                         help="With --lon: edit only, and measure only, within --radius-km "
+                         "of here."),
+            click.option("--lon", type=float),
+            click.option("--radius-km", type=float, default=1500.0, show_default=True),
+            click.option("--outcome", "outcome_stat", type=click.Choice(["mean", "min", "max"]),
+                         default="mean", show_default=True,
+                         help="How a field is reduced to one number per step."),
+            click.option("--start", "starts", multiple=True,
+                         help="An initial state to start from; repeatable, one case each."),
+            click.option("--field", "fields", multiple=True,
+                         help="A physical field to measure; repeatable.  [default: all]"),
+        ]
+    ):  # fmt: skip
+        command = option(command)
+    return command
+
+
 @latents.command("steer")
 @click.argument("source", required=False)
-@click.option("--adapter", required=True, help="An adapter that can be run (Intervenable).")
-@click.option("--adapter-option", "adapter_options", multiple=True, metavar="KEY=VALUE",
-              help="An option of the adapter; repeatable.")  # fmt: skip
-@_basis_option
-@click.option("--layer", type=int, required=True, help="Layer the basis reads; the edit acts here.")
-@click.option("--feature", type=int, required=True, help="The feature of the basis to change.")
-@click.option("--mode", type=click.Choice(["add", "scale", "clamp"]), default="add",
-              show_default=True, help="What --amount does to the activation.")  # fmt: skip
-@click.option("--amount", type=float, required=True, help="Added, scaled by, or clamped to.")
-@click.option("--time", "times", type=int, multiple=True,
-              help="Forward step to act at; repeatable.  [default: 0]")  # fmt: skip
-@click.option("--steps", type=int, required=True, help="Forward steps to run.")
-@click.option("--seeds", "seeds_text", default="0", show_default=True, metavar="N,N,...",
-              help="Noise seeds; every arm of a seed shares its noise.")  # fmt: skip
+@_steer_options
+@click.option("--amount", type=float, required=True, help="What the mode does with it.")
 @click.option("--random-draws", type=int, default=20, show_default=True,
               help="Random directions of the same size, to set the feature against.")  # fmt: skip
 @click.option("--random-seed", type=int, default=0, show_default=True)
-@click.option("--field", "fields", multiple=True, help="A physical field to measure; repeatable.  "
-              "[default: all]")  # fmt: skip
+@click.option("--compare", "compare", multiple=True, metavar="NAME=BASIS[:FEATURE]",
+              help="Also push along this basis's feature (0 by default) by the same amount, "
+              "scaled to the feature's length: a difference of means, a PCA component; "
+              "repeatable.")  # fmt: skip
+@click.option(
+    "--compare-sha256",
+    "compare_sha256",
+    multiple=True,
+    metavar="NAME=HASH",
+    help="Refuse that --compare file unless its content has this sha256.",
+)
+@click.option("--matched", type=int, default=0, show_default=True,
+              help="Also apply the steer to this many other features that carry about as much "
+              "where it acts.")  # fmt: skip
+@click.option(
+    "--matched-references-sha256",
+    metavar="HASH",
+    help="Refuse the run unless the matched features' references, together, have this "
+    "content hash (reproduce lines give it).",
+)
+@click.option(
+    "--max-cosine",
+    type=float,
+    default=0.3,
+    show_default=True,
+    help="A matched feature's direction is at most this close to the feature's.",
+)
 @click.option("--record-layer", "record_layers", type=int, multiple=True,
               help="Also compare the latents of this layer; repeatable.")  # fmt: skip
 @click.option("--out", type=click.Path(dir_okay=False), help="Also write the result (JSON).")
@@ -1422,72 +1611,279 @@ def _adapter_options(pairs: tuple[str, ...]) -> dict:
 @_unverified_option
 @_json_option
 def steer_cmd(
-    source, adapter, adapter_options, basis_path, layer, feature, mode, amount, times, steps,
-    seeds_text, random_draws, random_seed, fields, record_layers, out, record_path,
-    allow_unverified_basis, as_json,
+    source, adapter, adapter_options, basis_path, layer, feature, mode, loop, times, steps,
+    seeds_text, reference_from, reference_adapter, reference_times, lat, lon, radius_km,
+    outcome_stat, starts, fields, amount, random_draws, random_seed, compare, matched,
+    max_cosine, record_layers, out, record_path, allow_unverified_basis, as_json,
+    reference_sha256, compare_sha256, matched_references_sha256,
 ):  # fmt: skip
     """Change a feature inside a running system and set what happens against chance.
 
-    Four arms share one initial state and one noise seed per seed: a control, one with the
-    latents replaced by the dictionary's reconstruction, one with the feature changed, and
-    --random-draws with a random direction of the same length changed by the same amount.
-    Each field's response to the feature is reported against the random directions'.
+    The arms share one initial state and one noise seed per seed: a control, one with the
+    latents replaced by the dictionary's reconstruction, one with the feature changed,
+    --random-draws with a random direction of the same length changed by the same amount,
+    one per --compare direction, and --matched other features given the same steer. Each
+    field's response to the feature is reported against the others'. With --start (or a
+    region), it is run from each initial state and the responses are set side by side.
     """
-    from exege.latents import (
-        Steer,
-        open_intervenable,
-        run_steering,
-        save_record,
-        steering_record,
-    )
+    from exege.latents import run_cases, run_steering, save_record, steering_record
     from exege.latents.evaluate import jsonable, save_result
 
-    basis = _basis(basis_path)
-    if basis is None:
-        raise click.UsageError("--basis FILE is required")
-    options = _adapter_options(adapter_options)
-    system = open_intervenable(source, adapter, **options)
-    steer = Steer(
-        layer=layer, feature=feature, mode=mode, amount=amount, times=tuple(times) or (0,)
-    )
-    result = run_steering(
-        system, basis, steer, steps=steps, seeds=_ints(seeds_text),
-        n_random=random_draws, random_seed=random_seed, fields=list(fields) or None,
-        record_layers=list(record_layers) or None,
-        allow_unverified_basis=allow_unverified_basis,
+    system, basis, steer, outcome, cases, reference_for, options = _steer_parts(
+        source, adapter, adapter_options, basis_path, layer, feature, mode, amount, times, loop,
+        reference_from, reference_adapter, reference_times, lat, lon, radius_km, outcome_stat,
+        starts, allow_unverified_basis, reference_sha256,
     )  # fmt: skip
+    if record_path and len(cases) > 1:
+        raise click.UsageError("--record keeps one run; with several --start, use --out")
+    comparisons, given, compare_hashes = _comparisons(compare, compare_sha256)
+    common = dict(
+        steps=steps, seeds=_ints(seeds_text), n_random=random_draws, random_seed=random_seed,
+        fields=list(fields) or None, record_layers=list(record_layers) or None,
+        allow_unverified_basis=allow_unverified_basis, comparisons=comparisons,
+        n_matched=matched, max_cosine=max_cosine, reference_for=reference_for,
+    )  # fmt: skip
+    if cases:
+        study = run_cases(system, basis, steer, cases, outcome=outcome, **common)
+        result = study.results[0]
+    else:
+        study, result = None, run_steering(system, basis, steer, outcome=outcome, **common)
     spec = result.spec
+    matched_hash = None
+    if matched and reference_for is not None:
+        import hashlib
+
+        from exege.core.errors import RequestError
+
+        named = [r.spec["matched"]["references"] for r in (study.results if study else [result])]
+        matched_hash = hashlib.sha256(json.dumps(named, sort_keys=True).encode()).hexdigest()
+        if matched_references_sha256 and matched_references_sha256 != matched_hash:
+            raise RequestError(
+                f"the matched features' references have content sha256 {matched_hash[:12]}, "
+                f"not the {matched_references_sha256[:12]} pinned"
+            )
     settings = {
+        "matched_references_sha256": matched_hash,
         "adapter": adapter, "adapter_options": options, "basis": basis_path,
         "fields": list(fields), "record_layers": list(record_layers),
-        "allow_unverified_basis": allow_unverified_basis,
+        "allow_unverified_basis": allow_unverified_basis, "reference_from": reference_from,
+        "reference_adapter": reference_adapter, "reference_times": list(reference_times),
+        "compare": given, "compare_sha256": compare_hashes, "matched": matched,
+        "max_cosine": max_cosine,
+        "outcome": outcome_stat, "starts": list(starts),
+        "region": None if lat is None else {"lat": lat, "lon": lon, "radius_km": radius_km},
     }  # fmt: skip
-    command = _steer_command(source, settings, spec, result.provenance["basis"]["sha256"])
+    command = _steer_command(
+        source, settings, {**spec, "steer": steer.to_dict()}, result.provenance["basis"]["sha256"]
+    )
     if out:
-        save_result(out, result)
+        save_result(out, study if study is not None else result)
     if record_path:
         save_record(record_path, steering_record(result, settings=settings, command=command))
     if as_json:
-        click.echo(json.dumps(jsonable(result.to_dict()), indent=2))
+        click.echo(json.dumps(jsonable((study or result).to_dict()), indent=2))
         return
     click.echo(
         f"{mode} {amount:g} on feature {feature} of layer {layer} at time(s) "
-        f"{', '.join(map(str, spec['steer']['times']))}; {steps} step(s), "
+        f"{', '.join(map(str, spec['steer']['times']))} ({steer.loop} loop); {steps} step(s), "
         f"seed(s) {', '.join(map(str, spec['seeds']))}, {spec['n_random']} random direction(s)"
+        + (f", {matched} matched feature(s)" if matched else "")
     )
-    rows = [
-        {
-            "field": name, "response": f"{e.feature_response:.4g}",
-            "+-": "-" if e.feature_se is None else f"{e.feature_se:.2g}",
-            "recon_only": f"{e.reconstruction_response:.4g}",
-            "random_|resp|": f"{float(abs(e.random_responses).mean()):.4g}",
-            "effect_size": "-" if e.effect_size is None else f"{e.effect_size:.2f}",
-            "rank": f"{e.rank}/{e.random_responses.size + 1}", "p": f"{e.p_value:.2g}",
-        }
-        for name, e in result.effects.items()
-    ]  # fmt: skip
-    click.echo("\n" + _render.table(rows))
+    for case, one in zip(study.cases if study else [None], study.results if study else [result],
+                         strict=True):  # fmt: skip
+        if case is not None:
+            click.echo(f"\ncase {case.name}")
+        rows = []
+        for name, e in one.effects.items():
+            row = {
+                "field": name, "response": f"{e.feature_response:.4g}",
+                "+-": "-" if e.feature_se is None else f"{e.feature_se:.2g}",
+                "recon_only": f"{e.reconstruction_response:.4g}",
+                "random_|resp|": f"{float(abs(e.random_responses).mean()):.4g}",
+                "effect_size": "-" if e.effect_size is None else f"{e.effect_size:.2f}",
+                "rank": f"{e.rank}/{e.random_responses.size + 1}", "p": f"{e.p_value:.2g}",
+            }  # fmt: skip
+            if e.matched_rank is not None:
+                row["matched_rank"] = f"{e.matched_rank}/{len(e.matched_features) + 1}"
+            for label, value in e.comparison_responses.items():
+                row[label] = f"{value:.4g}"
+            rows.append(row)
+        click.echo("\n" + _render.table(rows))
+    if study is not None and len(study.cases) > 1:
+        rows = [
+            {
+                "field": name, "median": f"{s['median']:.4g}", "positive": s["positive"],
+                "negative": s["negative"],
+                "rank_1": sum(1 for r in s["ranks"] if r == 1),
+                "cases": len(s["cases"]),
+            }
+            for name, s in study.summary().items()
+        ]  # fmt: skip
+        click.echo("\nacross cases\n" + _render.table(rows))
+    if spec.get("matched"):
+        click.echo(f"\nmatched features: {', '.join(map(str, spec['matched']['features']))}")
     click.echo(f"\nreproduce: {command}")
+
+
+@latents.command("dose")
+@click.argument("source", required=False)
+@_steer_options
+@click.option(
+    "--amounts",
+    "amounts_text",
+    required=True,
+    metavar="A,A,...",
+    help="The amounts to run, the identity of the mode among them if you want it.",
+)
+@click.option(
+    "--targets",
+    type=click.Path(dir_okay=False, exists=True),
+    help="JSON of {case: {field: [one value per step]}}: what each case's outcome "
+    "should follow. With two or more cases, an amount is chosen leave-one-out.",
+)
+@click.option(
+    "--targets-sha256",
+    metavar="HASH",
+    help="Refuse the --targets file unless its content has this sha256.",
+)
+@click.option("--out", type=click.Path(dir_okay=False), help="Also write the result (JSON).")
+@_unverified_option
+@_json_option
+def dose_cmd(
+    source, adapter, adapter_options, basis_path, layer, feature, mode, loop, times, steps,
+    seeds_text, reference_from, reference_adapter, reference_times, lat, lon, radius_km,
+    outcome_stat, starts, fields, amounts_text, targets, out, allow_unverified_basis, as_json,
+    reference_sha256, targets_sha256,
+):  # fmt: skip
+    """The feature's response at every amount, from every case: the whole curve.
+
+    With --targets, every amount is scored by its error against the target, and for each
+    case the amount the *other* cases favour is reported beside the hindsight optimum and
+    the unsteered control, so a correction can be judged by what could have been chosen.
+    """
+    from exege.latents import Case, dose_curve
+    from exege.latents.evaluate import jsonable, save_result
+
+    try:
+        amounts = [float(a) for a in amounts_text.split(",") if a.strip()]
+    except ValueError as exc:
+        raise click.BadParameter(f"{amounts_text!r} is not a list of numbers") from exc
+    system, basis, steer, outcome, cases, _, options = _steer_parts(
+        source, adapter, adapter_options, basis_path, layer, feature, mode, amounts[0] if amounts
+        else 1.0, times, loop, reference_from, reference_adapter, reference_times, lat, lon,
+        radius_km, outcome_stat, starts, allow_unverified_basis, reference_sha256,
+    )  # fmt: skip
+    goals = targets_hash = None
+    if targets:
+        import hashlib
+
+        raw = Path(targets).read_bytes()
+        targets_hash = hashlib.sha256(raw).hexdigest()
+        if targets_sha256 and targets_sha256 != targets_hash:
+            from exege.core.errors import RequestError
+
+            raise RequestError(
+                f"{targets} has content sha256 {targets_hash[:12]}, not the "
+                f"{targets_sha256[:12]} pinned"
+            )
+        goals = json.loads(raw)
+    curve = dose_curve(
+        system, basis, steer, amounts, steps=steps, cases=cases or [Case()],
+        seeds=_ints(seeds_text), fields=list(fields) or None, outcome=outcome, targets=goals,
+        allow_unverified_basis=allow_unverified_basis,
+    )  # fmt: skip
+    settings = {
+        "adapter": adapter, "adapter_options": options, "basis": basis_path,
+        "fields": list(fields), "allow_unverified_basis": allow_unverified_basis,
+        "reference_from": reference_from, "reference_adapter": reference_adapter,
+        "reference_times": list(reference_times), "outcome": outcome_stat,
+        "starts": list(starts), "targets": targets, "targets_sha256": targets_hash,
+        "region": None if lat is None else {"lat": lat, "lon": lon, "radius_km": radius_km},
+    }  # fmt: skip
+    command = _steer_command(
+        source, settings, curve.spec, curve.provenance["basis"]["sha256"], command="dose"
+    )
+    if out:
+        save_result(out, curve)
+    if as_json:
+        click.echo(json.dumps(jsonable(curve.to_dict()), indent=2))
+        return
+    click.echo(
+        f"{mode} on feature {feature} of layer {layer} at time(s) "
+        f"{', '.join(map(str, steer.times))} ({loop} loop), {len(curve.cases)} case(s)"
+    )
+    for m, name in enumerate(curve.fields):
+        rows = [
+            {"case": case, **{f"{a:g}": f"{curve.responses[c, k, m]:.4g}"
+                              for k, a in enumerate(curve.amounts)}}
+            for c, case in enumerate(curve.cases)
+        ]  # fmt: skip
+        click.echo(f"\n{name}: response at each amount\n" + _render.table(rows))
+        if curve.errors is not None:
+            rows = [
+                {"case": case, "control": f"{curve.baseline_errors[c, m]:.4g}",
+                 **{f"{a:g}": f"{curve.errors[c, k, m]:.4g}" for k, a in enumerate(curve.amounts)}}
+                for c, case in enumerate(curve.cases)
+            ]  # fmt: skip
+            click.echo(f"\n{name}: error against the target\n" + _render.table(rows))
+        if name in curve.selections:
+            s = curve.selections[name]
+            rows = [
+                {"case": case, "loo_amount": f"{s.loo_amounts[c]:g}",
+                 "loo_error": f"{s.loo_errors[c]:.4g}",
+                 "oracle_amount": f"{s.oracle_amounts[c]:g}",
+                 "oracle_error": f"{s.oracle_errors[c]:.4g}",
+                 "control_error": f"{s.baseline_errors[c]:.4g}"}
+                for c, case in enumerate(curve.cases)
+            ]  # fmt: skip
+            med = s.medians
+            click.echo(
+                f"\n{name}: amount chosen leave-one-out\n"
+                + _render.table(rows)
+                + f"\nmedian error: leave-one-out {med['loo']:.4g}, hindsight {med['oracle']:.4g}"
+                f", control {med['baseline']:.4g}"
+            )
+    click.echo(f"\nreproduce: {command}")
+
+
+@latents.command("direction")
+@click.argument("source", type=click.Path())
+@_adapter_option
+@_mask_option
+@click.option("--layer", type=int, help="Layer to read.  [default: the last]")
+@click.option("--event-time", "event_times", multiple=True, required=True,
+              help="A time the event is present; repeatable.")  # fmt: skip
+@click.option("--quiet-time", "quiet_times", multiple=True, required=True,
+              help="A time it is absent; repeatable.")  # fmt: skip
+@_with(_optional_region_options)
+@click.option("--label", default="mean difference", show_default=True)
+@click.option("--out", type=click.Path(dir_okay=False), required=True, help="Basis file to write.")
+def direction_cmd(
+    source, adapter, mask_variable, layer, event_times, quiet_times, lat, lon, radius_km, label,
+    out,
+):  # fmt: skip
+    """The direction from the mean latents at quiet times to the mean at event times.
+
+    Written as a basis of one direction, which `steer --compare NAME=FILE` pushes along: does
+    a dictionary's feature do anything this plainer direction does not?
+    """
+    from exege.latents import mean_difference, save_basis
+
+    opened = open_for_cli(source, adapter, mask_variable)
+    layer = opened.info().last_layer if layer is None else layer
+    direction = mean_difference(
+        opened, layer=layer, event_times=[_time(t) for t in event_times],
+        quiet_times=[_time(t) for t in quiet_times],
+        region=_optional_region(lat, lon, radius_km), label=label,
+    )  # fmt: skip
+    path = save_basis(out, direction)
+    from exege.latents import load_basis
+
+    click.echo(
+        f"wrote {path}: the direction from {len(quiet_times)} quiet to {len(event_times)} event "
+        f"time(s) at layer {layer}, length {direction.meta['length']:.4g}; "
+        f"--basis-sha256 {load_basis(path).meta['sha256']}"
+    )
 
 
 __all__ = ["latents"]

@@ -67,6 +67,9 @@ Defined in ``exege.latents.basis``.
 .. autoclass:: exege.latents.Decomposition
    :members:
 
+.. autoclass:: exege.latents.Directions
+   :members:
+
 .. autoclass:: exege.latents.Dictionary
    :members:
 
@@ -257,6 +260,42 @@ Defined in ``exege.latents.steering``.
 .. autofunction:: exege.latents.open_intervenable
 
 .. autofunction:: exege.latents.run_steering
+
+.. autoclass:: exege.latents.Outcome
+   :members:
+
+.. autoclass:: exege.latents.Case
+   :members:
+
+.. autoclass:: exege.latents.CaseStudy
+   :members:
+
+.. autofunction:: exege.latents.run_cases
+
+.. autoclass:: exege.latents.DoseCurve
+   :members:
+
+.. autoclass:: exege.latents.Selection
+   :members:
+
+.. autofunction:: exege.latents.dose_curve
+
+.. autofunction:: exege.latents.leave_one_out
+
+.. autofunction:: exege.latents.contributions
+
+.. autofunction:: exege.latents.matched_features
+
+References and directions
+-------------------------
+
+Defined in ``exege.latents.references``.
+
+.. autofunction:: exege.latents.feature_reference
+
+.. autofunction:: exege.latents.mean_difference
+
+.. autofunction:: exege.latents.grid.node_digest
 
 Experiment records
 ------------------

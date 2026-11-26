@@ -254,3 +254,18 @@ class Grid:
         out = np.array(values, dtype=np.float64).reshape(self.shape)
         out[~self.valid.reshape(self.shape)] = np.nan
         return out
+
+
+def node_digest(grid: Grid) -> str:
+    """SHA-256 of where the nodes are (latitudes and longitudes, in order) and which are
+    valid: two grids with the same digest line up node for node. A per-node array read on
+    one grid -- a reference level, a map -- belongs to another only if their digests match;
+    the same count of nodes in another order would put every value in the wrong place."""
+    import hashlib
+
+    digest = hashlib.sha256()
+    for values in (grid.lat, grid.lon, grid.valid):
+        array = np.ascontiguousarray(np.asarray(values, dtype=np.float64))
+        digest.update(f"{array.shape}|".encode())
+        digest.update(array.tobytes())
+    return digest.hexdigest()

@@ -21,7 +21,7 @@ Reading is an adapter's job (see ``LatentSource``); this package computes.
                 storylines, Hovmoller diagrams
 - ``evaluate``  a frozen basis on held-out times: splits, fidelity and sparsity, dead and
                 redundant features, stability across seeds, PCA against a dictionary
-- ``steering`` steering: edit a feature inside a running model, four arms, paired noise,
+- ``steering`` steering: edit a feature inside a running model, its arms, paired noise,
                 the response against random directions
 - ``record``    the experiment record: a versioned, compact JSON file of one evaluation or
                 steering run, with its provenance and the command that reproduces it
@@ -33,6 +33,8 @@ Reading is an adapter's job (see ``LatentSource``); this package computes.
                 latitude and the boundary fields explain of it
 - ``gap``       a free run against a teacher-forced one: which features free running
                 weakens, time by time
+- ``references`` what a steer is measured against: a feature's reference level, a
+                difference-of-means direction, read from an archive
 - ``toy``       a toy emulator in numpy, so an archive can be made with no model
 
 Needs the ``latents`` extra (numpy). The names above are loaded on first use, not
@@ -62,6 +64,7 @@ if TYPE_CHECKING:
         PCA,
         Decomposition,
         Dictionary,
+        Directions,
         basis_hash,
         basis_provenance,
         bspline_activation,
@@ -102,6 +105,7 @@ if TYPE_CHECKING:
         save_record,
         steering_record,
     )
+    from exege.latents.references import feature_reference, mean_difference
     from exege.latents.samples import (
         Moments,
         accumulate_moments,
@@ -120,16 +124,26 @@ if TYPE_CHECKING:
     )
     from exege.latents.stationary import Stationarity, feature_stationarity
     from exege.latents.steering import (
+        Case,
+        CaseStudy,
+        DoseCurve,
         Effect,
         Hook,
         Intervenable,
+        Outcome,
         Pairing,
         Rollout,
         Run,
+        Selection,
         Steer,
         SteeringResult,
+        contributions,
+        dose_curve,
         feature_direction,
+        leave_one_out,
+        matched_features,
         open_intervenable,
+        run_cases,
         run_steering,
     )
     from exege.latents.through import (
@@ -164,6 +178,9 @@ _LAZY = {
     "rank_channels": "analysis",
     "Decomposition": "basis",
     "Dictionary": "basis",
+    "Directions": "basis",
+    "feature_reference": "references",
+    "mean_difference": "references",
     "PCA": "basis",
     "basis_hash": "basis",
     "basis_provenance": "basis",
@@ -185,6 +202,16 @@ _LAZY = {
     "SteeringResult": "steering",
     "feature_direction": "steering",
     "open_intervenable": "steering",
+    "Case": "steering",
+    "CaseStudy": "steering",
+    "DoseCurve": "steering",
+    "Outcome": "steering",
+    "Selection": "steering",
+    "contributions": "steering",
+    "dose_curve": "steering",
+    "leave_one_out": "steering",
+    "matched_features": "steering",
+    "run_cases": "steering",
     "run_steering": "steering",
     "Evaluation": "evaluate",
     "FidelityCurve": "evaluate",
@@ -255,10 +282,14 @@ __all__ = [
     "AnyRegion",
     "Association",
     "Box",
+    "Case",
+    "CaseStudy",
     "ChannelRanking",
     "Decomposition",
     "Dictionary",
     "DifferenceGrowth",
+    "Directions",
+    "DoseCurve",
     "Effect",
     "Evaluation",
     "ExperimentRecord",
@@ -275,6 +306,7 @@ __all__ = [
     "LatentSource",
     "LayerInfo",
     "Moments",
+    "Outcome",
     "PCA",
     "PairedDifference",
     "Pairing",
@@ -284,6 +316,7 @@ __all__ = [
     "RegionSeries",
     "Rollout",
     "Run",
+    "Selection",
     "Split",
     "Stability",
     "Stationarity",
@@ -297,25 +330,31 @@ __all__ = [
     "benjamini_hochberg",
     "bspline_activation",
     "check_comparable",
+    "contributions",
     "correlate_field",
     "cosine_similarity",
     "difference",
     "difference_growth",
+    "dose_curve",
     "evaluate_basis",
     "evaluation_record",
     "feature_census",
     "feature_direction",
     "feature_gap",
     "feature_profile",
+    "feature_reference",
     "feature_stationarity",
     "fidelity_curve",
     "field_storyline",
     "fit_pca",
     "hovmoller",
     "iter_batches",
+    "leave_one_out",
     "load_basis",
     "load_channels",
     "load_record",
+    "matched_features",
+    "mean_difference",
     "open_intervenable",
     "open_source",
     "parse_time",
@@ -326,6 +365,7 @@ __all__ = [
     "record_from_dict",
     "region_series",
     "result_provenance",
+    "run_cases",
     "run_steering",
     "save_basis",
     "save_record",

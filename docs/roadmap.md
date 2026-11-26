@@ -52,6 +52,9 @@ roughly in the order we mean to take them.
 ## Steering
 
 - A real adapter, in the model's environment: the hook that lets a real model be steered
+- An outcome region that follows its object (a storm's centre, step by step) rather than
+  staying where the storm began
+- Records for case studies and dose curves, and views of them in the app
 - Fitted dictionaries on the toy system, to show a learned feature that is not planted
 
 ## Experiment records
