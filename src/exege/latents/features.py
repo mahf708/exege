@@ -24,6 +24,8 @@ from exege.core.errors import RequestError
 from exege.core.extras import missing_extra
 from exege.latents.analysis import AnyRegion
 from exege.latents.basis import Decomposition, result_provenance
+from exege.latents.calibrate import _standardized, two_sided_p
+from exege.latents.grid import longitude_partner, rotation_shifts
 from exege.latents.samples import _time_labels
 from exege.latents.source import LatentSource, ReferenceFields, check_basis_fits, read_latents
 from exege.latents.through import _field_at
@@ -191,7 +193,14 @@ class FeatureProfile:
     size of the effect, largest first; a field that does not vary, or that has no
     values on one side, reads NaN and comes last. ``coverage`` is the share of the
     area and time the column is active over. Where the column itself is missing
-    (NaN), a node is on neither side."""
+    (NaN), a node is on neither side.
+
+    With rotations, ``null_z`` is each effect against the same effect with the field read
+    ``settings["shifts"]`` columns east of every node (the map turned west) under a
+    footprint that stays where it is, at partners the grid holds valid; a null that
+    reproduces the effect to rounding (a field of latitude alone) gives no z-score. And
+    ``p_value`` is its two-sided Gaussian tail (see ``exege.latents.calibrate``: east-west
+    alignment only). Both are None without."""
 
     settings: dict[str, Any]
     provenance: dict[str, Any]
@@ -201,24 +210,26 @@ class FeatureProfile:
     effect: np.ndarray
     active_mean: np.ndarray
     inactive_mean: np.ndarray
+    null_z: np.ndarray | None = None
+    p_value: np.ndarray | None = None
 
     def summary(self) -> dict[str, Any]:
+        rows = []
+        for k, (name, e, a, i) in enumerate(
+            zip(self.fields, self.effect, self.active_mean, self.inactive_mean, strict=True)
+        ):
+            row = {"field": name, "effect": float(e), "active_mean": float(a),
+                   "inactive_mean": float(i)}  # fmt: skip
+            if self.null_z is not None and self.p_value is not None:
+                row["null_z"] = float(self.null_z[k])
+                row["p_value"] = float(self.p_value[k])
+            rows.append(row)
         return {
             "settings": self.settings,
             "provenance": self.provenance,
             "times": list(self.times),
             "coverage": self.coverage,
-            "fields": [
-                {
-                    "field": name,
-                    "effect": float(e),
-                    "active_mean": float(a),
-                    "inactive_mean": float(i),
-                }
-                for name, e, a, i in zip(
-                    self.fields, self.effect, self.active_mean, self.inactive_mean, strict=True
-                )
-            ],
+            "fields": rows,
         }
 
 
@@ -234,12 +245,18 @@ def feature_profile(
     threshold: float = 0.0,
     allow_unverified_basis: bool = False,
     lead: int = 0,
+    rotations: int = 0,
+    min_shift_degrees: float = 30.0,
 ) -> FeatureProfile:
     """Every physical field where one channel -- or one of a ``basis``'s features
     -- is active, against where it is not, pooled over ``times`` (all, by default)
     and over the whole grid or a ``region``. Says what the column goes with, not
     what it causes. ``lead`` sets it against every field that many reference times
-    later, as ``rank_by_field`` does: 1 for what the forward pass produced."""
+    later, as ``rank_by_field`` does: 1 for what the forward pass produced.
+
+    ``rotations`` greater than zero also measures every effect against up to that many
+    rotations of the field (each at least ``min_shift_degrees``), as ``associate``
+    does; it needs a structured grid whose longitudes go all the way round."""
     info, grid = source.info(), source.grid()
     if not isinstance(source, ReferenceFields):
         raise RequestError(f"{info.source} keeps no physical fields beside its latents")
@@ -254,15 +271,23 @@ def feature_profile(
         raise RequestError(f"no field(s) {unknown} in {info.source}; fields are {', '.join(known)}")
     if not names:
         raise RequestError(f"{info.source} keeps no physical fields to profile against")
+    if rotations < 0:
+        raise RequestError(f"rotations must be zero or more, not {rotations}")
+    shifts = rotation_shifts(grid, rotations, min_shift_degrees) if rotations else ()
+    if rotations and len(shifts) < 2:
+        raise RequestError("a null needs at least two rotations; allow smaller shifts")
     labels = _time_labels(source, times)
     nodes = _nodes(source, region)
     weights = grid.weights()[nodes]
+    # Read 0 is the field where it is; read r, the field at the node shifts[r - 1] columns
+    # east of each node (the map turned west by that many).
+    reads = np.stack([nodes, *(longitude_partner(grid, k)[nodes] for k in shifts)])
 
     # Per field: weight, weighted sum and weighted sum of squares, on each side --
     # of the field less one of its own values, so a large offset (surface pressure)
     # costs no precision and a constant field is exactly zero, with no spread. (Less
     # a computed mean it would not be: a sum rounds differently on another machine.)
-    sums = np.zeros((len(names), 2, 3))
+    sums = np.zeros((len(names), reads.shape[0], 2, 3))
     shift = np.full(len(names), np.nan)
     active_area = total_area = 0.0
     for label in labels:
@@ -278,24 +303,30 @@ def feature_profile(
         active_area += float(weights[on].sum())
         total_area += float(weights[read].sum())
         for k, name in enumerate(names):
-            field = _field_at(source, name, label, lead)[nodes]
-            ok = np.isfinite(field)
-            if np.isnan(shift[k]) and ok.any():
-                shift[k] = float(field[ok][0])
-            field = field - shift[k]
-            for side, mask in ((0, on & ok), (1, read & ~on & ok)):
-                w, f = weights[mask], field[mask]
-                sums[k, side] += (w.sum(), w @ f, w @ (f * f))
+            full = _field_at(source, name, label, lead)
+            for r, where in enumerate(reads):
+                field = full[where]
+                ok = np.isfinite(field) & grid.valid[where]  # a masked partner holds nothing
+                if np.isnan(shift[k]) and ok.any():
+                    shift[k] = float(field[ok][0])
+                field = field - shift[k]
+                for side, mask in ((0, on & ok), (1, read & ~on & ok)):
+                    w, f = weights[mask], field[mask]
+                    sums[k, r, side] += (w.sum(), w @ f, w @ (f * f))
 
     weight, first, second = sums[..., 0], sums[..., 1], sums[..., 2]
     with np.errstate(invalid="ignore", divide="ignore"):
         side_mean = first / weight
-        pooled_mean = first.sum(axis=1) / weight.sum(axis=1)
-        pooled_var = second.sum(axis=1) / weight.sum(axis=1) - pooled_mean**2
+        pooled_mean = first.sum(axis=-1) / weight.sum(axis=-1)
+        pooled_var = second.sum(axis=-1) / weight.sum(axis=-1) - pooled_mean**2
         spread = np.sqrt(np.where(pooled_var > 0.0, pooled_var, np.nan))
-        effect = (side_mean[:, 0] - side_mean[:, 1]) / spread
-    effect = np.where((weight > 0).all(axis=1), effect, np.nan)
-    side_mean = side_mean + shift[:, None]
+        effects = (side_mean[..., 0] - side_mean[..., 1]) / spread
+    effects = np.where((weight > 0).all(axis=-1), effects, np.nan)  # (fields, reads)
+    effect, side_mean = effects[:, 0], side_mean[:, 0] + shift[:, None]
+    null_z = p_value = None
+    if shifts:
+        null_z = _standardized(effect, effects[:, 1:])
+        p_value = two_sided_p(null_z)
     order = np.argsort(np.nan_to_num(np.abs(effect), nan=-1.0), kind="stable")[::-1]
     return FeatureProfile(
         settings={
@@ -307,6 +338,15 @@ def feature_profile(
             "threshold": threshold,
             "lead": lead,
             "allow_unverified_basis": allow_unverified_basis,
+            **(
+                {
+                    "rotations": rotations,
+                    "min_shift_degrees": min_shift_degrees,
+                    "shifts": list(shifts),
+                }
+                if shifts
+                else {}
+            ),
         },
         provenance=result_provenance(info, basis=basis),
         times=tuple(labels),
@@ -315,4 +355,6 @@ def feature_profile(
         effect=effect[order],
         active_mean=side_mean[order, 0],
         inactive_mean=side_mean[order, 1],
+        null_z=None if null_z is None else null_z[order],
+        p_value=None if p_value is None else p_value[order],
     )

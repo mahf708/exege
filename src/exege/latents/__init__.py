@@ -27,6 +27,8 @@ Reading is an adapter's job (see ``LatentSource``); this package computes.
                 steering run, with its provenance and the command that reproduces it
 - ``features``  what a feature is, without a field in mind: a census of a layer, and one
                 feature's profile against every field
+- ``calibrate`` which field each feature goes with, against a rotation null: z-scores,
+                a false-discovery rate, labels and their calibration
 - ``toy``       a toy emulator in numpy, so an archive can be made with no model
 
 Needs the ``latents`` extra (numpy). The names above are loaded on first use, not
@@ -67,6 +69,7 @@ if TYPE_CHECKING:
         token_normalized_dictionary,
         top_loadings,
     )
+    from exege.latents.calibrate import Association, associate, benjamini_hochberg
     from exege.latents.evaluate import (
         Evaluation,
         FidelityCurve,
@@ -141,6 +144,9 @@ if TYPE_CHECKING:
 
 # name -> the module that defines it, imported when the name is first asked for
 _LAZY = {
+    "benjamini_hochberg": "calibrate",
+    "associate": "calibrate",
+    "Association": "calibrate",
     "AnyRegion": "analysis",
     "Box": "analysis",
     "ChannelRanking": "analysis",
@@ -237,6 +243,7 @@ def __dir__() -> list[str]:
 
 __all__ = [
     "AnyRegion",
+    "Association",
     "Box",
     "ChannelRanking",
     "Decomposition",
@@ -272,8 +279,10 @@ __all__ = [
     "SteeringResult",
     "accumulate_moments",
     "analyze_region",
+    "associate",
     "basis_hash",
     "basis_provenance",
+    "benjamini_hochberg",
     "bspline_activation",
     "check_comparable",
     "correlate_field",

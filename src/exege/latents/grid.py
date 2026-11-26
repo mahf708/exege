@@ -82,6 +82,72 @@ def small_circle(
     return np.degrees(lat), (np.degrees(lon) + 180.0) % 360.0 - 180.0
 
 
+def _east_step(grid: Grid) -> tuple[int, int]:
+    """``(n_lon, +1 or -1)``: how many columns a row has, and which way along a row is
+    east. Refused unless the grid is structured and its columns sit at evenly spaced
+    longitudes that go all the way round."""
+    if grid.shape is None:
+        raise RequestError(
+            "a longitude shift needs a structured (lat, lon) grid; this one is a mesh, whose "
+            "nodes do not map onto each other under a rotation"
+        )
+    n_lon = grid.shape[1]
+    if n_lon < 2:
+        raise RequestError("a grid of one longitude cannot be shifted")
+    lon = np.asarray(grid.lon, dtype=np.float64).reshape(grid.shape)[0]
+    spacing = 360.0 / n_lon
+    steps = np.diff(np.concatenate([lon, lon[:1]])) % 360.0
+    for sign, step in ((1, spacing), (-1, 360.0 - spacing)):
+        if np.allclose(steps, step, atol=1e-6 * 360.0):
+            return n_lon, sign
+    raise RequestError(
+        f"a longitude shift needs {n_lon} evenly spaced longitudes all the way round "
+        f"({spacing:g} degrees apart); this grid's are not"
+    )
+
+
+def longitude_partner(grid: Grid, columns: int) -> np.ndarray:
+    """For every node, the index of the node ``columns`` columns east of it in the same
+    row (negative: west), wrapping round the dateline.
+
+    ``values[longitude_partner(grid, k)]`` is a map whose node ``i`` holds what sat ``k``
+    columns east of ``i``: the map moved ``k`` columns *west*. On a structured grid with
+    evenly spaced longitudes that cover the circle the mapping is exact, a permutation of
+    the nodes that keeps every latitude; anything else -- a mesh, a regional grid -- is a
+    ``RequestError``, since there a rotation does not take nodes onto nodes.
+    """
+    n_lon, sign = _east_step(grid)
+    n_lat = grid.shape[0]
+    rows = np.repeat(np.arange(n_lat), n_lon)
+    cols = np.tile(np.arange(n_lon), n_lat)
+    return rows * n_lon + (cols + sign * int(columns)) % n_lon
+
+
+def rotation_shifts(grid: Grid, n: int, min_degrees: float = 30.0) -> tuple[int, ...]:
+    """Up to ``n`` distinct eastward shifts, in columns, for a rotation null.
+
+    Every shift moves the grid at least ``min_degrees`` of longitude away from where it
+    was, either way round: a shift of one column leaves a smooth field almost where it
+    was, and a null drawn from such shifts reproduces the alignment it is meant to break.
+    Among those allowed, ``n`` are taken evenly spaced (all, when there are fewer).
+    """
+    n_lon, _ = _east_step(grid)
+    if n < 1:
+        raise RequestError(f"at least one rotation is needed, not {n}")
+    if not 0.0 <= min_degrees <= 180.0:
+        raise RequestError(f"min_degrees must lie in 0..180, not {min_degrees:g}")
+    spacing = 360.0 / n_lon
+    allowed = [k for k in range(1, n_lon) if min(k, n_lon - k) * spacing >= min_degrees - 1e-9]
+    if not allowed:
+        raise RequestError(
+            f"no shift of this grid's {n_lon} columns moves it {min_degrees:g} degrees or more"
+        )
+    if len(allowed) <= n:
+        return tuple(allowed)
+    picks = np.unique(np.round(np.linspace(0, len(allowed) - 1, n)).astype(int))
+    return tuple(allowed[i] for i in picks)
+
+
 @dataclass(frozen=True, eq=False)
 class Grid:
     """Where a set of nodes is, and which of them mean anything.

@@ -15,6 +15,7 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
 | `steering.py` | steering: the `Intervenable` contract, four arms (control, reconstruction, feature, random direction) under paired noise, the response set against the random draws |
 | `record.py` | the experiment record: a versioned, compact JSON file of one evaluation or steering run, its loader, and the writers the commands call |
 | `features.py` | a feature without a field in mind: a census of a layer, one feature's profile |
+| `calibrate.py` | which field each feature goes with, against a longitude-rotation null: z-scores, Benjamini-Hochberg, labels with a runner-up bar, and their calibration on null input |
 | `cli.py` | `exege latents …`, a thin client of the above |
 | `__init__.py` | the public names, re-exported lazily (see the first rule) |
 

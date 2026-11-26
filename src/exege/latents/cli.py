@@ -820,11 +820,16 @@ def census_cmd(
 @_with(_optional_region_options)
 @_threshold_option
 @_lead_option
+@click.option(
+    "--rotations", type=int, default=0, show_default=True,
+    help="Also set each effect against this many longitude rotations of the field (a null "
+    "that keeps the footprint and breaks its east-west alignment).",
+)  # fmt: skip
 @_unverified_option
 @_json_option
 def profile_cmd(
     source, adapter, mask_variable, layer, channel, basis_path, feature, times, fields, lat, lon,
-    radius_km, threshold, lead, allow_unverified_basis, as_json,
+    radius_km, threshold, lead, rotations, allow_unverified_basis, as_json,
 ):  # fmt: skip
     """Every physical field where one channel (or feature) is active, against where it is not."""
     from exege.latents import feature_profile
@@ -845,6 +850,7 @@ def profile_cmd(
         threshold=threshold,
         allow_unverified_basis=allow_unverified_basis,
         lead=lead,
+        rotations=rotations,
     )
     if as_json:
         click.echo(json.dumps(result.summary(), indent=2))
@@ -860,6 +866,105 @@ def profile_cmd(
             result.fields, result.effect, result.active_mean, result.inactive_mean, strict=True
         )
     ]
+    if result.null_z is not None:
+        for row, z, p in zip(rows, result.null_z, result.p_value, strict=True):
+            row["null_z"] = "-" if z != z else f"{z:+.1f}"
+            row["p"] = "-" if p != p else f"{p:.2g}"
+        click.echo(f"against {len(s['shifts'])} rotation(s) of each field\n")
+    click.echo(_render.table(rows))
+
+
+def _number(value, spec: str) -> str:
+    return "-" if value is None or value != value else format(value, spec)
+
+
+@latents.command("associate")
+@click.argument("source", type=click.Path())
+@_adapter_option
+@_mask_option
+@click.option("--layer", type=int, help="Layer to read.  [default: the last]")
+@_basis_option
+@click.option("--feature", "features", type=int, multiple=True,
+              help="With --basis: a feature to label; repeatable.  [default: all]")  # fmt: skip
+@click.option("--channel", "channels", type=int, multiple=True,
+              help="Without --basis: a channel to label; repeatable.  [default: all]")  # fmt: skip
+@click.option("--field", "fields", multiple=True, help="Repeatable.  [default: every field]")
+@click.option("--time", "times", multiple=True, help="Time label or position; repeatable.")
+@click.option("--rotations", type=int, default=64, show_default=True,
+              help="Longitude rotations that make the null.")  # fmt: skip
+@click.option("--min-shift-degrees", type=float, default=30.0, show_default=True,
+              help="No rotation moves the map less than this, either way round.")  # fmt: skip
+@click.option("--q", type=float, default=0.05, show_default=True,
+              help="False-discovery rate, across every column and field.")  # fmt: skip
+@_threshold_option
+@_lead_option
+@click.option("--top", type=int, default=20, show_default=True, help="Columns to print.")
+@click.option("--out", type=click.Path(dir_okay=False), help="Also write every column (JSON).")
+@_unverified_option
+@_json_option
+def associate_cmd(
+    source, adapter, mask_variable, layer, basis_path, features, channels, fields, times,
+    rotations, min_shift_degrees, q, threshold, lead, top, out, allow_unverified_basis, as_json,
+):  # fmt: skip
+    """Label each channel (or feature) by the field it goes with, against chance.
+
+    Each association is measured against the same one with the field turned east by
+    whole columns, many times: the footprint stays exactly as it is and only its
+    east-west alignment with the field is broken. Labels need a discovery at --q and a
+    clear lead over the runner-up; the same rule run on a rotation, where nothing is
+    real, says how often it labels by chance. Associations organised by latitude alone
+    are invisible to this null.
+    """
+    from exege.latents import associate
+
+    if features and channels:
+        raise click.UsageError("--feature goes with --basis, --channel without; not both")
+    if features and basis_path is None:
+        raise click.UsageError("--feature needs --basis FILE")
+    if channels and basis_path is not None:
+        raise click.UsageError("with --basis, name features with --feature")
+    opened = open_for_cli(source, adapter, mask_variable)
+    result = associate(
+        opened,
+        layer=opened.info().last_layer if layer is None else layer,
+        basis=_basis(basis_path),
+        columns=list(features or channels) or None,
+        fields=list(fields) or None,
+        times=[_time(t) for t in times] or None,
+        threshold=threshold,
+        n_rotations=rotations,
+        min_shift_degrees=min_shift_degrees,
+        q=q,
+        lead=lead,
+        allow_unverified_basis=allow_unverified_basis,
+    )
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(json.dumps(result.summary(), indent=2) + "\n")
+    summary = result.summary(top=top)
+    if as_json:
+        click.echo(json.dumps(summary, indent=2))
+        return
+    s, shape = result.settings, result.null_shape
+    click.echo(
+        f"{s['columns']} of layer {s['layer']} against {len(result.fields)} field(s), "
+        f"{len(s['times'])} time(s), {len(result.shifts)} rotation(s): "
+        f"{result.n_labeled} of {len(result.columns)} labeled at q = {q:g}"
+    )
+    click.echo(
+        f"calibration: {_percent(result.calibration_label_rate)} labeled with a rotation as the "
+        f"data (q = {q:g}); null |skew| {_number(shape['median_abs_skew'], '.2f')}, excess "
+        f"kurtosis {_number(shape['median_excess_kurtosis'], '+.2f')}\n"
+    )
+    rows = [
+        {
+            s["columns"][:-1]: c["column"], "label": c["label"], "field": c["field"] or "-",
+            "z": _number(c["z"], "+.1f"), "p": _number(c["p"], ".2g"),
+            "gap": _number(c["gap"], ".1f"), "bar": _number(c["gap_bar"], ".1f"),
+            "coverage": _number(c["coverage"], ".3f"),
+        }
+        for c in summary["columns"]
+    ]  # fmt: skip
     click.echo(_render.table(rows))
 
 

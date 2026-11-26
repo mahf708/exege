@@ -155,6 +155,23 @@ Defined in ``exege.latents.features``.
 
 .. autofunction:: exege.latents.feature_profile
 
+Associations against chance
+---------------------------
+
+Defined in ``exege.latents.calibrate``. The rotations come from
+``exege.latents.grid.longitude_partner`` and ``exege.latents.grid.rotation_shifts``.
+
+.. autoclass:: exege.latents.Association
+   :members:
+
+.. autofunction:: exege.latents.associate
+
+.. autofunction:: exege.latents.benjamini_hochberg
+
+.. autofunction:: exege.latents.grid.longitude_partner
+
+.. autofunction:: exege.latents.grid.rotation_shifts
+
 Evaluation
 ----------
 
