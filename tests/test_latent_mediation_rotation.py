@@ -166,9 +166,18 @@ def test_a_rotation_that_cannot_be_done_is_refused(rotating, system):
     with pytest.raises(RequestError, match="columns must lie"):
         rotation_test(rotating, layer=0, columns=[7])
 
-    class Fixed:  # can be run, cannot be turned
-        def __getattr__(self, name):
-            return getattr(system, name)
+    class Fixed:  # can be run, cannot be turned: it has the four methods and no others
+        def info(self):
+            return system.info()
+
+        def grid(self):
+            return system.grid()
+
+        def initial_state(self, start=0):
+            return system.initial_state(start)
+
+        def run(self, *args, **kwargs):
+            return system.run(*args, **kwargs)
 
     with pytest.raises(RequestError, match="cannot be rotated"):
         rotation_test(Fixed(), layer=0)
