@@ -14,8 +14,14 @@ roughly in the order we mean to take them.
 - The activation exporter as an adapter of its own, behind a framework extra — with
   the hooks that *write* a layer, for steering along a basis file's direction, and an
   `experiment` block (the SamudrACE exporter takes `--seed` and does not record it)
+- An exporter option that writes a *teacher-forced* archive: the reference state fed in
+  at every step and the latents kept, the reference that `latents gap` sets a free run
+  against
+- Rotating a running model's inputs in longitude, to tell a learned positional embedding
+  from fixed structure tied to an input (`latents stationary` cannot)
 - Ensemble members and per-layer grids in `LatentSource`
-- Differences and series in a basis's features between two runs
+- Differences in a basis's features between two runs node by node (`latents gap` compares
+  their area-weighted means, coverage and strength, time by time)
 - How redundant a basis is: the pairwise correlation of its features' activations over
   time, the measure Cheon (2026) reports beside explained variance
 - A probe for a labeled phenomenon on features against one on channels (MacMillan &

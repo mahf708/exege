@@ -968,6 +968,170 @@ def associate_cmd(
     click.echo(_render.table(rows))
 
 
+def _share(value: float | None) -> str:
+    return "-" if value is None else f"{value:.3f}"
+
+
+def _picked(channels, features, basis_path) -> tuple[list[int] | None, str]:
+    """``--channel`` or ``--feature`` (with ``--basis``), never both: the columns asked
+    for, or None for all of them."""
+    if channels and features:
+        raise click.UsageError("name --channel or --feature (with --basis), not both")
+    if features and basis_path is None:
+        raise click.UsageError("--feature needs --basis")
+    if channels and basis_path is not None:
+        raise click.UsageError("--channel reads the layer itself; drop --basis, or use --feature")
+    return list(channels or features) or None, "feature" if basis_path else "channel"
+
+
+@latents.command("stationary")
+@click.argument("source", type=click.Path())
+@_adapter_option
+@_mask_option
+@click.option("--layer", type=int, help="Layer to read.  [default: the last]")
+@_basis_option
+@click.option("--channel", "channels", type=int, multiple=True, help="Repeatable.  [default: all]")
+@click.option("--feature", "features", type=int, multiple=True,
+              help="With --basis; repeatable.  [default: all]")  # fmt: skip
+@click.option("--time", "times", multiple=True, help="Time label or position; repeatable.")
+@click.option("--static", "statics", multiple=True,
+              help="A kept field that does not change (land fraction, orography): fixed "
+              "structure it explains is not counted as unexplained; repeatable.")  # fmt: skip
+@_threshold_option
+@click.option("--chunk", type=int, default=256, show_default=True,
+              help="Columns taken at a time; each chunk reads every time once.")  # fmt: skip
+@click.option("--top", type=int, default=20, show_default=True)
+@_unverified_option
+@_json_option
+def stationary_cmd(
+    source, adapter, mask_variable, layer, basis_path, channels, features, times, statics,
+    threshold, chunk, top, allow_unverified_basis, as_json,
+):  # fmt: skip
+    """How much of each channel (or feature) sits in the same place at every time.
+
+    The share of a column's variance held by its per-node time mean is split into what
+    latitude rows explain, what the --static fields explain, and the rest: fixed
+    structure of unknown origin, where a learned positional embedding would show.
+    """
+    from exege.latents import feature_stationarity
+
+    columns, kind = _picked(channels, features, basis_path)
+    opened = open_for_cli(source, adapter, mask_variable)
+    result = feature_stationarity(
+        opened,
+        layer=opened.info().last_layer if layer is None else layer,
+        basis=_basis(basis_path),
+        columns=columns,
+        times=[_time(t) for t in times] or None,
+        statics=statics,
+        threshold=threshold,
+        chunk=chunk,
+        allow_unverified_basis=allow_unverified_basis,
+    )
+    summary = result.summary(top=top)
+    if as_json:
+        click.echo(json.dumps(summary, indent=2))
+        return
+    s = summary["settings"]
+    click.echo(
+        f"{s['columns']} of layer {s['layer']} over {len(result.times)} time(s) and "
+        f"{result.n_nodes_used} node(s), by fixed structure that latitude"
+        + (f" and {', '.join(result.statics)} do" if result.statics else " does")
+        + " not explain\n"
+    )
+    for item in summary["statics"]:
+        click.echo(f"static {item['field']}: fixed share {_share(item['fixed_share'])}")
+    if summary["statics"]:
+        click.echo()
+    rows = [
+        {
+            kind: c["column"], "coverage": _share(c["coverage"]), "fixed": _share(c["fixed_share"]),
+            "zonal": _share(c["zonal_share"]), "static": _share(c["static_share"]),
+            "unexplained": _share(c["residual_fixed_share"]),
+        }
+        for c in summary["columns"]
+    ]  # fmt: skip
+    click.echo(_render.table(rows))
+
+
+@latents.command("gap")
+@click.argument("reference", type=click.Path())
+@click.argument("run", type=click.Path())
+@_adapter_option
+@_mask_option
+@click.option("--layer", type=int, help="Layer to compare.  [default: the last]")
+@_basis_option
+@click.option("--channel", "channels", type=int, multiple=True, help="Repeatable.  [default: all]")
+@click.option("--feature", "features", type=int, multiple=True,
+              help="With --basis; repeatable.  [default: all]")  # fmt: skip
+@click.option("--time", "times", multiple=True,
+              help="Time label or position (in REFERENCE); repeatable.  [default: every time "
+              "both keep]")  # fmt: skip
+@_with(_optional_region_options)
+@_threshold_option
+@click.option("--top", type=int, default=15, show_default=True)
+@click.option(
+    "--allow-unverified-sources",
+    is_flag=True,
+    help="Compare although a model, component, checkpoint or network layer is undeclared by "
+    "either run; known mismatches still fail.",
+)
+@_unverified_option
+@_json_option
+def gap_cmd(
+    reference, run, adapter, mask_variable, layer, basis_path, channels, features, times, lat,
+    lon, radius_km, threshold, top, allow_unverified_sources, allow_unverified_basis, as_json,
+):  # fmt: skip
+    """Set a free RUN against a REFERENCE run of the same network (teacher forced, say).
+
+    Every channel (or feature) is read at the times both keep: its mean, the share of the
+    area it is active over and its strength where active, in each, and which ones the RUN
+    weakens most: the deficit is one less the ratio of the RUN's root mean square to the
+    REFERENCE's, so 0.5 is half the size, whatever the column's sign.
+    """
+    from exege.latents import feature_gap
+
+    columns, kind = _picked(channels, features, basis_path)
+    a = open_for_cli(reference, adapter, mask_variable)
+    b = open_for_cli(run, adapter, mask_variable)
+    result = feature_gap(
+        a,
+        b,
+        layer=a.info().last_layer if layer is None else layer,
+        basis=_basis(basis_path),
+        columns=columns,
+        times=[_time(t) for t in times] or None,
+        region=_optional_region(lat, lon, radius_km),
+        threshold=threshold,
+        allow_unverified=allow_unverified_sources,
+        allow_unverified_basis=allow_unverified_basis,
+    )
+    summary = result.summary(top=top)
+    if as_json:
+        click.echo(json.dumps(summary, indent=2))
+        return
+    s = summary["settings"]
+    click.echo(
+        f"{s['columns']} of layer {s['layer']} over {len(result.times)} time(s) and "
+        f"{s['n_nodes_compared']} node(s), the run's largest deficit first\n"
+    )
+
+    def g(value):
+        return "-" if value is None else f"{value:.4g}"
+
+    rows = [
+        {
+            kind: c["column"], "deficit": g(c["deficit"]), "ref_rms": g(c["reference"]["rms"]),
+            "run_rms": g(c["run"]["rms"]), "mean_ratio": g(c["ratio_mean"]),
+            "strength_ratio": g(c["ratio_strength"]), "ref_mean": g(c["reference"]["mean"]),
+            "run_mean": g(c["run"]["mean"]), "ref_cover": _share(c["reference"]["coverage"]),
+            "run_cover": _share(c["run"]["coverage"]),
+        }
+        for c in summary["columns"]
+    ]  # fmt: skip
+    click.echo(_render.table(rows))
+
+
 def _ints(text: str) -> list[int]:
     try:
         return [int(part) for part in text.split(",") if part.strip()]

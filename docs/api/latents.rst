@@ -155,6 +155,26 @@ Defined in ``exege.latents.features``.
 
 .. autofunction:: exege.latents.feature_profile
 
+Fixed features
+--------------
+
+Defined in ``exege.latents.stationary``.
+
+.. autoclass:: exege.latents.Stationarity
+   :members:
+
+.. autofunction:: exege.latents.feature_stationarity
+
+A free run against a teacher-forced one
+---------------------------------------
+
+Defined in ``exege.latents.gap``.
+
+.. autoclass:: exege.latents.FeatureGap
+   :members:
+
+.. autofunction:: exege.latents.feature_gap
+
 Associations against chance
 ---------------------------
 

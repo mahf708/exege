@@ -29,6 +29,10 @@ Reading is an adapter's job (see ``LatentSource``); this package computes.
                 feature's profile against every field
 - ``calibrate`` which field each feature goes with, against a rotation null: z-scores,
                 a false-discovery rate, labels and their calibration
+- ``stationary`` how much of a feature sits in the same place at every time, and what
+                latitude and the boundary fields explain of it
+- ``gap``       a free run against a teacher-forced one: which features free running
+                weakens, time by time
 - ``toy``       a toy emulator in numpy, so an archive can be made with no model
 
 Needs the ``latents`` extra (numpy). The names above are loaded on first use, not
@@ -89,6 +93,7 @@ if TYPE_CHECKING:
         feature_census,
         feature_profile,
     )
+    from exege.latents.gap import FeatureGap, feature_gap
     from exege.latents.record import (
         ExperimentRecord,
         evaluation_record,
@@ -113,6 +118,7 @@ if TYPE_CHECKING:
         parse_time,
         read_latents,
     )
+    from exege.latents.stationary import Stationarity, feature_stationarity
     from exege.latents.steering import (
         Effect,
         Hook,
@@ -195,6 +201,10 @@ _LAZY = {
     "FeatureProfile": "features",
     "feature_census": "features",
     "feature_profile": "features",
+    "FeatureGap": "gap",
+    "feature_gap": "gap",
+    "Stationarity": "stationary",
+    "feature_stationarity": "stationary",
     "ExperimentRecord": "record",
     "evaluation_record": "record",
     "load_record": "record",
@@ -253,6 +263,7 @@ __all__ = [
     "Evaluation",
     "ExperimentRecord",
     "FeatureCensus",
+    "FeatureGap",
     "FeatureProfile",
     "FidelityCurve",
     "FieldRanking",
@@ -275,6 +286,7 @@ __all__ = [
     "Run",
     "Split",
     "Stability",
+    "Stationarity",
     "Steer",
     "SteeringResult",
     "accumulate_moments",
@@ -293,7 +305,9 @@ __all__ = [
     "evaluation_record",
     "feature_census",
     "feature_direction",
+    "feature_gap",
     "feature_profile",
+    "feature_stationarity",
     "fidelity_curve",
     "field_storyline",
     "fit_pca",
