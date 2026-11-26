@@ -35,6 +35,8 @@ Reading is an adapter's job (see ``LatentSource``); this package computes.
                 weakens, time by time
 - ``references`` what a steer is measured against: a feature's reference level, a
                 difference-of-means direction, read from an archive
+- ``mediation`` whether a steer acts through another feature: total, direct and indirect
+- ``rotation``  whether a feature moves with the weather or stays where the model put it
 - ``toy``       a toy emulator in numpy, so an archive can be made with no model
 
 Needs the ``latents`` extra (numpy). The names above are loaded on first use, not
@@ -97,6 +99,7 @@ if TYPE_CHECKING:
         feature_profile,
     )
     from exege.latents.gap import FeatureGap, feature_gap
+    from exege.latents.mediation import MediationEffect, MediationResult, Mediator, run_mediation
     from exege.latents.record import (
         ExperimentRecord,
         evaluation_record,
@@ -106,6 +109,7 @@ if TYPE_CHECKING:
         steering_record,
     )
     from exege.latents.references import feature_reference, mean_difference
+    from exege.latents.rotation import Rotatable, RotationTest, rotation_test
     from exege.latents.samples import (
         Moments,
         accumulate_moments,
@@ -164,6 +168,13 @@ if TYPE_CHECKING:
 
 # name -> the module that defines it, imported when the name is first asked for
 _LAZY = {
+    "run_mediation": "mediation",
+    "MediationResult": "mediation",
+    "MediationEffect": "mediation",
+    "Mediator": "mediation",
+    "rotation_test": "rotation",
+    "RotationTest": "rotation",
+    "Rotatable": "rotation",
     "benjamini_hochberg": "calibrate",
     "associate": "calibrate",
     "Association": "calibrate",
@@ -305,6 +316,9 @@ __all__ = [
     "LatentInfo",
     "LatentSource",
     "LayerInfo",
+    "MediationEffect",
+    "MediationResult",
+    "Mediator",
     "Moments",
     "Outcome",
     "PCA",
@@ -315,6 +329,8 @@ __all__ = [
     "RegionAnalysis",
     "RegionSeries",
     "Rollout",
+    "Rotatable",
+    "RotationTest",
     "Run",
     "Selection",
     "Split",
@@ -365,7 +381,9 @@ __all__ = [
     "record_from_dict",
     "region_series",
     "result_provenance",
+    "rotation_test",
     "run_cases",
+    "run_mediation",
     "run_steering",
     "save_basis",
     "save_record",

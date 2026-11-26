@@ -1886,4 +1886,179 @@ def direction_cmd(
     )
 
 
+@latents.command("rotate")
+@click.argument("source", required=False)
+@click.option("--adapter", required=True, help="An adapter that can be run and rotated.")
+@click.option("--adapter-option", "adapter_options", multiple=True, metavar="KEY=VALUE",
+              help="An option of the adapter; repeatable.")  # fmt: skip
+@click.option("--layer", type=int, required=True, help="Layer whose columns to read.")
+@_basis_option
+@click.option("--channel", "channels", type=int, multiple=True, help="Repeatable.  [default: all]")
+@click.option("--feature", "features", type=int, multiple=True,
+              help="With --basis; repeatable.  [default: all]")  # fmt: skip
+@click.option("--shift", "shifts", type=float, multiple=True,
+              help="Degrees east to turn the input by, whole grid columns; repeatable.  "
+              "[default: three turns of at least 60 degrees]")  # fmt: skip
+@click.option(
+    "--part",
+    "parts",
+    multiple=True,
+    help="A part of the state to turn; repeatable.  [default: every part]",
+)
+@click.option("--start", "starts", multiple=True, help="Initial state; repeatable.  [default: 0]")
+@click.option("--time", type=int, default=0, show_default=True, help="Forward step to read.")
+@click.option(
+    "--max-self-similarity",
+    type=float,
+    default=0.5,
+    show_default=True,
+    help="A shift that maps a column's pattern onto itself this well has no power.",
+)
+@click.option("--threshold", type=float, default=0.5, show_default=True,
+              help="Anchored: every powered score at least this.")  # fmt: skip
+@click.option("--top", type=int, default=15, show_default=True)
+@_unverified_option
+@_json_option
+def rotate_cmd(
+    source, adapter, adapter_options, layer, basis_path, channels, features, shifts, parts,
+    starts, time, max_self_similarity, threshold, top, allow_unverified_basis, as_json,
+):  # fmt: skip
+    """Turn what a system is given east, and see which columns turn with it.
+
+    A column that stays where it was when everything is turned is tied to the model's own
+    sense of place; one that stays when only some parts are turned is tied to the rest.
+    """
+    from exege.latents import open_intervenable, rotation_test
+
+    basis = _basis(basis_path)
+    if features and basis is None:
+        raise click.UsageError("--feature needs --basis")
+    if channels and basis is not None:
+        raise click.UsageError("--channel reads channels; with --basis, name --feature")
+    system = open_intervenable(source, adapter, **_adapter_options(adapter_options))
+    result = rotation_test(
+        system, layer=layer, shifts=list(shifts) or None,
+        parts=list(parts) or None, basis=basis, columns=list(features or channels) or None,
+        starts=[_time(s) for s in starts] or (0,), time=time,
+        max_self_similarity=max_self_similarity, threshold=threshold,
+        allow_unverified_basis=allow_unverified_basis,
+    )  # fmt: skip
+    summary = result.summary(top=top)
+    if as_json:
+        from exege.latents.evaluate import jsonable
+
+        click.echo(json.dumps(jsonable(summary), indent=2))
+        return
+    s = summary["settings"]
+    click.echo(
+        f"{s['columns']} of layer {layer} at time {time}, turned "
+        f"{', '.join(f'{d:g}' for d in s['shifts'])} degrees east; parts turned: "
+        f"{', '.join(s['parts'])}\n"
+    )
+    rows = [
+        {
+            s["columns"][:-1]: c["column"],
+            "score": "-" if c["score"] is None else f"{c['score']:+.2f}",
+            "stays": "-" if c["stays"] is None else f"{c['stays']:+.2f}",
+            "follows": "-" if c["follows"] is None else f"{c['follows']:+.2f}",
+            "powered": c["n_powered"], "anchored": "yes" if c["anchored"] else "",
+        }
+        for c in summary["columns"]
+    ]  # fmt: skip
+    click.echo(_render.table(rows))
+
+
+@latents.command("mediate")
+@click.argument("source", required=False)
+@_steer_options
+@click.option("--amount", type=float, required=True, help="What the mode does with it.")
+@click.option("--mediator-layer", type=int, required=True, help="Layer the mediator is read at.")
+@click.option("--mediator-feature", type=int, required=True, help="The feature to hold.")
+@click.option("--mediator-basis", type=click.Path(dir_okay=False),
+              help="The mediator's basis.  [default: --basis]")  # fmt: skip
+@click.option(
+    "--mediator-basis-sha256",
+    metavar="HASH",
+    help="Refuse the --mediator-basis file unless its content has this sha256.",
+)
+@click.option("--out", type=click.Path(dir_okay=False), help="Also write the result (JSON).")
+@_unverified_option
+@_json_option
+def mediate_cmd(
+    source, adapter, adapter_options, basis_path, layer, feature, mode, loop, times, steps,
+    seeds_text, reference_from, reference_adapter, reference_times, lat, lon, radius_km,
+    outcome_stat, starts, fields, amount, mediator_layer, mediator_feature, mediator_basis,
+    out, allow_unverified_basis, as_json, reference_sha256, mediator_basis_sha256,
+):  # fmt: skip
+    """Does a steer act through another feature? Total, direct and indirect effects.
+
+    The steer is run as it is, and again with the mediator held at its control value from
+    the first edit on; what the hold takes away went through the mediator. A third run
+    holds the mediator alone and must equal the control: its largest difference is printed.
+    """
+    from exege.latents import Mediator, load_basis, run_mediation
+    from exege.latents.evaluate import jsonable, save_result
+
+    if starts and len(starts) > 1:
+        raise click.UsageError("mediate runs from one start")
+    system, basis, steer, outcome, cases, _, _ = _steer_parts(
+        source, adapter, adapter_options, basis_path, layer, feature, mode, amount, times, loop,
+        reference_from, reference_adapter, reference_times, lat, lon, radius_km, outcome_stat,
+        starts, allow_unverified_basis, reference_sha256,
+    )  # fmt: skip
+    if cases and cases[0].region is not None:
+        from exege.latents.steering import _case_setup
+
+        steer, outcome = _case_setup(cases[0], steer, outcome, system.grid())
+    mediator = Mediator(
+        layer=mediator_layer, feature=mediator_feature,
+        basis=load_basis(mediator_basis, sha256=mediator_basis_sha256) if mediator_basis
+        else basis,
+    )  # fmt: skip
+    result = run_mediation(
+        system, basis, steer, mediator, steps=steps, seeds=_ints(seeds_text),
+        fields=list(fields) or None, outcome=outcome,
+        initial_state=system.initial_state(cases[0].start) if cases else None,
+        allow_unverified_basis=allow_unverified_basis,
+    )  # fmt: skip
+    settings = {
+        "adapter": adapter, "adapter_options": _adapter_options(adapter_options),
+        "basis": basis_path, "fields": list(fields),
+        "allow_unverified_basis": allow_unverified_basis, "reference_from": reference_from,
+        "reference_adapter": reference_adapter, "reference_times": list(reference_times),
+        "outcome": outcome_stat, "starts": list(starts),
+        "region": None if lat is None else {"lat": lat, "lon": lon, "radius_km": radius_km},
+    }  # fmt: skip
+    command = _steer_command(
+        source, settings, result.spec, result.provenance["basis"]["sha256"], command="mediate"
+    )
+    extra = ["--mediator-layer", str(mediator_layer), "--mediator-feature", str(mediator_feature)]
+    if mediator_basis:
+        extra += ["--mediator-basis", mediator_basis,
+                  "--mediator-basis-sha256", mediator.basis.meta["sha256"]]  # fmt: skip
+    command = command + " " + shlex.join(extra)
+    if out:
+        save_result(out, result)
+    if as_json:
+        click.echo(json.dumps(jsonable({**result.to_dict(), "command": command}), indent=2))
+        return
+    click.echo(
+        f"{mode} {amount:g} on feature {feature} of layer {layer}, through feature "
+        f"{mediator_feature} of layer {mediator_layer}; the steer moved the mediator by "
+        f"{result.mediator_change:.4g} (RMS); holding it alone changed the run by "
+        f"{result.exactness:.3g}, and the hold missed its target by at most "
+        f"{result.hold_error:.3g}\n"
+    )
+    rows = [
+        {
+            "field": name, "total": f"{e.total:.4g}", "direct": f"{e.direct:.4g}",
+            "indirect": f"{e.indirect:.4g}",
+            "share": "-" if e.share is None else f"{e.share:.1%}",
+        }
+        for name, e in result.effects.items()
+    ]  # fmt: skip
+    click.echo(_render.table(rows))
+    click.echo(f"\nreproduce: {command}")
+
+
 __all__ = ["latents"]

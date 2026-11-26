@@ -14,6 +14,8 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
 | `evaluate.py` | a frozen basis on held-out times: time-block splits, fidelity and sparsity, dead and redundant features, stability across seeds, PCA against a dictionary |
 | `steering.py` | steering: the `Intervenable` contract, six arms (control, reconstruction, feature, random direction, comparison, matched) under paired noise, reference modes, open and closed loops, outcomes in a region, many cases, dose curves with an amount chosen leave-one-out |
 | `references.py` | what a steer is measured against, read from an archive: a feature's reference level, a difference-of-means direction |
+| `mediation.py` | whether a steer acts through another feature: total, direct and indirect effects, with a hold-only run that must equal the control exactly |
+| `rotation.py` | `Rotatable`, and whether a column moves with the weather or stays where the model put it when named parts of the input are turned |
 | `record.py` | the experiment record: a versioned, compact JSON file of one evaluation or steering run, its loader, and the writers the commands call |
 | `features.py` | a feature without a field in mind: a census of a layer, one feature's profile |
 | `calibrate.py` | which field each feature goes with, against a longitude-rotation null: z-scores, Benjamini-Hochberg, labels with a runner-up bar, and their calibration on null input |

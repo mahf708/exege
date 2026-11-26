@@ -17,8 +17,6 @@ roughly in the order we mean to take them.
 - An exporter option that writes a *teacher-forced* archive: the reference state fed in
   at every step and the latents kept, the reference that `latents gap` sets a free run
   against
-- Rotating a running model's inputs in longitude, to tell a learned positional embedding
-  from fixed structure tied to an input (`latents stationary` cannot)
 - Ensemble members and per-layer grids in `LatentSource`
 - Differences in a basis's features between two runs node by node (`latents gap` compares
   their area-weighted means, coverage and strength, time by time)
@@ -51,10 +49,12 @@ roughly in the order we mean to take them.
 
 ## Steering
 
-- A real adapter, in the model's environment: the hook that lets a real model be steered
+- A real adapter, in the model's environment: the hook that lets a real model be steered,
+  and `Rotatable` on it, naming the parts of its state (weather, statics, forcings) and
+  turning a local time worked out from the grid's longitudes with the rest
 - An outcome region that follows its object (a storm's centre, step by step) rather than
   staying where the storm began
-- Records for case studies and dose curves, and views of them in the app
+- Records for case studies, dose curves, mediation and rotation, and views of them in the app
 - Fitted dictionaries on the toy system, to show a learned feature that is not planted
 
 ## Experiment records

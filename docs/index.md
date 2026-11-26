@@ -74,6 +74,8 @@ evaluation
 :maxdepth: 1
 
 steering
+mediation
+rotation
 records
 app
 ```

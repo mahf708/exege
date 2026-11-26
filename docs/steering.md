@@ -13,7 +13,8 @@ Implemented: the protocol (`Intervenable`, `Hook`, `Steer`), the runner
 (`run_steering`) with its six arms, reference modes, open and closed loops, outcomes in a
 region, many cases (`run_cases`) and dose curves with an amount chosen leave-one-out
 (`dose_curve`); the `exege latents steer`, `dose` and `direction` commands; and a toy
-system to test them against. Planned: a real adapter, a view and a figure in the app, and fitted
+system to test them against. [Mediation](mediation.md) and [rotation](rotation.md) build
+on the same runner. Planned: a real adapter, a view and a figure in the app, and fitted
 dictionaries on the toy system; see the [roadmap](roadmap.md#steering).
 ```
 
@@ -401,7 +402,8 @@ is 110 KB. `exege app --record FILE` draws each field's response against the dra
   arms show; the numbers are evidence for a reader to weigh. A dose curve reports every
   amount it ran, and the only amount it *chooses* is chosen leave-one-out.
 - No steer on several features at once beyond holding one in place: the runner varies one
-  feature, and matched and comparison arms each push one other.
+  feature, matched and comparison arms each push one other, and
+  [mediation](mediation.md) holds one while another is steered.
 - No gradients: an edit is a forward-pass substitution.
 - No plotting here; figures and the app may draw a result later.
 

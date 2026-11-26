@@ -297,6 +297,35 @@ Defined in ``exege.latents.references``.
 
 .. autofunction:: exege.latents.grid.node_digest
 
+Mediation
+---------
+
+Defined in ``exege.latents.mediation``.
+
+.. autoclass:: exege.latents.Mediator
+   :members:
+
+.. autoclass:: exege.latents.MediationEffect
+   :members:
+
+.. autoclass:: exege.latents.MediationResult
+   :members:
+
+.. autofunction:: exege.latents.run_mediation
+
+Rotation
+--------
+
+Defined in ``exege.latents.rotation``.
+
+.. autoclass:: exege.latents.Rotatable
+   :members:
+
+.. autoclass:: exege.latents.RotationTest
+   :members:
+
+.. autofunction:: exege.latents.rotation_test
+
 Experiment records
 ------------------
 

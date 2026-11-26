@@ -84,8 +84,7 @@ ever made, at 0.25 degrees or anywhere else.
 embedding puts structure there, and so does any input the model was given and this
 analysis was not — the orography, a land mask, the local time of day. The direct test is
 to rotate the model's inputs in longitude and see whether a column stays on the grid or
-moves with them, which needs a running model; it is on the
-[roadmap](roadmap.md#latent-diagnostics).
+moves with them, which needs a running model: that is [the rotation test](rotation.md).
 On a mesh (no latitude rows) `ZONAL` is undefined, and only the statics, beyond a
 constant, are fitted.
 
