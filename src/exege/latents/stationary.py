@@ -232,6 +232,10 @@ def _decompose(
     anomaly = mean_map - overall
     fixed = weights @ (anomaly * anomaly)
     temporal = weights @ np.where(moments.count > 0, moments.node_variance(), 0.0)
+    # a time-mean map that is flat to rounding is flat: the per-node means of a column that
+    # is the same everywhere differ by rounding only, which another machine rounds otherwise
+    scale = np.abs(mean_map).max(axis=0) if mean_map.size else np.zeros(fixed.shape)
+    fixed = np.where(fixed <= (1e-12 * scale) ** 2, 0.0, fixed)
     total = fixed + temporal
     if design.starts is not None:
         row_weight, row_mean = design.row_means(weights, anomaly)

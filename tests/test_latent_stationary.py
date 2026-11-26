@@ -212,6 +212,18 @@ def test_a_column_that_varies_only_in_time_has_nothing_fixed(planted):
     assert result.columns[result.ranked()][0] == 0
 
 
+def test_a_time_mean_flat_to_rounding_is_flat(planted):
+    """Per-node means that differ by rounding alone -- what another machine's arithmetic
+    leaves of a column that is the same everywhere -- are no fixed structure."""
+    rng = np.random.default_rng(9)
+    data = np.repeat(rng.normal(size=(N_TIMES, 1, 1)), N, axis=1) + 3.0
+    data = data * (1.0 + 1e-15 * rng.normal(size=(1, N, 1)))  # rounding-sized, fixed per node
+    source = MemorySource({0: data}, n_lat=N_LAT, n_lon=N_LON)
+    result = feature_stationarity(source, layer=0)
+    assert result.fixed_share[0] == 0.0 and result.residual_fixed_share[0] == 0.0
+    assert np.isnan(result.zonal_share[0])
+
+
 def test_a_column_missing_at_some_times_at_a_node_is_not_read_at_all():
     rng = np.random.default_rng(10)
     data = rng.normal(size=(N_TIMES, N, 2))
