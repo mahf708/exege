@@ -80,6 +80,70 @@ was fitted on, so it is checked like the rest when it is used again through `bas
 `--basis`. It takes raw latents even when the analysis was `centered=True`, since it
 carries its own mean.
 
+## Importing a dictionary trained elsewhere
+
+A dictionary need not come from [`exege nn`](nn.md). The one MacMillan & Ouellette
+(2025) trained on GraphCast's processor is public, and others like it are laid out the
+same way: an encoder `W_enc` (features × channels), a decoder `W_dec` (channels ×
+features, unit-length columns), a pre-bias `b_pre`, and a `k`. What they share is
+**token normalization**: each node is standardized on its own, its channels less their
+mean, divided by the length of what is left,
+
+```
+xn    = (x - mean(x)) / |x - mean(x)|          per node, over its channels
+code  = top_k( relu((xn - b_pre) @ W_enc.T) )
+recon = code @ W_dec.T + b_pre                  in the layer's raw units
+```
+
+and that is undone by nothing on the way out. A node's own length cannot be put back
+by one mean and one scale, so the decoder writes the layer's **raw** units directly,
+and the pre-bias is taken off in normalized units and added back in raw ones. exege
+reads it as a `Dictionary` with `input_norm="token"` (mean zero, scale one): an
+activation is invariant to rescaling or shifting a node as a whole, and a decoder row is
+a direction in raw units, which is what a [steer](steering.md) moves along.
+
+`exege latents import-sae` writes one as a basis file. The arrays are named by
+`--encoder`, `--decoder` and `--pre-bias` (the defaults above); the decoder may be either
+way round, and only a square one needs `--decoder-layout`. Here it is on a random
+dictionary of the [toy emulator](quickstart.md)'s width, written with numpy:
+
+```console
+$ exege latents toy scratch/sae/toy
+$ python -c "
+import numpy as np
+rng = np.random.default_rng(0)
+W_enc = rng.normal(size=(64, 16)).astype('float32')
+W_dec = rng.normal(size=(16, 64)).astype('float32')
+W_dec /= np.linalg.norm(W_dec, axis=0)
+np.savez('scratch/sae/published.npz', W_enc=W_enc, W_dec=W_dec, b_pre=np.zeros(16, 'float32'))"
+$ exege latents import-sae scratch/sae/published.npz --k 4 --like scratch/sae/toy --layer 3 \
+    --out scratch/sae/imported.npz
+wrote scratch/sae/imported.npz: 64 feature(s) over 16 channel(s), top 4, token-normalized; --basis-sha256 11cf08a1d92cade60b0f81014269c08b9df676ee38224a542b56ec6ae384cba8
+$ exege latents census scratch/sae/toy --layer 3 --basis scratch/sae/imported.npz --top 3
+features of layer 3 at 0424-02-27T06:00:00, by coverage
+
+FEATURE  COVERAGE  MEAN  STRENGTH  PEAK  AT
+14       0.988     1.82  1.84      2.04  -77, -86
+47       0.979     1.42  1.45      2.35  11, -139
+22       0.760     1.13  1.49      1.67  -4, -139
+```
+
+A file like this says nothing about which network it was trained on, and
+[an index is not an identity](#using-a-basis). `--like SOURCE --layer N` records the
+identity of an archive of that network at that layer, so the basis is accepted there and
+refused anywhere else:
+
+```console
+$ exege latents census scratch/sae/toy --layer 2 --basis scratch/sae/imported.npz
+Error: the basis (scratch/sae/imported.npz) was not fitted here: layer 2 against the network layer 3 it was fitted on
+```
+
+Without `--like`, the basis records no identity and every command needs
+`--allow-unverified-basis` to use it. Either way it records no training times, so an
+[evaluation](evaluation.md) marks it `fitted_on: unknown`, and takes its explained
+variance about the mean of the times it measures (there is no training mean to take it
+about). The file read and its sha256 are kept under `meta["imported_from"]`.
+
 ## From Python
 
 ```python
@@ -103,4 +167,17 @@ basis = load_basis("sae8.npz")
 result = analyze_region(source, time=0, layer=8, region=region, n_components=3, basis=basis)
 series = region_series(source, layer=8, region=region, basis=basis, features=[676])
 series.elapsed_seconds  # under the archive's calendar; None when it cannot say
+
+import numpy as np
+from exege.latents import token_normalized_dictionary
+
+with np.load("published.npz") as arrays:  # a file you read: exege.latents takes arrays
+    imported = token_normalized_dictionary(
+        arrays["W_enc"],
+        arrays["W_dec"],
+        arrays["b_pre"],
+        k=32,
+        meta={"fitted_on": basis.meta["fitted_on"]},  # where it belongs, if you know
+    )
+save_basis("imported.npz", imported)
 ```

@@ -383,6 +383,90 @@ def pca_cmd(source, adapter, mask_variable, layer, components, times, out) -> No
     )
 
 
+@latents.command("import-sae")
+@click.argument("path", type=click.Path(dir_okay=False))
+@click.option("--out", type=click.Path(dir_okay=False), required=True, help="Basis file to write.")
+@click.option("--k", "k", type=int, required=True, help="Features kept active at each node.")
+@click.option("--encoder", "encoder_name", default="W_enc", show_default=True,
+              help="Array holding the encoder, (features, channels).")  # fmt: skip
+@click.option("--decoder", "decoder_name", default="W_dec", show_default=True,
+              help="Array holding the decoder, either way round.")  # fmt: skip
+@click.option("--pre-bias", "pre_bias_name", default="b_pre", show_default=True,
+              help="Array holding the pre-bias, (channels,).")  # fmt: skip
+@click.option("--decoder-layout", type=click.Choice(["features-first", "channels-first"]),
+              help="Which way round the decoder is; needed only when it is square.")  # fmt: skip
+@click.option("--like", "like", type=click.Path(),
+              help="An archive of the network the dictionary was trained on: its identity "
+              "at --layer is recorded, so the basis is accepted there and refused "
+              "elsewhere.")  # fmt: skip
+@click.option("--layer", type=int, help="With --like: the layer the dictionary reads.")
+@_adapter_option
+@_mask_option
+def import_sae_cmd(
+    path, out, k, encoder_name, decoder_name, pre_bias_name, decoder_layout, like, layer,
+    adapter, mask_variable,
+):  # fmt: skip
+    """Write a token-normalized top-k dictionary trained elsewhere as a basis.
+
+    PATH is an .npz holding an encoder, a decoder and a pre-bias, for a dictionary that
+    centers each node's channels and divides them by their length before encoding, and
+    decodes into the layer's raw units (the public GraphCast dictionary is one).
+    """
+    import hashlib
+
+    import numpy as np
+
+    from exege.core.errors import RequestError
+    from exege.latents import basis_hash, save_basis, token_normalized_dictionary
+
+    if (like is None) != (layer is None):
+        raise click.UsageError("give --like SOURCE and --layer N together, or neither")
+    # The foreign file is read here, by the client, and never by exege.latents, whose
+    # API takes arrays: the only files that package reads are its own.
+    file = Path(path)
+    if not file.is_file():
+        raise RequestError(f"no file: {path}")
+    wanted = (encoder_name, decoder_name, pre_bias_name)
+    try:
+        with np.load(file, allow_pickle=False) as stored:
+            names = list(stored.files)
+            arrays = {n: stored[n] for n in wanted if n in names}
+    except (OSError, ValueError) as exc:
+        raise RequestError(f"{path} is not a readable .npz ({exc!r})") from exc
+    if missing := [n for n in wanted if n not in arrays]:
+        raise RequestError(
+            f"{path} holds no array(s) {', '.join(missing)}; it holds {', '.join(names)}"
+        )
+    imported = {"path": str(file), "sha256": hashlib.sha256(file.read_bytes()).hexdigest()}
+    meta: dict = {"imported_from": imported}
+    if like is not None:
+        info = open_for_cli(like, adapter, mask_variable).info()
+        meta["fitted_on"] = {
+            "provenance": info.provenance(),
+            "layer": layer,
+            "network_layer": info.layer(layer).position,
+        }
+    basis = token_normalized_dictionary(
+        arrays[encoder_name], arrays[decoder_name], arrays[pre_bias_name], k,
+        decoder_layout=decoder_layout, meta=meta,
+    )  # fmt: skip
+    if like is not None and basis.n_channels != info.layer(layer).n_channels:
+        raise RequestError(
+            f"the dictionary reads {basis.n_channels} channel(s), and layer {layer} of {like} "
+            f"has {info.layer(layer).n_channels}"
+        )
+    save_basis(out, basis)
+    click.echo(
+        f"wrote {out}: {basis.n_features} feature(s) over {basis.n_channels} channel(s), "
+        f"top {k}, token-normalized; --basis-sha256 {basis_hash(basis)}"
+    )
+    if like is None:
+        click.echo(
+            "it records no network or layer: give --like SOURCE --layer N to say which, or "
+            "pass --allow-unverified-basis wherever it is used"
+        )
+
+
 @latents.command("diff")
 @click.argument("control", type=click.Path())
 @click.argument("experiment", type=click.Path())

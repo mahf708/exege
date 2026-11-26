@@ -33,6 +33,8 @@ except ImportError as exc:
     raise missing_extra("numpy", "latents") from exc
 
 ACTIVATIONS = ("relu", "topk", "bspline")
+INPUT_NORMS = ("standard", "token")
+_TOKEN_FLOOR = 1e-6  # the smallest length a centered node is divided by
 FORMAT = 1
 _BLOCK = 4096  # nodes per step when a whole layer is encoded
 
@@ -272,6 +274,13 @@ class Dictionary:
     that is how the dictionary was trained and a feature's activation means
     nothing otherwise. With ``output_*`` set apart from ``input_*`` it is a
     transcoder: it reads one layer and writes another.
+
+    ``input_norm="token"`` standardizes each node on its own instead: its channels
+    less their mean, divided by the length of what is left (see
+    ``token_normalized_dictionary``). No single mean and scale can undo that on the
+    way out, so such a dictionary decodes straight into the layer's raw units:
+    ``input_mean`` is zero, ``input_scale`` one, and a decoder row is a direction in
+    those units.
     """
 
     encoder: np.ndarray
@@ -286,6 +295,7 @@ class Dictionary:
     k: int | None = None
     spline: np.ndarray | None = None
     spline_upper: float = 1.0
+    input_norm: str = "standard"
     meta: Mapping[str, Any] = field(default_factory=dict)
     kind = "dictionary"
 
@@ -305,6 +315,15 @@ class Dictionary:
             self.spline is None or self.spline.shape[0] != n_features
         ):
             raise ValueError("a bspline dictionary needs spline coefficients, one row per feature")
+        if self.input_norm not in INPUT_NORMS:
+            raise ValueError(f"input_norm must be one of {', '.join(INPUT_NORMS)}")
+        if self.input_norm == "token":
+            # Each node is rescaled by its own length, which no mean and scale can undo:
+            # the decoder writes raw units, and nothing here may pretend otherwise.
+            if np.any(np.asarray(self.input_mean) != 0.0) or self.input_scale != 1.0:
+                raise ValueError("a token-normalized dictionary has input_mean 0 and input_scale 1")
+            if self.output_mean is not None or self.output_scale is not None:
+                raise ValueError("a token-normalized dictionary cannot be a transcoder")
 
     @property
     def n_features(self) -> int:
@@ -314,13 +333,24 @@ class Dictionary:
     def n_channels(self) -> int:
         return int(self.encoder.shape[1])
 
+    def _standardize(self, block: np.ndarray, mean: np.ndarray) -> np.ndarray:
+        """A block of raw float32 latents as the encoder was trained to see them."""
+        if self.input_norm == "token":
+            centered = block - block.mean(axis=1, keepdims=True)
+            length = np.linalg.norm(centered, axis=1, keepdims=True)
+            return centered / np.maximum(length, np.float32(_TOKEN_FLOOR))
+        return (block - mean) / self.input_scale
+
     def _activate(self, z: np.ndarray, rows: np.ndarray | None) -> np.ndarray:
         if self.activation == "bspline":
             coefficients = self.spline if rows is None else self.spline[rows]
             return bspline_activation(z, coefficients.astype(z.dtype), self.spline_upper)
         z = np.maximum(z, 0.0)
         if self.activation == "topk" and self.k < z.shape[1]:
-            z = np.where(topk_mask(z, self.k), z, 0.0)
+            # A node's features compete, so one that is not a number leaves the whole node
+            # undecided: NaN, not the zeros a comparison with NaN would make of it.
+            whole = np.isfinite(z).all(axis=1, keepdims=True)
+            z = np.where(whole, np.where(topk_mask(z, self.k), z, 0.0), np.nan)
         return z
 
     def transform(self, latents: np.ndarray, features: Sequence[int] | None = None) -> np.ndarray:
@@ -342,7 +372,7 @@ class Dictionary:
         width = self.n_features if chosen is None else chosen.size
         out = np.empty((latents.shape[0], width), dtype=np.float64)
         for start in range(0, latents.shape[0], _BLOCK):
-            block = (latents[start : start + _BLOCK].astype(np.float32) - mean) / self.input_scale
+            block = self._standardize(latents[start : start + _BLOCK].astype(np.float32), mean)
             active = self._activate(block @ encoder.T + bias, rows)
             if rows is None and chosen is not None:
                 active = active[:, chosen]
@@ -376,6 +406,88 @@ class Dictionary:
         return {"decoder_norm": float(np.linalg.norm(self.decoder[feature]))}
 
 
+DECODER_LAYOUTS = ("features-first", "channels-first")
+
+
+def token_normalized_dictionary(
+    encoder: np.ndarray,
+    decoder: np.ndarray,
+    pre_bias: np.ndarray,
+    k: int,
+    *,
+    decoder_layout: str | None = None,
+    meta: Mapping[str, Any] | None = None,
+) -> Dictionary:
+    """A top-k dictionary that standardizes each node on its own, from plain arrays.
+
+    This is the layout of sparse autoencoders trained on a layer's tokens one at a time
+    (the public GraphCast dictionary of MacMillan & Ouellette 2025 is one): each node's
+    channel vector ``x`` is centered on its own mean and divided by its own length,
+    ``xn = (x - mean(x)) / |x - mean(x)|``; then ``relu((xn - pre_bias) @ encoder.T)``,
+    of which the ``k`` largest are kept; and the code is written back in the layer's
+    **raw** units, ``code @ decoder + pre_bias``, with nothing undone. So the pre-bias
+    is subtracted in normalized units and added back in raw ones; it is folded into the
+    encoder's bias here, ``-(encoder @ pre_bias)``, and kept as the decoder's.
+
+    ``encoder`` is ``(n_features, n_channels)``. ``decoder`` may be either way round,
+    ``(n_features, n_channels)`` or ``(n_channels, n_features)``; its orientation is
+    read from the shapes, and when the two are equal it must be given as
+    ``decoder_layout`` (``"features-first"`` or ``"channels-first"``). The decoder is
+    kept exactly as given -- such layouts usually hold unit-length directions, and its
+    rows are what a steer moves along. The result carries no identity: put
+    ``meta={"fitted_on": ...}`` on it, or it will need ``allow_unverified_basis``.
+    """
+    encoder = np.asarray(encoder, dtype=np.float32)
+    decoder = np.asarray(decoder, dtype=np.float32)
+    pre_bias = np.asarray(pre_bias, dtype=np.float32)
+    if encoder.ndim != 2 or decoder.ndim != 2:
+        raise RequestError(
+            f"encoder and decoder must be matrices; got {encoder.shape} and {decoder.shape}"
+        )
+    n_features, n_channels = encoder.shape
+    if decoder_layout is not None and decoder_layout not in DECODER_LAYOUTS:
+        raise RequestError(
+            f"decoder_layout must be one of {', '.join(DECODER_LAYOUTS)}, not {decoder_layout!r}"
+        )
+    if decoder.shape not in ((n_features, n_channels), (n_channels, n_features)):
+        raise RequestError(
+            f"the encoder is {encoder.shape} (features, channels), so the decoder must be "
+            f"{(n_features, n_channels)} or {(n_channels, n_features)}; got {decoder.shape}"
+        )
+    if decoder_layout is None:
+        if n_features == n_channels:
+            raise RequestError(
+                "the decoder is square, so its orientation cannot be read from its shape: "
+                "say which way round it is (decoder_layout)"
+            )
+        decoder_layout = "features-first" if decoder.shape[0] == n_features else "channels-first"
+    if decoder_layout == "channels-first":
+        decoder = decoder.T
+    if decoder.shape != (n_features, n_channels):
+        raise RequestError(
+            f"a {decoder_layout} decoder does not fit an encoder of {encoder.shape} "
+            "(features, channels): it is the other way round"
+        )
+    if pre_bias.shape != (n_channels,):
+        raise RequestError(f"the pre-bias must hold {n_channels} value(s); got {pre_bias.shape}")
+    if not 1 <= int(k) <= n_features:
+        raise RequestError(f"k must lie in 1..{n_features}, not {k}")
+    for name, array in (("encoder", encoder), ("decoder", decoder), ("pre-bias", pre_bias)):
+        if not np.isfinite(array).all():
+            raise RequestError(f"the {name} holds values that are not finite")
+    return Dictionary(
+        encoder=encoder,
+        encoder_bias=-(encoder.astype(np.float64) @ pre_bias.astype(np.float64)).astype(np.float32),
+        decoder=np.ascontiguousarray(decoder),
+        decoder_bias=pre_bias,
+        input_mean=np.zeros(n_channels, dtype=np.float32),
+        activation="topk",
+        k=int(k),
+        input_norm="token",
+        meta=dict(meta or {}),
+    )
+
+
 # -- the file ---------------------------------------------------------------
 
 _PCA_ARRAYS = ("mean", "components", "explained_variance_ratio")
@@ -383,6 +495,9 @@ _DICTIONARY_ARRAYS = (
     "encoder", "encoder_bias", "decoder", "decoder_bias", "input_mean", "output_mean", "spline",
 )  # fmt: skip
 _DICTIONARY_SCALARS = ("input_scale", "output_scale", "activation", "k", "spline_upper")
+# Scalars written, and hashed, only where they differ from their default: a basis saved
+# before they existed keeps its content hash, and so does every basis that leaves them be.
+_DICTIONARY_OPTIONAL = {"input_norm": "standard"}
 _LOADED = ("sha256", "hash_status")
 
 
@@ -392,7 +507,11 @@ def _parts(basis: Decomposition) -> tuple[dict[str, np.ndarray], dict[str, Any]]
         return {name: getattr(basis, name) for name in _PCA_ARRAYS}, {}
     if isinstance(basis, Dictionary):
         arrays = {n: getattr(basis, n) for n in _DICTIONARY_ARRAYS if getattr(basis, n) is not None}
-        return arrays, {n: getattr(basis, n) for n in _DICTIONARY_SCALARS}
+        scalars = {n: getattr(basis, n) for n in _DICTIONARY_SCALARS}
+        for name, default in _DICTIONARY_OPTIONAL.items():
+            if getattr(basis, name) != default:
+                scalars[name] = getattr(basis, name)
+        return arrays, scalars
     raise TypeError(f"do not know how to save a {type(basis).__name__}")
 
 
@@ -497,7 +616,7 @@ def load_basis(path: str | Path, *, sha256: str | None = None) -> PCA | Dictiona
     recorded = record.pop("sha256", None)
     meta = {**record.pop("meta", {}), "path": str(path)}
     record.pop("format")
-    scalars = {n: record[n] for n in _DICTIONARY_SCALARS if n in record}
+    scalars = {n: record[n] for n in (*_DICTIONARY_SCALARS, *_DICTIONARY_OPTIONAL) if n in record}
     actual = _digest(kind, arrays, scalars, meta.get("fitted_on"))
     if recorded is not None and recorded != actual:
         raise RequestError(

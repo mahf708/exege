@@ -85,6 +85,8 @@ Defined in ``exege.latents.basis``.
 
 .. autofunction:: exege.latents.save_basis
 
+.. autofunction:: exege.latents.token_normalized_dictionary
+
 .. autofunction:: exege.latents.top_loadings
 
 Many times at once

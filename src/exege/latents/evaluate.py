@@ -310,7 +310,9 @@ def measure(
 
     A block of nodes at a time, valid nodes only, weighted by area; each time's weights
     sum to one and the times are averaged. Read through ``read_latents``, so a
-    non-finite activation is refused, not carried into the mean.
+    non-finite activation is refused, not carried into the mean. Explained variance is
+    about the training mean the basis carries; a token-normalized dictionary carries
+    none, and its variance is about the mean of the times measured.
     """
     if not hasattr(basis, "decode"):
         raise RequestError(f"cannot reconstruct with a {type(basis).__name__}: it has no decoder")
@@ -319,6 +321,10 @@ def measure(
     info, weights = source.info(), source.grid().weights()
     keep = np.flatnonzero(weights > 0.0)
     reference = _reference_mean(basis)
+    # A token-normalized dictionary standardizes each node by itself and carries no
+    # training mean; its variance is taken about the mean of what is measured instead.
+    own_mean = isinstance(basis, Dictionary) and basis.input_norm == "token"
+    first, shift = np.zeros(reference.size), None
     error = power = active = 0.0
     rate = np.zeros(basis.n_features)
     n_times = len(times)
@@ -331,15 +337,24 @@ def measure(
                 f"{target.shape[1]} channel(s); the basis writes {reference.size}"
             )
         w = weights[keep] / n_times
+        if own_mean and shift is None:
+            shift = target[0].astype(np.float64)  # any constant: it keeps the sums small
         for start in range(0, keep.size, _BLOCK):
             part = slice(start, start + _BLOCK)
             scores = basis.transform(x[part])
             wanted = target[part].astype(np.float64)
             error += float(w[part] @ ((wanted - basis.decode(scores)) ** 2).sum(axis=1))
-            power += float(w[part] @ ((wanted - reference) ** 2).sum(axis=1))
+            if own_mean:
+                moved = wanted - shift
+                first += w[part] @ moved
+                power += float(w[part] @ (moved**2).sum(axis=1))
+            else:
+                power += float(w[part] @ ((wanted - reference) ** 2).sum(axis=1))
             fired = np.abs(scores) > active_above
             active += float(w[part] @ fired.sum(axis=1))
             rate += w[part] @ fired
+    if own_mean:  # the weights sum to one: this is the spread about the side's own mean
+        power -= float(first @ first)
     return SideMetrics(
         times=tuple(info.times[info.time_index(t)] for t in times),
         explained_variance=1.0 - error / power if power > 0.0 else float("nan"),

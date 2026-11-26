@@ -8,7 +8,9 @@ roughly in the order we mean to take them.
 - Bias and time-mean maps, spectra, zonal means (a `FieldSource` beside `LatentSource`, on
   the same `latents.grid`)
 - A GraphCast mesh adapter, including the *translator* of Tempest et al. (2026), which
-  puts an intermediate processor step in the basis of the last one
+  puts an intermediate processor step in the basis of the last one. The public GraphCast
+  dictionary already reads in (`latents import-sae`, [bases](bases.md#importing-a-dictionary-trained-elsewhere));
+  what is missing is a source of GraphCast's activations to use it on
 - The activation exporter as an adapter of its own, behind a framework extra — with
   the hooks that *write* a layer, for steering along a basis file's direction, and an
   `experiment` block (the SamudrACE exporter takes `--seed` and does not record it)

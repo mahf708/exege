@@ -7,7 +7,7 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
 | `grid.py` | nodes on a sphere: masks, area weights, regions, maps |
 | `source.py` | the contract: `LatentSource`, the optional `ReferenceFields`, `LatentInfo` |
 | `toy.py` | a toy emulator in numpy, so an archive can be made with no model and no data |
-| `basis.py` | `Decomposition`: `PCA`, a sparse `Dictionary`, and the basis file |
+| `basis.py` | `Decomposition`: `PCA`, a sparse `Dictionary` (also one trained elsewhere and token-normalized), and the basis file |
 | `analysis.py` | one region at one time: ranking, similarity, a decomposition |
 | `samples.py` | many times at once: moments, a global PCA, batches to train on |
 | `through.py` | through time and between runs: series, differences, field correlation |

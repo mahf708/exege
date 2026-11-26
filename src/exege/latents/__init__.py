@@ -64,6 +64,7 @@ if TYPE_CHECKING:
         result_provenance,
         save_basis,
         spline_knots,
+        token_normalized_dictionary,
         top_loadings,
     )
     from exege.latents.evaluate import (
@@ -160,6 +161,7 @@ _LAZY = {
     "load_basis": "basis",
     "save_basis": "basis",
     "spline_knots": "basis",
+    "token_normalized_dictionary": "basis",
     "top_loadings": "basis",
     "Effect": "steering",
     "Hook": "steering",
@@ -234,7 +236,8 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
-    "PCA",
+    "AnyRegion",
+    "Box",
     "ChannelRanking",
     "Decomposition",
     "Dictionary",
@@ -247,18 +250,17 @@ __all__ = [
     "FidelityCurve",
     "FieldRanking",
     "FieldStoryline",
-    "Hovmoller",
     "Hook",
+    "Hovmoller",
     "Intervenable",
     "LatentInfo",
     "LatentSource",
     "LayerInfo",
     "Moments",
+    "PCA",
     "PairedDifference",
     "Pairing",
     "ReferenceFields",
-    "AnyRegion",
-    "Box",
     "Region",
     "RegionAnalysis",
     "RegionSeries",
@@ -285,8 +287,8 @@ __all__ = [
     "feature_profile",
     "fidelity_curve",
     "field_storyline",
-    "hovmoller",
     "fit_pca",
+    "hovmoller",
     "iter_batches",
     "load_basis",
     "load_channels",
@@ -311,5 +313,6 @@ __all__ = [
     "split_groups",
     "split_time_blocks",
     "steering_record",
+    "token_normalized_dictionary",
     "top_loadings",
 ]
