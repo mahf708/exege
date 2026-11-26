@@ -108,11 +108,13 @@ from exege.latents import Mediator, Steer, load_basis, run_mediation
 
 system = ToyDynamics(masked=3)
 result = run_mediation(
-    system, load_basis("scratch/steer/planted0.npz"),
+    system,
+    load_basis("scratch/steer/planted0.npz"),
     Steer(layer=0, feature=0, amount=1.5, times=(1,)),
     Mediator(layer=1, feature=1, basis=load_basis("scratch/steer/channels1.npz")),
-    steps=5, seeds=(0, 1),
+    steps=5,
+    seeds=(0, 1),
 )
-result.exactness                   # 0.0: holding alone changes nothing
-result.effects["moisture"].share   # 1.0
+result.exactness  # 0.0: holding alone changes nothing
+result.effects["moisture"].share  # 1.0
 ```

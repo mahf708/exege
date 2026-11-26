@@ -98,6 +98,6 @@ from exege.latents import rotation_test
 
 system = ToyDynamics(n_lat=8, n_lon=12, positional=5.0, static=5.0)
 result = rotation_test(system, layer=0, parts=["state"], starts=(0, 1))
-result.anchored        # channels 2 and 3
+result.anchored  # channels 2 and 3
 result.summary(top=3)
 ```
