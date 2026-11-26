@@ -424,25 +424,46 @@ The arms and modes above, and many cases and a dose curve:
 
 ```python
 from exege.latents import (
-    Box, Case, Outcome, dose_curve, feature_reference, mean_difference, open_source,
+    Box,
+    Case,
+    Outcome,
+    dose_curve,
+    feature_reference,
+    mean_difference,
+    open_source,
     run_cases,
 )
 
 archive = open_source("latents/atmosphere")  # an archive of the same network
 reference, meta = feature_reference(archive, basis, layer=8, feature=676, times=quiet_days)
-steer = Steer(layer=8, feature=676, mode="excess", amount=2.0, times=(0, 1, 2, 3),
-              loop="closed", reference=reference, reference_meta=meta)
-dom = mean_difference(archive, layer=8, event_times=storm_days, quiet_times=quiet_days,
-                      region=Box(0, 30, -100, -60))
+steer = Steer(
+    layer=8,
+    feature=676,
+    mode="excess",
+    amount=2.0,
+    times=(0, 1, 2, 3),
+    loop="closed",
+    reference=reference,
+    reference_meta=meta,
+)
+dom = mean_difference(
+    archive, layer=8, event_times=storm_days, quiet_times=quiet_days, region=Box(0, 30, -100, -60)
+)
 storm = Box(lat_min=15, lat_max=35, lon_min=-100, lon_max=-75)
 study = run_cases(
-    system, basis, steer, [Case(start=t, region=storm) for t in starts],
-    outcome=Outcome(statistic="min"), steps=16, comparisons={"dom": (dom, 0)},
-    n_matched=3, reference_for=lambda j: feature_reference(
-        archive, basis, layer=8, feature=j, times=quiet_days)[0],
+    system,
+    basis,
+    steer,
+    [Case(start=t, region=storm) for t in starts],
+    outcome=Outcome(statistic="min"),
+    steps=16,
+    comparisons={"dom": (dom, 0)},
+    n_matched=3,
+    reference_for=lambda j: feature_reference(archive, basis, layer=8, feature=j, times=quiet_days)[
+        0
+    ],
 )
 study.summary()["mean_sea_level_pressure"]["median"]
-curve = dose_curve(system, basis, steer, [0, 1, 1.5, 2, 3], steps=16, cases=cases,
-                   targets=analyses)
+curve = dose_curve(system, basis, steer, [0, 1, 1.5, 2, 3], steps=16, cases=cases, targets=analyses)
 curve.selections["mean_sea_level_pressure"].medians  # loo, oracle, baseline
 ```
