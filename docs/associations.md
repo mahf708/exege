@@ -57,7 +57,7 @@ From there:
 $ exege latents toy scratch/toy/control
 $ exege latents associate scratch/toy/control --top 6
 channels of layer 3 against 3 field(s), 8 time(s), 41 rotation(s): 11 of 16 labeled at q = 0.05
-calibration: 0.0% labeled with a rotation as the data (q = 0.05); null |skew| 0.54, excess kurtosis -0.41
+calibration: 0.0% labeled with a rotation as the data against 34 of its own rotations (q = 0.05); null |skew| 0.54, excess kurtosis -0.41
 
 CHANNEL  LABEL          FIELD          Z       P        GAP    BAR  COVERAGE
 6        precipitation  precipitation  +284.7  0        284.1  1.5  0.003
