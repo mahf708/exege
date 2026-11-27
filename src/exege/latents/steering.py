@@ -172,10 +172,11 @@ def node_lengths(basis: Decomposition, latents: np.ndarray) -> np.ndarray:
     """What the basis's decode writes, per node, for a unit of activation along a
     direction from ``feature_direction``: one, except for a token-normalized dictionary,
     whose decoder writes the *normalized* node, put back into raw units by each node's own
-    length (``|x - mean(x)|``, read from ``latents``). ``(n_nodes,)`` float64."""
+    length (``|x - mean(x)|``, read from ``latents`` in float32, as ``decode_nodes`` and the
+    encoder read it). ``(n_nodes,)`` float64."""
     if isinstance(basis, Dictionary) and basis.input_norm == "token":
-        _, length = _token_frame(np.asarray(latents, dtype=np.float64))
-        return length[:, 0]
+        _, length = _token_frame(np.asarray(latents, dtype=np.float32))
+        return length[:, 0].astype(np.float64)
     return np.ones(np.shape(latents)[0])
 
 
@@ -208,9 +209,11 @@ class Steer:
     ``excess`` take one. Each mode is, node by node, a change ``delta`` in the
     activation, and the layer moves by what the decoder writes for it (``moves``):
     ``delta * direction``, and for a token-normalized dictionary, whose decoder writes the
-    normalized node, that times the node's own length (``node_lengths``), so a mode means
-    the same whatever the dictionary's input normalization. ``nodes`` restricts the edit
-    to those nodes (None: every node).
+    normalized node, that times the node's own length (``node_lengths``): an edit in the
+    decoder's terms whatever the dictionary's input normalization. Re-encoded, the
+    activation moves by about ``delta``, exactly only where encoder and decoder agree and
+    the move leaves the node's own normalization alone. ``nodes`` restricts the edit to
+    those nodes (None: every node).
 
     ``loop`` says what ``delta`` is worked out from. ``open`` (the default): the
     control's latents, so every arm of a seed changes the same nodes by the same amounts

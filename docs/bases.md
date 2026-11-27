@@ -102,9 +102,11 @@ a steer's reconstruction arm). exege reads it as a `Dictionary` with
 `input_norm="token"` (mean zero, scale one): an activation is invariant to rescaling or
 shifting a node as a whole. A decoder row is the direction a [steer](steering.md)
 moves the layer along, and a change `a` in a feature's activation moves each node by
-what the decoder writes for it in raw units, `a * |x - mean(x)|` along the row, so
-`clamp`, `scale`, `toward` and `excess` mean what they say whatever the dictionary's
-normalization. The published GraphCast hook adds `a` along the row unscaled; that is
+what the decoder writes for it in raw units, `a * |x - mean(x)|` along the row: an edit
+in the decoder's terms, as for any dictionary. Re-encoded, the activation moves by about
+`a`, not exactly: the move changes the node's own mean and length too, the more so the
+larger it is and the less the row is centred (as for any dictionary whose encoder and
+decoder rows differ). The published GraphCast hook adds `a` along the row unscaled; that is
 `--mode add` with `a / |x - mean(x)|`, which differs node to node, so expect a
 steer's amounts for such a dictionary to be far smaller than the hook's.
 
