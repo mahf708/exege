@@ -64,13 +64,16 @@ class Stationarity:
     - ``residual_fixed_share``: ``fixed_share`` times the share that neither explains:
       fixed structure of unknown origin.
     - ``fixed_share_split`` and ``residual_fixed_share_split``: the same two shares from
-      the product of the time-mean maps of the first and second half of the times, in
+      the product of the time-mean maps of the first and the last third of the times, in
       place of the square of the whole record's. Weather averaged over a finite record
       leaves a time-mean map of its own, about ``1/T_eff`` of a weather column's variance
-      (``T_eff`` its independent samples), and the square counts it as fixed; noise in
-      two separate halves does not correlate, so the product does not. Close to the
-      plain shares where the fixed map is real; near zero (either sign) where it was
-      weather the record was too short to average out. Columns are ranked by
+      (``T_eff`` its independent samples), and the square counts it as fixed. The thirds'
+      maps share only what persists across the middle third, which is left out as a
+      buffer: for weather with lag-one correlation ``rho``, thirds of ``n`` times and a buffer
+      of ``g``, the product keeps ``rho**(g+1) (1 - rho**n)**2 / (n (1 - rho))**2`` of its
+      variance (0.0008 at ``rho`` = 0.9 and 120 times; 0.24 at 20, where no split helps
+      much). Close to the plain shares where the fixed map is real; near zero (either sign)
+      where it was weather. NaN with fewer than three times. Columns are ranked by
       ``residual_fixed_share_split``.
 
     A column that does not vary reads NaN in every share; one that varies only in time
@@ -102,9 +105,11 @@ class Stationarity:
 
     def ranked(self, top: int | None = None) -> np.ndarray:
         """Positions into ``columns``, the most fixed structure of unknown origin first (by
-        the split-half estimate, which weather the record did not average out does not
-        inflate); columns that do not vary come last."""
-        key = np.nan_to_num(self.residual_fixed_share_split, nan=-np.inf)
+        the split estimate, which weather the record did not average out barely inflates,
+        or the plain one with fewer than three times); columns that do not vary come last."""
+        split = self.residual_fixed_share_split
+        key = split if np.isfinite(split).any() else self.residual_fixed_share
+        key = np.nan_to_num(key, nan=-np.inf)
         order = np.argsort(key, kind="stable")[::-1]
         return order if top is None else order[: max(top, 0)]
 
@@ -244,14 +249,13 @@ def _beyond_fit(weights: np.ndarray, design: _Design, anomaly: np.ndarray) -> np
 
 
 def _split_shares(
-    whole: _Moments, half: _Moments, weights: np.ndarray, design: _Design, total: np.ndarray
+    early: _Moments, late: _Moments, weights: np.ndarray, design: _Design, total: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    """``fixed_share_split`` and ``residual_fixed_share_split``: the products of the first
-    half's and the second half's time-mean maps (less their means, and less the fit) in
-    place of the squares of the whole record's. ``half`` holds the first half's sums."""
-    first = half.node_mean()
-    with np.errstate(invalid="ignore", divide="ignore"):
-        second = (whole.node_mean() * whole.count - first * half.count) / (whole.count - half.count)
+    """``fixed_share_split`` and ``residual_fixed_share_split``: the products of the time-mean
+    maps of the first and the last third of the times (less their means, and less the fit) in
+    place of the squares of the whole record's. The middle third is left out as a buffer:
+    weather that persists across the join of two adjacent blocks correlates their means."""
+    first, second = early.node_mean(), late.node_mean()
     first, second = first - weights @ first, second - weights @ second
     cross = weights @ (first * second)
     unexplained = (_beyond_fit(weights, design, first) * _beyond_fit(weights, design, second)).sum(
@@ -269,10 +273,11 @@ def _decompose(
     weights: np.ndarray,
     design: _Design,
     n_times: int,
-    half: _Moments | None = None,
+    thirds: tuple[_Moments, _Moments] | None = None,
 ) -> dict[str, np.ndarray]:
     """Shares for every column of one chunk. ``weights`` sum to one over the nodes used;
-    ``half``, the sums over the first half of the times, adds the split-half shares."""
+    ``thirds``, the sums over the first and the last third of the times, adds the split
+    shares."""
     complete = (moments.count == n_times).all(axis=0)  # read at every node and time
     mean_map = np.where(moments.count > 0, moments.node_mean(), 0.0)
     overall = weights @ mean_map
@@ -315,9 +320,9 @@ def _decompose(
         "static_share": static * keep,
         "residual_fixed_share": residual_share * keep,
     }
-    if half is not None:
-        split, residual_split = _split_shares(moments, half, weights, design, total)
-        flat = fixed <= 0.0  # a flat time-mean map holds nothing fixed, in either half
+    if thirds is not None:
+        split, residual_split = _split_shares(*thirds, weights, design, total)
+        flat = fixed <= 0.0  # a flat time-mean map holds nothing fixed, in either third
         out["fixed_share_split"] = np.where(flat, 0.0, split) * keep
         out["residual_fixed_share_split"] = np.where(flat, 0.0, residual_split) * keep
     return out
@@ -374,7 +379,7 @@ def feature_stationarity(
         raise RequestError(
             "at least two times are needed: at one, every column is its own time mean"
         )
-    n_first = len(labels) // 2  # the first half, for the split-half shares
+    third = len(labels) // 3  # the first and last thirds, for the split shares
 
     # The statics first: they decide which nodes every number is over.
     used = grid.valid & (grid.weights() > 0.0)  # raises where the mask leaves no node
@@ -417,7 +422,7 @@ def feature_stationarity(
     for start in range(0, chosen.size, chunk):
         part = chosen[start : start + chunk]
         moments = _Moments(nodes.size, part.size)
-        half = _Moments(nodes.size, part.size)
+        early, late = _Moments(nodes.size, part.size), _Moments(nodes.size, part.size)
         active = np.zeros(part.size)
         for position, label in enumerate(labels):
             if basis is not None:
@@ -432,11 +437,15 @@ def feature_stationarity(
                 values = read_latents(source, label, layer, channels=part, nodes=nodes)
                 values = values.astype(np.float64)
             moments.add(values)
-            if position < n_first:
-                half.add(values)
+            if position < third:
+                early.add(values)
+            elif position >= len(labels) - third:
+                late.add(values)
             on = np.isfinite(values) & (values > threshold)
             active += weights @ on
-        decomposed = _decompose(moments, weights, design, len(labels), half)
+        decomposed = _decompose(
+            moments, weights, design, len(labels), (early, late) if third else None
+        )
         for key, value in decomposed.items():
             out[key][start : start + part.size] = value
         present = (moments.count == len(labels)).all(axis=0)

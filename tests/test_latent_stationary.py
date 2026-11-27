@@ -320,10 +320,10 @@ def test_the_command_with_a_basis(tmp_path):
     assert alone.exit_code != 0 and "--feature needs --basis" in alone.output
 
 
-def test_the_split_half_shares_take_out_what_a_short_record_leaves_of_weather(planted):
+def test_the_split_shares_take_out_what_a_short_record_leaves_of_weather(planted):
     """Channel 3 is new noise at every time: its time-mean map holds about 1/N_TIMES of its
-    variance, all of it counted fixed and unexplained. The halves' maps do not correlate,
-    so the split-half shares are near zero; for the truly fixed channels they match."""
+    variance, all of it counted fixed and unexplained. The thirds' maps do not correlate,
+    so the split shares are near zero; for the truly fixed channels they match."""
     source, _ = planted
     result = feature_stationarity(source, layer=0, statics=["land"])
     assert result.fixed_share[3] == pytest.approx(1 / N_TIMES, rel=0.3)
@@ -342,3 +342,26 @@ def test_a_repeated_time_is_refused(planted):
     source, _ = planted
     with pytest.raises(RequestError, match="once"):
         feature_stationarity(source, layer=0, times=[0, 1, 1])
+
+
+def test_the_split_leaves_out_the_middle_third_so_persistent_weather_does_not_leak():
+    """Weather with lag-one correlation 0.9 over 120 times and no fixed map at all: adjacent
+    halves would share 0.025 of its variance; thirds with a buffer between share ~0.001."""
+    rng = np.random.default_rng(3)
+    n_times, rho, n_lat, n_lon = 120, 0.9, 48, 96  # nodes enough that noise is ~0.007
+    n = n_lat * n_lon
+    x = np.empty((n_times, n, 1))
+    x[0] = rng.normal(size=(n, 1))
+    for t in range(1, n_times):
+        x[t] = rho * x[t - 1] + np.sqrt(1 - rho**2) * rng.normal(size=(n, 1))
+    source = MemorySource({0: x.astype(np.float32)}, n_lat=n_lat, n_lon=n_lon)
+    result = feature_stationarity(source, layer=0)
+    assert result.fixed_share[0] > 0.08  # what the square of the whole record counts
+    assert abs(result.fixed_share_split[0]) < 0.02
+
+
+def test_with_two_times_there_is_no_split_and_the_plain_share_ranks(planted):
+    source, _ = planted
+    result = feature_stationarity(source, layer=0, times=[0, 1])
+    assert np.isnan(result.fixed_share_split).all()
+    assert len(result.ranked()) == 4
