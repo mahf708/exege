@@ -410,7 +410,7 @@ def import_sae_cmd(
 
     PATH is an .npz holding an encoder, a decoder and a pre-bias, for a dictionary that
     centers each node's channels and divides them by their length before encoding, and
-    decodes into the layer's raw units (the public GraphCast dictionary is one).
+    is trained to rebuild that normalized node (the public GraphCast dictionary is one).
     """
     import hashlib
 
@@ -1048,6 +1048,8 @@ def stationary_cmd(
             kind: c["column"], "coverage": _share(c["coverage"]), "fixed": _share(c["fixed_share"]),
             "zonal": _share(c["zonal_share"]), "static": _share(c["static_share"]),
             "unexplained": _share(c["residual_fixed_share"]),
+            "fixed_split": _share(c["fixed_share_split"]),
+            "unexplained_split": _share(c["residual_fixed_share_split"]),
         }
         for c in summary["columns"]
     ]  # fmt: skip
@@ -1069,6 +1071,9 @@ def stationary_cmd(
               "both keep]")  # fmt: skip
 @_with(_optional_region_options)
 @_threshold_option
+@click.option("--min-coverage", type=float, default=0.01, show_default=True,
+              help="With --basis: features active over less of the REFERENCE's area and time "
+              "are ranked last; their deficit is noise.")  # fmt: skip
 @click.option("--top", type=int, default=15, show_default=True)
 @click.option(
     "--allow-unverified-sources",
@@ -1080,7 +1085,8 @@ def stationary_cmd(
 @_json_option
 def gap_cmd(
     reference, run, adapter, mask_variable, layer, basis_path, channels, features, times, lat,
-    lon, radius_km, threshold, top, allow_unverified_sources, allow_unverified_basis, as_json,
+    lon, radius_km, threshold, min_coverage, top, allow_unverified_sources,
+    allow_unverified_basis, as_json,
 ):  # fmt: skip
     """Set a free RUN against a REFERENCE run of the same network (teacher forced, say).
 
@@ -1103,6 +1109,7 @@ def gap_cmd(
         times=[_time(t) for t in times] or None,
         region=_optional_region(lat, lon, radius_km),
         threshold=threshold,
+        min_coverage=min_coverage,
         allow_unverified=allow_unverified_sources,
         allow_unverified_basis=allow_unverified_basis,
     )

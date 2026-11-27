@@ -318,3 +318,27 @@ def test_the_command_with_a_basis(tmp_path):
     assert both.exit_code != 0 and "not both" in both.output
     alone = runner.invoke(cli, ["latents", "stationary", str(path), "--feature", "0"])
     assert alone.exit_code != 0 and "--feature needs --basis" in alone.output
+
+
+def test_the_split_half_shares_take_out_what_a_short_record_leaves_of_weather(planted):
+    """Channel 3 is new noise at every time: its time-mean map holds about 1/N_TIMES of its
+    variance, all of it counted fixed and unexplained. The halves' maps do not correlate,
+    so the split-half shares are near zero; for the truly fixed channels they match."""
+    source, _ = planted
+    result = feature_stationarity(source, layer=0, statics=["land"])
+    assert result.fixed_share[3] == pytest.approx(1 / N_TIMES, rel=0.3)
+    assert result.residual_fixed_share[3] == pytest.approx(1 / N_TIMES, rel=0.3)
+    assert abs(result.fixed_share_split[3]) < 0.25 / N_TIMES * 4  # within noise of zero
+    assert abs(result.residual_fixed_share_split[3]) < 0.25 / N_TIMES * 4
+    assert result.fixed_share_split[:3] == pytest.approx(result.fixed_share[:3], abs=1e-6)
+    np.testing.assert_allclose(
+        result.residual_fixed_share_split[:3], result.residual_fixed_share[:3], atol=1e-6
+    )
+    # ranked by the split-half estimate: the random fixed map first, the noise not above it
+    assert result.columns[result.ranked()][0] == 0
+
+
+def test_a_repeated_time_is_refused(planted):
+    source, _ = planted
+    with pytest.raises(RequestError, match="once"):
+        feature_stationarity(source, layer=0, times=[0, 1, 1])
