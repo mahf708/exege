@@ -99,7 +99,12 @@ class MediationResult:
     (zero in a deterministic system; infinite where the hold-only run is not a number
     where it should be); ``hold_error`` the largest gap, in the direct run, between the
     mediator's activation where it is held and the value it was held at (what the hold
-    could not reach: a ReLU feature asked to go below zero, say)."""
+    could not reach: a ReLU feature asked to go below zero, say), and ``hold_rms`` that
+    gap's RMS, weighted as ``mediator_change`` is. Where ``hold_rms`` is not small beside
+    ``mediator_change`` the direct run did not hold the mediator, and ``share`` says
+    little: a top-k feature, whose activation jumps as the layer moves along it, often
+    cannot be held at all. ``held`` is False when ``hold_rms`` is a tenth of
+    ``mediator_change`` or more."""
 
     spec: dict[str, Any]
     provenance: dict[str, Any]
@@ -108,13 +113,18 @@ class MediationResult:
     exactness: float
     responses: dict[str, dict[str, list[float]]]
     hold_error: float = 0.0
+    hold_rms: float = 0.0
+
+    @property
+    def held(self) -> bool:
+        return self.hold_rms < 0.1 * self.mediator_change
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "spec": self.spec, "provenance": self.provenance,
             "effects": {n: e.to_dict() for n, e in self.effects.items()},
             "mediator_change": self.mediator_change, "exactness": self.exactness,
-            "hold_error": self.hold_error,
+            "hold_error": self.hold_error, "hold_rms": self.hold_rms, "held": self.held,
             "responses": self.responses,
         }  # fmt: skip
 
@@ -141,7 +151,7 @@ def _hold(
     steps from ``target - now``, exact at once where encoder and decoder agree and wherever
     nothing needs moving (the hold is then a no-op, to the bit); then, for the nodes still
     off their target or whose path to it bends (the activation halfway is not halfway
-    between), a bisection for the nearest crossing of the target, read on those nodes
+    between), a bisection for a crossing of the target, read on those nodes
     alone. A target that no move along the direction reaches is left as near as it got,
     and ``hold_error`` says by how much."""
     feature, basis = mediator.feature, mediator.basis
@@ -187,7 +197,9 @@ def _bisect(read, moved, latents, now, goal, guess, reached):
     """Per row, a move along the direction whose activation is ``goal``: a bracket is
     sought between no move and a move grown from the guess (or ``goal - now``), first in
     that direction and then in the other -- a feature whose encoder and decoder point
-    apart moves against its direction -- and bisected for the crossing nearest no move.
+    apart moves against its direction -- and bisected for a crossing. Where the activation
+    along the direction is monotone that crossing is the nearest; where it is not (top-k,
+    token norm) it is a crossing within the bracket, not always the nearest.
     Rows with no bracket either way keep ``guess``, and are not bisected."""
     sign = np.sign(goal - now)
     start = np.where(guess != 0.0, guess, np.where(goal != now, goal - now, 1.0))
@@ -299,6 +311,7 @@ def run_mediation(
     names: list[str] = []
     responses: dict[str, dict[str, list[float]]] = {}
     change_sq, change_n, exactness, hold_error = 0.0, 0, 0.0, 0.0
+    miss_sq, miss_n = 0.0, 0
     valid = grid.valid
 
     def gap(a: np.ndarray, b: np.ndarray) -> float:
@@ -347,6 +360,8 @@ def run_mediation(
                     change_n += 1
                 else:
                     hold_error = max(hold_error, float(np.abs(moved[held]).max()))
+                    miss_sq += float(share @ (moved[held] ** 2))
+                    miss_n += 1
     effects = {}
     for n in names:
         total = float(np.mean(responses[n][TOTAL]))
@@ -369,4 +384,5 @@ def run_mediation(
         exactness=exactness,
         responses=responses,
         hold_error=hold_error,
+        hold_rms=float(np.sqrt(miss_sq / max(miss_n, 1))),
     )

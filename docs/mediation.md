@@ -39,11 +39,16 @@ node, and a ReLU stops moving it at all once it reaches zero, where every furthe
 reaches the same zero. So the move is found per node: two secant steps from
 `target - now`, exact at once where encoder and decoder agree and wherever nothing needs
 moving (which is what keeps the hold-only run exact to the bit); then, for nodes still off
-their target or whose path bends on the way, a bisection for the *nearest* move that
-reaches it -- the smallest change that holds the feature, not any change that does.
-`hold_error` is the largest miss left, over the direct runs: a target no move along the
-direction can reach (a ReLU feature asked to rise from zero where the push does not reach)
-shows there instead of passing silently.
+their target or whose path bends on the way, a bracket (forward, then backward) and a
+bisection for a move that reaches it; where the activation along the direction is
+monotone that is the smallest change that holds the feature, and where it is not (top-k,
+token norm) it is one within the bracket. `hold_error` is the largest miss left, over the
+direct runs, and `hold_rms` its RMS weighted as `mediator_change` is: a target no move
+along the direction can reach (a ReLU feature asked to rise from zero where the push does
+not reach) shows there instead of passing silently. A top-k feature's activation jumps as
+the layer moves along it, and it often cannot be held at all. When `hold_rms` is a tenth
+of `mediator_change` or more, `held` is False, the command says so, and the share is not
+to be read as a share.
 
 ## A planted answer
 

@@ -299,9 +299,10 @@ def test_rotation_reads_only_valid_nodes():
     assert _anchored(result) == {0: False, 1: False, 2: True, 3: True}
 
 
-def test_a_turn_that_makes_a_pattern_its_own_opposite_has_the_most_power():
-    """cos(2 lon) turned a quarter of the circle is -cos(2 lon): self-similarity -1, and a
-    column that follows scores -2."""
+def test_a_turn_that_makes_a_pattern_its_own_opposite_has_no_power():
+    """cos(2 lon) turned a quarter of the circle is -cos(2 lon): self-similarity -1. Any
+    mixture of the map that stayed and the one that moved is then a multiple of one map,
+    so the shift cannot say how much of each the column is."""
     sym = ToyDynamics(n_lat=8, n_lon=12)
     state = sym.initial_state().copy()
     lon = np.radians(sym.grid().lon)
@@ -309,7 +310,27 @@ def test_a_turn_that_makes_a_pattern_its_own_opposite_has_the_most_power():
     sym.initial_state = lambda start=0: state
     result = rotation_test(sym, layer=0, shifts=[90.0], columns=[0])
     assert result.self_similarity[0, 0, 0] == pytest.approx(-1.0, abs=1e-9)
-    assert result.n_powered[0] == 1 and result.score[0] == pytest.approx(-2.0, abs=1e-9)
+    assert result.n_powered[0] == 0 and np.isnan(result.score[0])
+
+
+@pytest.mark.parametrize("s", [-0.45, 0.0, 0.3, 0.45])
+@pytest.mark.parametrize("alpha", [0.0, 0.3, 0.55, 1.0])
+def test_the_score_is_the_anchored_share_whatever_the_self_similarity(alpha, s):
+    """A turned map that is alpha of the original where it was and 1 - alpha of it turned
+    along, the two maps correlated s: the score is 2 alpha - 1 for every s."""
+    from exege.latents.rotation import _correlate, _score
+
+    rng = np.random.default_rng(0)
+    n = 4000
+    original = rng.normal(size=n)
+    moved = s * original + np.sqrt(1 - s * s) * rng.normal(size=n)
+    turned = alpha * original + (1 - alpha) * moved
+    w = np.ones(n)
+    col = lambda v: v[:, None]  # noqa: E731
+    stays = _correlate(col(turned), col(original), w)
+    follows = _correlate(col(turned), col(moved), w)
+    selfsim = _correlate(col(original), col(moved), w)
+    assert _score(stays, follows, selfsim)[0] == pytest.approx(2 * alpha - 1, abs=0.05)
 
 
 def test_a_column_that_vanishes_when_turned_is_not_anchored():
@@ -417,3 +438,12 @@ def test_mediate_prints_a_command_that_reproduces_it_and_pins_its_mediator(plant
     save_basis(channels, reversed_rows)
     refused = CliRunner().invoke(cli, shlex.split(command)[1:])
     assert refused.exit_code != 0 and "sha256" in refused.output
+
+
+def test_a_hold_that_misses_says_the_share_means_little():
+    from exege.latents.mediation import MediationResult
+
+    base = {"spec": {}, "provenance": {}, "effects": {}, "exactness": 0.0, "responses": {}}
+    assert MediationResult(mediator_change=1.0, hold_rms=0.01, **base).held
+    assert not MediationResult(mediator_change=1.0, hold_rms=0.5, **base).held
+    assert MediationResult(mediator_change=1.0, hold_rms=0.5, **base).to_dict()["held"] is False

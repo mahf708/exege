@@ -19,18 +19,24 @@ layer, and asks of each column (a channel, or a feature of a basis):
 
 - **stays**: how well the turned run's map correlates with the original map where it was;
 - **follows**: how well it correlates with the original map turned by the same shift;
-- **score**: stays less follows, near +1 for a column that stayed and near -1 for one that
-  moved with the weather.
+- **score**: the turned map regressed on both, `a` times the original map where it was
+  plus `b` times the original turned along (area-weighted, standardized), as
+  `(a - b) / (|a| + |b|)`: +1 for a column that stayed, -1 for one that moved with the
+  weather, and `2 alpha - 1` for one that is a share `alpha` of each.
 
 A pattern that maps onto itself under a shift -- a zonal band, anything with the same
 symmetry as the turn -- cannot say which it did. The original map's correlation with itself
-turned is its *self-similarity*, and a shift where that is at or above
+turned is its *self-similarity*, `s`, and a shift where `|s|` is at or above
 `--max-self-similarity` (0.5) has no power for the column and is left out of its score. A
-pattern that turns into its own *opposite* (a wavenumber-two wave turned a quarter of the
-circle) is the clearest case there is, not the weakest: there a column that stays scores
-+2 and one that follows -2, so scores lie in -2..2, near +-1 where self-similarity is near
-zero. A column is **anchored** when every shift with power gives a score of at least
-`--threshold` (0.5); one that vanishes when turned, and so correlates with nothing, is not.
+pattern that turns into its own *opposite* (`s` near -1: a wavenumber-two wave turned a
+quarter of the circle) is no better: a mixture of the two maps is then a multiple of one,
+and only its sign is left to read. The regression keeps the score from depending on `s`
+in between; stays less follows would be `(2 alpha - 1)(1 - s)`, so a half-anchored column
+read on a shift with negative `s` would pass as anchored.
+
+A column is **anchored** when every shift with power gives a score of at least
+`--threshold` (0.5: three quarters anchored); one that vanishes when turned, and so
+correlates with nothing, is not.
 STAYS and FOLLOWS are averaged over the shifts with power, like the score. Correlations are
 area-weighted, over nodes valid both where they are and where they came from. The default
 shifts are three turns of at least 60 degrees spread round the circle.

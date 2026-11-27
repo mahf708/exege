@@ -1919,7 +1919,8 @@ def direction_cmd(
     type=float,
     default=0.5,
     show_default=True,
-    help="A shift that maps a column's pattern onto itself this well has no power.",
+    help="A shift that maps a column's pattern onto itself, or onto its opposite, this well "
+    "(in absolute value) has no power.",
 )
 @click.option("--threshold", type=float, default=0.5, show_default=True,
               help="Anchored: every powered score at least this.")  # fmt: skip
@@ -2054,8 +2055,13 @@ def mediate_cmd(
         f"{mediator_feature} of layer {mediator_layer}; the steer moved the mediator by "
         f"{result.mediator_change:.4g} (RMS); holding it alone changed the run by "
         f"{result.exactness:.3g}, and the hold missed its target by at most "
-        f"{result.hold_error:.3g}\n"
+        f"{result.hold_error:.3g} ({result.hold_rms:.3g} RMS)\n"
     )
+    if not result.held:
+        click.echo(
+            "the hold missed by a tenth or more of what the steer moved the mediator: the "
+            "direct run did not hold it, and the share below says little\n"
+        )
     rows = [
         {
             "field": name, "total": f"{e.total:.4g}", "direct": f"{e.direct:.4g}",

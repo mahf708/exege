@@ -83,6 +83,20 @@ def _columns(grid: Grid, degrees: float) -> int:
     return columns
 
 
+def _score(stays: np.ndarray, follows: np.ndarray, selfsim: np.ndarray) -> np.ndarray:
+    """How much of the turned map is the original where it was (``a``) against the
+    original turned along (``b``): the area-weighted regression of the one on the two,
+    in standardized units, ``(a - b) / (|a| + |b|)``. A column that is a share ``alpha``
+    of the map that stayed and ``1 - alpha`` of the one that moved scores
+    ``2 alpha - 1`` whatever the two maps' own correlation (the self-similarity ``s``):
+    stays less follows would be ``(2 alpha - 1)(1 - s)``, which reads a half-anchored
+    column as anchored on a shift where ``s`` is negative."""
+    with np.errstate(invalid="ignore", divide="ignore"):
+        a = stays - selfsim * follows  # both over 1 - s^2, which cancels in the ratio
+        b = follows - selfsim * stays
+        return (a - b) / (np.abs(a) + np.abs(b))
+
+
 def _correlate(a: np.ndarray, b: np.ndarray, weights: np.ndarray) -> np.ndarray:
     """Column-wise area-weighted Pearson correlation of ``(n, C)`` arrays; NaN where either
     column does not vary (beyond rounding of its own size)."""
@@ -107,10 +121,11 @@ def _correlate(a: np.ndarray, b: np.ndarray, weights: np.ndarray) -> np.ndarray:
 class RotationTest:
     """Per start, shift and column: ``stays``, ``follows`` and ``self_similarity``,
     ``(n_starts, n_shifts, n_columns)``. A start and shift has *power* for a column when
-    its original map does not turn onto itself (``self_similarity < max_self_similarity``;
-    a map that turns into its own opposite is the clearest case there is, and counts).
-    ``score`` is ``stays - follows`` averaged over the powered ones, NaN for a column with
-    none (it lies in -2..2; near +-1 where self-similarity is near 0); ``n_powered`` counts
+    its original map turns neither onto itself nor onto its own opposite
+    (``|self_similarity| < max_self_similarity``). ``score`` is the anchored share read
+    from regressing the turned map on the two (see ``_score``: ``2 alpha - 1`` for a
+    column a share ``alpha`` anchored, in -1..1), averaged over the powered ones, NaN for
+    a column with none; ``n_powered`` counts
     them, and ``anchored`` marks columns whose every powered score is a number at least
     ``threshold`` -- a column that vanished when turned has no correlation, and is not
     anchored."""
@@ -246,8 +261,8 @@ def rotation_test(
             stays[s, k] = _correlate(turned[keep], original[keep], weights[keep])
             follows[s, k] = _correlate(turned[keep], moved[keep], weights[keep])
             selfsim[s, k] = _correlate(original[keep], moved[keep], weights[keep])
-    scores = stays - follows
-    powered = np.isfinite(selfsim) & (selfsim < max_self_similarity)
+    scores = _score(stays, follows, selfsim)
+    powered = np.isfinite(selfsim) & (np.abs(selfsim) < max_self_similarity)
     n_powered = powered.sum(axis=(0, 1))
     counted = powered & np.isfinite(scores)
     with np.errstate(invalid="ignore"):
