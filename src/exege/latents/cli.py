@@ -953,7 +953,8 @@ def associate_cmd(
     )
     click.echo(
         f"calibration: {_percent(result.calibration_label_rate)} labeled with a rotation as the "
-        f"data (q = {q:g}); null |skew| {_number(shape['median_abs_skew'], '.2f')}, excess "
+        f"data against {result.calibration_rotations} of its own rotations (q = {q:g}); null "
+        f"|skew| {_number(shape['median_abs_skew'], '.2f')}, excess "
         f"kurtosis {_number(shape['median_excess_kurtosis'], '+.2f')}\n"
     )
     rows = [

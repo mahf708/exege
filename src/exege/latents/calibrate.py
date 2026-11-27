@@ -25,7 +25,8 @@ the footprint. From there:
   rather than decided by a coin toss;
 - the whole labelling is run once more with one rotation (the one nearest half way
   round) as the data, where no association is real, against rotations *of that
-  rotation* by the same shifts -- the exact procedure, on an input with nothing in it --
+  rotation* by the same shifts, less those that would come back near the data -- the
+  exact procedure, on an input with nothing in it --
   and the share it labels is reported: it should sit near ``q`` or below, and if it does
   not, nothing else here is readable. (A narrow band of shifts, from a large
   ``min_shift_degrees``, is the usual way to fail it: the null then barely varies.)
@@ -232,7 +233,9 @@ class Association:
     field stands clear of the runner-up by ``gap_bar``), or ``"none"``.
     ``calibration_label_rate`` is the share of live columns the same procedure labels
     when one rotation is taken as the data, against its own rotations by the same shifts
-    (``calibration_shift`` is that rotation); ``null_shape`` is the median ``|skew|`` and
+    (``calibration_shift`` is that rotation, and ``calibration_rotations`` how many of its
+    own rotations stay ``min_shift_degrees`` from the data: fewer than the main null's);
+    ``null_shape`` is the median ``|skew|`` and
     excess kurtosis of the null, for how far a Gaussian p-value can be trusted.
     """
 
@@ -255,6 +258,7 @@ class Association:
     gap_bar: np.ndarray
     calibration_label_rate: float
     calibration_shift: int
+    calibration_rotations: int
     null_shape: dict[str, float]
 
     @property
@@ -309,6 +313,7 @@ class Association:
             "n_labeled": self.n_labeled,
             "calibration_label_rate": num(self.calibration_label_rate),
             "calibration_shift": self.calibration_shift,
+            "calibration_rotations": self.calibration_rotations,
             "null_shape": {k: num(v) for k, v in self.null_shape.items()},
             "columns": out,
         }
@@ -326,7 +331,7 @@ def calibration_shifts(
     again = []
     for k in shifts:
         at = (held + k) % n_lon
-        if min(at, n_lon - at) * spacing >= min_degrees - 1e-9:
+        if at != 0 and min(at, n_lon - at) * spacing >= min_degrees - 1e-9:
             again.append(at)
     if len(again) < MIN_ROTATIONS:
         raise RequestError(
@@ -505,5 +510,6 @@ def associate(
         gap_bar=main.gap_bar,
         calibration_label_rate=calibration,
         calibration_shift=int(held),
+        calibration_rotations=len(again),
         null_shape={"median_abs_skew": skew, "median_excess_kurtosis": kurtosis},
     )
