@@ -895,7 +895,13 @@ def _number(value, spec: str) -> str:
 @click.option("--min-shift-degrees", type=float, default=30.0, show_default=True,
               help="No rotation moves the map less than this, either way round.")  # fmt: skip
 @click.option("--q", type=float, default=0.05, show_default=True,
-              help="False-discovery rate, across every column and field.")  # fmt: skip
+              help="False-discovery rate, across every column and field (with --null "
+              "orbit: each column's chance of a false label).")  # fmt: skip
+@click.option("--null", "null", type=click.Choice(["rotations", "orbit"]), default="rotations",
+              show_default=True,
+              help="rotations: a Gaussian z against --rotations shifts, Benjamini-Hochberg "
+              "across the table. orbit: every shift of the grid, and each column's best field "
+              "ranked against the whole orbit, with no Gaussian tail.")  # fmt: skip
 @_threshold_option
 @_lead_option
 @click.option("--top", type=int, default=20, show_default=True, help="Columns to print.")
@@ -904,7 +910,8 @@ def _number(value, spec: str) -> str:
 @_json_option
 def associate_cmd(
     source, adapter, mask_variable, layer, basis_path, features, channels, fields, times,
-    rotations, min_shift_degrees, q, threshold, lead, top, out, allow_unverified_basis, as_json,
+    rotations, min_shift_degrees, q, null, threshold, lead, top, out, allow_unverified_basis,
+    as_json,
 ):  # fmt: skip
     """Label each channel (or feature) by the field it goes with, against chance.
 
@@ -937,6 +944,7 @@ def associate_cmd(
         q=q,
         lead=lead,
         allow_unverified_basis=allow_unverified_basis,
+        null=null,
     )
     if out:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
@@ -948,8 +956,13 @@ def associate_cmd(
     s, shape = result.settings, result.null_shape
     click.echo(
         f"{s['columns']} of layer {s['layer']} against {len(result.fields)} field(s), "
-        f"{len(s['times'])} time(s), {len(result.shifts)} rotation(s): "
-        f"{result.n_labeled} of {len(result.columns)} labeled at q = {q:g}"
+        f"{len(s['times'])} time(s), "
+        + (
+            f"the whole orbit of {result.calibration_rotations} shifts: "
+            if null == "orbit"
+            else f"{len(result.shifts)} rotation(s): "
+        )
+        + f"{result.n_labeled} of {len(result.columns)} labeled at q = {q:g}"
     )
     click.echo(
         f"calibration: {_percent(result.calibration_label_rate)} labeled with a rotation as the "
@@ -963,6 +976,7 @@ def associate_cmd(
             "z": _number(c["z"], "+.1f"), "p": _number(c["p"], ".2g"),
             "gap": _number(c["gap"], ".1f"), "bar": _number(c["gap_bar"], ".1f"),
             "coverage": _number(c["coverage"], ".3f"),
+            **({"p_orbit": _number(c["p_orbit"], ".3g")} if null == "orbit" else {}),
         }
         for c in summary["columns"]
     ]  # fmt: skip

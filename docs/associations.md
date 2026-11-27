@@ -99,6 +99,59 @@ An effect of +1.07 standard deviations in sea-surface temperature looked like so
 in the profile alone. Against its rotations it is nothing: the storm sits at 10 N, where
 the sea is warm at every longitude.
 
+## The orbit null
+
+`--null orbit` asks a different question from the default rotations. It reads the
+statistic at every shift of the grid, all `n_lon` of them, and tests each column as a
+whole. Within each pair (column, field), the statistic is standardized over its orbit.
+At every shift, its size is taken against the shifts at least `--min-shift-degrees` away
+from that shift; the same neighbourhood is left out at every shift, the data's included.
+A column's severity is its best field's size plus that field's lead over the runner-up.
+Its `p_orbit` is the share of the `n_lon` shifts whose severity is at least the data's.
+
+There is no Gaussian tail, and no shift is special. If every alignment round the circle
+is as likely as the data's, a column gets `p_orbit <= q` with probability at most `q`.
+So `q` is now each column's chance of a false label, not a false-discovery rate across
+the table. A column is labeled with its best field at `p_orbit <= q` and a positive lead.
+The sums at every shift come from one FFT along each latitude row (a shift is a circular
+cross-correlation), so the whole orbit costs little more than 64 rotations. The
+calibration takes the shift half way round as the data, and should read near `q` or
+below.
+
+On ACE's latents (20 times, 39 fields), compared with the default:
+
+| layer | null | labeled | calibration |
+|---|---|---|---|
+| 8 | rotations | 537 of 1024 | 10.0% |
+| 8 | orbit | 586 of 1024 | 1.7% |
+| 0 | rotations | 365 of 1024 | 12.2% |
+| 0 | orbit | 326 of 1024 | 4.1% |
+
+Layer-8 feature 242 is still labeled with precipitation (`p_orbit` = 3/360). Layer-0
+feature 142, which follows incoming sunlight, is still not labeled with it: its best
+`SOLIN` size is that of a field of one wave, and 10-m wind wins, at `p_orbit` = 0.05.
+On fields with nothing in common (random east-west waves up to wavenumber 1, 4 or 30),
+the orbit labels 3–5% of columns at `q` = 0.05.
+
+The guarantee holds only as far as every alignment is as likely as the data's. Fixed
+geography breaks that: a land-sea pattern in a field lines up with a feature tied to land
+at shift 0 and nowhere else, so the association is real and the orbit labels it. That is
+an association with geography, not with weather. To ask about weather alone, give the
+command anomaly fields (each node's time mean removed). On ACE's 30-day archive (block 4,
+seven weather fields, 24 times), set against the weather 24 days later:
+
+| fields | null | labeled at lag 0 | labeled at 24 days |
+|---|---|---|---|
+| as they are | rotations | 364 | 140 |
+| as they are | orbit | 300 | 114 |
+| anomalies | rotations | 392 | 83 |
+| anomalies | orbit | 382 | 77 |
+
+Most of what the raw fields keep 24 days on goes with sensible heat flux, 2-m temperature
+and the trade winds, the fields with fixed geography, and removing each node's mean takes
+it away. What is left, 7–8%, includes weather slow enough to last 24 days, and the
+anomalies are about a 30-day mean, so this is close to a null but not one.
+
 ## What the null cannot see
 
 It tests east-west alignment and nothing else. A feature and a field that are both

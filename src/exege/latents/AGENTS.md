@@ -18,7 +18,7 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
 | `rotation.py` | `Rotatable`, and whether a column moves with the weather or stays where the model put it when named parts of the input are turned |
 | `record.py` | the experiment record: a versioned, compact JSON file of one evaluation or steering run, its loader, and the writers the commands call |
 | `features.py` | a feature without a field in mind: a census of a layer, one feature's profile |
-| `calibrate.py` | which field each feature goes with, against a longitude-rotation null: z-scores, Benjamini-Hochberg, labels with a runner-up bar, and their calibration on null input |
+| `calibrate.py` | which field each feature goes with, against a longitude-rotation null: z-scores, Benjamini-Hochberg, labels with a runner-up bar, and their calibration on null input; or (`null="orbit"`) every shift by FFT and each column ranked against its whole orbit |
 | `stationary.py` | what is fixed in place: each column's variance split into its per-node time mean and the rest, the fixed part fitted on latitude rows and static fields |
 | `gap.py` | a free run against a teacher-forced one of the same network: each column's mean, coverage and strength in both, time by time |
 | `cli.py` | `exege latents …`, a thin client of the above |

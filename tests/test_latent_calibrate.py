@@ -393,3 +393,77 @@ def test_the_calibration_null_never_comes_back_to_the_data(n_lon, min_degrees):
     assert abs(held * spacing - 180.0) <= spacing * max(1, n_lon // 64)
     assert len(again) >= 4 and 0 not in again
     assert all(min(a, n_lon - a) * spacing >= min_degrees - 1e-9 for a in again)
+
+
+# -- the orbit null ------------------------------------------------------------------
+
+
+class _Smooth(TinySource):
+    """12 rows by 72 columns, one field and many channels, each a sum of random
+    east-west waves up to wavenumber ``kmax``; nothing goes with anything."""
+
+    def __init__(self, rng, kmax, n_channels=40, field=None, h=None, mask=None):
+        lat, lon = np.meshgrid(np.linspace(-80, 80, 12), np.arange(72) * 5.0, indexing="ij")
+        self._grid = Grid(lat=lat.ravel(), lon=lon.ravel(), shape=(12, 72), mask=mask)
+
+        def smooth():
+            out = np.zeros(lat.shape)
+            for k in range(1, kmax + 1):
+                phase = rng.uniform(0, 2 * np.pi, (12, 1))
+                out += rng.normal(size=(12, 1)) * np.cos(np.radians(k * lon) + phase)
+            return out.ravel()
+
+        self._field = smooth() if field is None else field
+        self._h = (np.stack([smooth() for _ in range(n_channels)], 1) if h is None else h).astype(
+            np.float32
+        )
+        self._info = LatentInfo(
+            source="smooth", times=("t0",), layers=(LayerInfo(0, "x", self._h.shape[1]),),
+            n_nodes=lat.size, model="m", component="c", checkpoint="k",
+        )  # fmt: skip
+
+
+def test_the_orbit_reads_the_same_statistic_as_the_rotations():
+    source = _Smooth(np.random.default_rng(0), 4)
+    rotations, orbit = associate(source, layer=0), associate(source, layer=0, null="orbit")
+    np.testing.assert_allclose(orbit.statistic, rotations.statistic, atol=1e-7)
+    np.testing.assert_allclose(orbit.null_mean, rotations.null_mean, atol=1e-7)
+    assert orbit.settings["null"] == "orbit" and orbit.calibration_rotations == 72
+    assert orbit.feature_p is not None and rotations.feature_p is None
+
+
+@pytest.mark.parametrize("kmax", [1, 4, 30])
+def test_the_orbit_labels_independent_columns_at_about_q(kmax):
+    """Wave-one, smooth and rough fields alike: the share of columns labeled when nothing
+    goes with anything stays near q (here, pooled over 10 independent draws)."""
+    rng = np.random.default_rng(kmax)
+    labeled = [associate(_Smooth(rng, kmax), layer=0, null="orbit").n_labeled for _ in range(10)]
+    assert np.mean(labeled) / 40 <= 0.09
+
+
+def test_the_orbit_finds_a_planted_association():
+    rng = np.random.default_rng(5)
+    source = _Smooth(rng, 4, n_channels=8)
+    h = source._h.copy()
+    h[:, 0] = np.maximum(source._field, 0.0) + 0.1 * rng.normal(size=source._field.size)
+    planted = _Smooth(rng, 4, field=source._field, h=h)
+    result = associate(planted, layer=0, null="orbit")
+    assert result.label[0] == "f" and result.feature_p[0] <= 0.05
+
+
+def test_the_orbit_respects_the_mask():
+    rng = np.random.default_rng(6)
+    mask = np.ones(12 * 72, dtype=bool)
+    mask[:200] = False
+    source = _Smooth(rng, 4, mask=mask)
+    plain = _Smooth(np.random.default_rng(6), 4, mask=mask)
+    np.testing.assert_allclose(
+        associate(source, layer=0, null="orbit").statistic,
+        associate(plain, layer=0).statistic,
+        atol=1e-7,
+    )
+
+
+def test_an_unknown_null_is_refused():
+    with pytest.raises(RequestError, match="null must be"):
+        associate(_Smooth(np.random.default_rng(0), 2), layer=0, null="gaussian")
