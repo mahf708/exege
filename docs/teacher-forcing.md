@@ -76,11 +76,14 @@ what the network computes, not in the weather. It points at what to steer, or wh
 for in the fields, not at a fix.
 
 A deficit needs a noise floor before it means anything. Run `gap` between two runs that
-differ only in their noise seed and read the deficits there first. On ACE's last block,
-five days apart, the seeds alone differ by deficits of 0.12–0.16 for well-covered SAE
-features. A feature of a sparse dictionary that fires over a handful of nodes reads a
-deficit near one, or far below zero, from noise alone: on the same seed pair, one active
-over 0.07% of the area topped the list at 0.41. Such features are ranked after the rest
+differ only in their noise seed and read the deficits there first. On ACE's last block
+over five days, four seed pairs give SAE features active over 1% or more of the area a
+median |deficit| of 0.017, a 95th percentile of 0.05–0.06, and a largest of 0.15–0.24, out
+of 763 features. Suppressing one feature (layer-8 feature 242, pushed by -3 at every node
+and step) gives it a deficit of 0.36, first in the list, against 0.002–0.033 for it under
+the seeds alone. A feature of a sparse dictionary that fires over a handful of nodes reads
+a deficit near one, or far below zero, from noise alone: on one seed pair, one active over
+0.07% of the area topped the list at 0.41. Such features are ranked after the rest
 (`--min-coverage`, 1% by default), though their numbers are still reported. The floor is
 for sparse features only; a channel or a PCA component swings both ways, and its
 coverage means less. Repeated `--time`s are refused, since a time named twice would
