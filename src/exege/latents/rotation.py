@@ -89,20 +89,24 @@ def _score(
     selfsim: np.ndarray,
     spread_stayed: np.ndarray | float = 1.0,
     spread_moved: np.ndarray | float = 1.0,
+    spread_turned: np.ndarray | float = 1.0,
 ) -> np.ndarray:
-    """How much of the turned map is the original where it was (``a``) against the
-    original turned along (``b``): the area-weighted regression of the one on the two, in
-    the column's own units, ``(a - b) / (|a| + |b|)``. A column that is a share ``alpha``
-    of the map that stayed and ``1 - alpha`` of the one that moved scores ``2 alpha - 1``
-    whatever the two maps' correlation (the self-similarity ``s``) and their spreads over
-    the nodes compared (``spread_*``, which a mask makes differ); stays less follows would
-    be ``(2 alpha - 1)(1 - s)``, which reads a half-anchored column as anchored on a shift
-    where ``s`` is negative."""
+    """How much of the turned map is the original where it was against the original turned
+    along: the area-weighted regression of the one on the two, in the column's own units,
+    ``turned ~ a * stayed + b * moved``, read as ``(a+ - b+) / max(|a| + |b|, 1)`` with
+    ``x+ = max(x, 0)``. A column that is a share ``alpha`` of each scores ``2 alpha - 1``
+    whatever the maps' correlation (the self-similarity ``s``) and spreads (``spread_*``, over
+    the nodes compared, which a mask makes differ). What the two maps do not explain scores
+    near 0, not +-1: a turned map that is noise (``a``, ``b`` near 0), or minus the moved map
+    (``b`` = -1, which neither stayed nor followed), is not anchored; one that stayed but
+    weakened scores its remaining size. Stays less follows would be ``(2 alpha - 1)(1 - s)``,
+    which reads a half-anchored column as anchored on a shift where ``s`` is negative."""
     with np.errstate(invalid="ignore", divide="ignore"):
-        # standardized coefficients, both over 1 - s^2 (which cancels), less each map's spread
-        a = (stays - selfsim * follows) / spread_stayed
-        b = (follows - selfsim * stays) / spread_moved
-        return (a - b) / (np.abs(a) + np.abs(b))
+        # standardized coefficients over 1 - s^2, then into the column's own units
+        a = (stays - selfsim * follows) / (1.0 - selfsim**2) * spread_turned / spread_stayed
+        b = (follows - selfsim * stays) / (1.0 - selfsim**2) * spread_turned / spread_moved
+        size = np.maximum(np.abs(a) + np.abs(b), 1.0)
+        return (np.maximum(a, 0.0) - np.maximum(b, 0.0)) / size
 
 
 def _spread(values: np.ndarray, weights: np.ndarray) -> np.ndarray:
@@ -160,7 +164,7 @@ class RotationTest:
     def powered(self) -> np.ndarray:
         """Which starts and shifts have power for each column."""
         sim = self.self_similarity
-        return np.isfinite(sim) & (sim < self.settings["max_self_similarity"])
+        return np.isfinite(sim) & (np.abs(sim) < self.settings["max_self_similarity"])
 
     def ranked(self) -> np.ndarray:
         """Positions into ``columns``, the most anchored first; no power last."""
@@ -265,6 +269,7 @@ def rotation_test(
     shape = (len(starts), len(turns), len(chosen))
     stays, follows, selfsim = np.full(shape, np.nan), np.full(shape, np.nan), np.full(shape, np.nan)
     spread_stayed, spread_moved = np.full(shape, np.nan), np.full(shape, np.nan)
+    spread_turned = np.full(shape, np.nan)
     for s, start in enumerate(starts):
         state = system.initial_state(start)
         original = read(state)
@@ -278,7 +283,8 @@ def rotation_test(
             selfsim[s, k] = _correlate(original[keep], moved[keep], weights[keep])
             spread_stayed[s, k] = _spread(original[keep], weights[keep])
             spread_moved[s, k] = _spread(moved[keep], weights[keep])
-    scores = _score(stays, follows, selfsim, spread_stayed, spread_moved)
+            spread_turned[s, k] = _spread(turned[keep], weights[keep])
+    scores = _score(stays, follows, selfsim, spread_stayed, spread_moved, spread_turned)
     powered = np.isfinite(selfsim) & (np.abs(selfsim) < max_self_similarity)
     n_powered = powered.sum(axis=(0, 1))
     counted = powered & np.isfinite(scores)

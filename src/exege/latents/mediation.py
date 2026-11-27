@@ -35,6 +35,7 @@ from exege.latents.steering import (
     Outcome,
     Rollout,
     Steer,
+    _check_applied,
     _guarded,
     _plan,
     _reduce,
@@ -117,7 +118,8 @@ class MediationResult:
 
     @property
     def held(self) -> bool:
-        return self.hold_rms < 0.1 * self.mediator_change
+        # a mediator the steer never moved needs no holding, and a hold that missed nothing held
+        return self.hold_rms == 0.0 or self.hold_rms < 0.1 * self.mediator_change
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -321,10 +323,14 @@ def run_mediation(
         infinitely inexact."""
         a = np.asarray(a, dtype=np.float64)[..., valid]
         b = np.asarray(b, dtype=np.float64)[..., valid]
-        ok = np.isfinite(a)
-        if (ok != np.isfinite(b)).any():
-            return float("inf")
-        if not ok.all() and not np.array_equal(a[~ok], b[~ok], equal_nan=True):
+        ok, missing = np.isfinite(a), np.isnan(a)
+        # NaN at the same places in both is the same; an infinity anywhere, or a NaN in one
+        # run only, is not
+        if (
+            not (ok | missing).all()
+            or (missing != np.isnan(b)).any()
+            or not np.isfinite(b[ok]).all()
+        ):
             return float("inf")
         return float(np.abs(a[ok] - b[ok]).max()) if ok.any() else 0.0
 
@@ -340,14 +346,18 @@ def run_mediation(
                      grid.valid)
             for t in hold_times
         ]  # fmt: skip
-        steering = plan.hooks(steer, plan.direction, control)
+        applied = {TOTAL: {}, DIRECT: {}}  # what each steered run's edit did, to check it ran
         runs = {
-            TOTAL: steering,
-            DIRECT: _compose([*steering, *holds]),
+            TOTAL: plan.hooks(steer, plan.direction, control, applied=applied[TOTAL]),
+            DIRECT: _compose(
+                [*plan.hooks(steer, plan.direction, control, applied=applied[DIRECT]), *holds]
+            ),
             HOLD: holds,
         }
         for arm, hooks in runs.items():
             rollout = plan.run(state, hooks, seed, check_finite=arm != HOLD)
+            if arm in applied:
+                _check_applied(plan, applied[arm])
             if arm == HOLD:
                 for name in names:  # the fields measured, held to the steering rule
                     exactness = max(exactness, gap(rollout.fields[name], control.fields[name]))

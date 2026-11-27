@@ -491,3 +491,45 @@ def test_the_score_reads_the_share_in_the_columns_own_units():
         _correlate(col(stayed), col(moved), w), _spread(col(stayed), w), _spread(col(moved), w),
     )  # fmt: skip
     assert score[0] == pytest.approx(0.0, abs=0.02)
+
+
+def test_what_the_two_maps_do_not_explain_is_not_anchored():
+    """A turned map that is noise, or minus the moved map, neither stayed nor followed: it
+    scores near 0, never +1 (as a ratio of two near-zero coefficients would)."""
+    from exege.latents.rotation import _correlate, _score, _spread
+
+    rng = np.random.default_rng(2)
+    n = 20000
+    w = np.ones(n)
+    col = lambda v: v[:, None]  # noqa: E731
+
+    def score(turned, stayed, moved):
+        return _score(
+            _correlate(col(turned), col(stayed), w), _correlate(col(turned), col(moved), w),
+            _correlate(col(stayed), col(moved), w), _spread(col(stayed), w),
+            _spread(col(moved), w), _spread(col(turned), w),
+        )[0]  # fmt: skip
+
+    stayed, moved = rng.normal(size=n), rng.normal(size=n)
+    noise = [score(rng.normal(size=n), stayed, moved) for _ in range(200)]
+    assert max(abs(v) for v in noise) < 0.1
+    assert score(-moved, stayed, moved) == pytest.approx(0.0, abs=0.02)
+    assert score(stayed, stayed, moved) == pytest.approx(1.0, abs=1e-6)
+    assert score(moved, stayed, moved) == pytest.approx(-1.0, abs=1e-6)
+
+
+def test_power_and_the_summary_agree_on_which_shifts_count():
+    sym = ToyDynamics(n_lat=8, n_lon=12)
+    state = sym.initial_state().copy()
+    state[:, 3] = np.cos(2.0 * np.radians(sym.grid().lon))
+    sym.initial_state = lambda start=0: state
+    result = rotation_test(sym, layer=0, shifts=[90.0], columns=[0])
+    assert result.powered.sum() == 0 == result.n_powered[0]
+    assert result.summary()["columns"][0]["stays"] is None
+
+
+def test_a_mediator_the_steer_never_moved_needs_no_holding():
+    from exege.latents.mediation import MediationResult
+
+    base = {"spec": {}, "provenance": {}, "effects": {}, "exactness": 0.0, "responses": {}}
+    assert MediationResult(mediator_change=0.0, hold_rms=0.0, **base).held
