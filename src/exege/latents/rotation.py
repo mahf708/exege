@@ -20,10 +20,12 @@ For each column (a channel, or a feature of a basis) and each shift:
 - ``stays``   the correlation, over nodes, of the turned run's map with the original map
               where it was;
 - ``follows`` its correlation with the original map turned by the same shift;
-- ``score``   ``stays - follows``: near +1 stays put, near -1 moves with the weather;
+- ``score``   the turned map regressed on the two (``_score``): +1 stays put, -1 moves
+              with the weather, ``2 alpha - 1`` for a share ``alpha`` of each, near 0 for
+              what neither explains;
 - ``self``    the original map's correlation with itself turned: a pattern that maps onto
-              itself (a zonal band) cannot say which it does, and that shift has no power
-              for it.
+              itself (a zonal band), or onto its own opposite, cannot say which it does,
+              and that shift has no power for it.
 
 Correlations are area-weighted, over nodes valid where they are and where they came from.
 Needs the ``latents`` extra.

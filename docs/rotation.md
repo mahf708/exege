@@ -72,21 +72,22 @@ $ exege latents rotate --adapter toy-dynamics --adapter-option positional=5 \
 channels of layer 0 at time 0, turned 60, 180, 300 degrees east; parts turned: state, static
 
 CHANNEL  SCORE  STAYS  FOLLOWS  POWERED  ANCHORED
-3        +1.03  +0.98  -0.05    6        yes
-1        -0.94  +0.06  +1.00    6        -
-2        -0.94  +0.06  +1.00    6        -
-0        -1.03  -0.03  +1.00    6        -
+3        +0.98  +0.98  -0.05    6        yes
+0        -1.00  -0.03  +1.00    6        -
+1        -1.00  +0.06  +1.00    6        -
+2        -1.00  +0.06  +1.00    6        -
 $ ... --part state
 channels of layer 0 at time 0, turned 60, 180, 300 degrees east; parts turned: state
 
 CHANNEL  SCORE  STAYS  FOLLOWS  POWERED  ANCHORED
-3        +1.03  +0.98  -0.05    6        yes
-2        +0.90  +0.97  +0.07    6        yes
-1        -0.94  +0.06  +1.00    6        -
-0        -1.03  -0.03  +1.00    6        -
+3        +0.98  +0.98  -0.05    6        yes
+2        +0.95  +0.97  +0.07    6        yes
+0        -1.00  -0.03  +1.00    6        -
+1        -1.00  +0.06  +1.00    6        -
 ```
 
-Scores can pass 1 by the noise in a correlation over 96 nodes.
+Channels 0 to 2 follow the weather exactly (-1.00); channel 3's +0.98 is the fixed pattern
+less the little weather it also carries.
 
 ## What it does not say
 

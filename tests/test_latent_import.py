@@ -27,7 +27,6 @@ from exege.latents import (  # noqa: E402
     feature_direction,
     load_basis,
     open_source,
-    run_steering,
     save_basis,
     token_normalized_dictionary,
 )
@@ -233,9 +232,13 @@ def test_its_explained_variance_is_about_the_mean_of_what_is_measured():
     assert metrics.mean_active_features == 0.0
 
 
-def test_a_token_dictionary_steers_in_raw_units():
-    """Adding along a feature whose decoder row is channel 0 is the planted edit, so it
-    gives exactly the planted dictionary's response."""
+def test_a_token_dictionary_steers_by_what_its_decoder_writes():
+    """Its decoder writes the normalized node, so a change ``a`` in activation moves each
+    raw node by ``a`` times that node's own length: the published hook's ``x + a * d`` is
+    ``add`` with ``a / |x - mean(x)|``. A token steer that adds 1.5 along channel 0 gives
+    the planted dictionary's response to adding 1.5 times each node's length."""
+    from exege.latents.steering import _plan
+
     system = ToyDynamics()
     planted = system.planted_dictionary()
     frame = np.eye(4, dtype=np.float32)[:3]
@@ -243,11 +246,17 @@ def test_a_token_dictionary_steers_in_raw_units():
         frame, frame, np.zeros(4), 2, meta={"fitted_on": dict(planted.meta["fitted_on"])}
     )
     steer = Steer(layer=1, feature=0, amount=1.5, times=(1,))
-    common = {"steps": 5, "seeds": (0,), "n_random": 3}
-    ours = run_steering(system, token, steer, **common).effects["temperature"]
-    theirs = run_steering(system, planted, steer, **common).effects["temperature"]
-    assert ours.feature_response == pytest.approx(theirs.feature_response)
-    assert ours.feature_response == pytest.approx(1.5 * 2.0 * (1 + 0.5 + 0.25 + 0.125) / 4)
+    plan = _plan(system, token, steer, steps=3, seeds=(0,), fields=None)
+    state = system.initial_state(0)
+    control = plan.run(state, (), 0)
+    h = control.latents[(1, 1)].astype(np.float64)
+    lengths = np.linalg.norm(h - h.mean(axis=1, keepdims=True), axis=1)
+    steered = plan.run(state, plan.hooks(steer, plan.direction, control), 0)
+    moved = steered.latents[(1, 1)] - control.latents[(1, 1)]
+    valid = system.grid().valid
+    np.testing.assert_allclose(moved[valid, 0], 1.5 * lengths[valid], rtol=1e-5)
+    np.testing.assert_allclose(moved[valid, 1:], 0.0, atol=1e-6)
+    assert lengths[valid].std() > 0.0  # the length differs node to node: not one scale
 
 
 # -- the command --------------------------------------------------------------------
