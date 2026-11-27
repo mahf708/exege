@@ -319,8 +319,9 @@ class Dictionary:
         if self.input_norm not in INPUT_NORMS:
             raise ValueError(f"input_norm must be one of {', '.join(INPUT_NORMS)}")
         if self.input_norm == "token":
-            # Each node is rescaled by its own length, which no mean and scale can undo:
-            # the decoder writes raw units, and nothing here may pretend otherwise.
+            # Each node is rescaled by its own length, which no one mean and scale can undo:
+            # the decoder writes the normalized node, and decode_nodes puts each node's own
+            # mean and length back.
             if np.any(np.asarray(self.input_mean) != 0.0) or self.input_scale != 1.0:
                 raise ValueError("a token-normalized dictionary has input_mean 0 and input_scale 1")
             if self.output_mean is not None or self.output_scale is not None:
