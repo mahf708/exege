@@ -410,7 +410,7 @@ def import_sae_cmd(
 
     PATH is an .npz holding an encoder, a decoder and a pre-bias, for a dictionary that
     centers each node's channels and divides them by their length before encoding, and
-    decodes into the layer's raw units (the public GraphCast dictionary is one).
+    is trained to rebuild that normalized node (the public GraphCast dictionary is one).
     """
     import hashlib
 
