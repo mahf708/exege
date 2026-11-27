@@ -38,7 +38,13 @@ from exege.core import registry
 from exege.core.errors import AdapterError, RequestError
 from exege.core.extras import missing_extra
 from exege.latents.analysis import AnyRegion
-from exege.latents.basis import Decomposition, Dictionary, basis_provenance, result_provenance
+from exege.latents.basis import (
+    Decomposition,
+    Dictionary,
+    _token_frame,
+    basis_provenance,
+    result_provenance,
+)
 from exege.latents.grid import Grid, node_digest
 from exege.latents.source import LatentInfo, check_basis_fits
 
@@ -162,6 +168,17 @@ def feature_direction(basis: Decomposition, feature: int) -> np.ndarray:
     return direction * _scale_of(basis)
 
 
+def node_lengths(basis: Decomposition, latents: np.ndarray) -> np.ndarray:
+    """What the basis's decode writes, per node, for a unit of activation along a
+    direction from ``feature_direction``: one, except for a token-normalized dictionary,
+    whose decoder writes the *normalized* node, put back into raw units by each node's own
+    length (``|x - mean(x)|``, read from ``latents``). ``(n_nodes,)`` float64."""
+    if isinstance(basis, Dictionary) and basis.input_norm == "token":
+        _, length = _token_frame(np.asarray(latents, dtype=np.float64))
+        return length[:, 0]
+    return np.ones(np.shape(latents)[0])
+
+
 def array_digest(values: np.ndarray) -> str:
     """SHA-256 of an array's dtype, shape and bytes: names a reference without holding it."""
     array = np.ascontiguousarray(values)
@@ -189,8 +206,11 @@ class Steer:
     ``reference`` is one value per node (``feature_reference`` reads one from an
     archive) and ``reference_meta`` says where it came from; only ``toward`` and
     ``excess`` take one. Each mode is, node by node, a change ``delta`` in the
-    activation, and the layer moves by ``delta * direction``. ``nodes`` restricts the
-    edit to those nodes (None: every node).
+    activation, and the layer moves by what the decoder writes for it (``moves``):
+    ``delta * direction``, and for a token-normalized dictionary, whose decoder writes the
+    normalized node, that times the node's own length (``node_lengths``), so a mode means
+    the same whatever the dictionary's input normalization. ``nodes`` restricts the edit
+    to those nodes (None: every node).
 
     ``loop`` says what ``delta`` is worked out from. ``open`` (the default): the
     control's latents, so every arm of a seed changes the same nodes by the same amounts
@@ -198,7 +218,8 @@ class Steer:
     latents the arm itself produced, at the moment of the edit, so an edit acting at
     several steps reads what its earlier edits did -- the way steering inside a model's
     own forward pass works, and the way an amplification compounds. For ``add`` the two
-    agree.
+    agree, except on a token-normalized dictionary, where each node's length is read from
+    the latents the move is worked out from.
     """
 
     layer: int
@@ -261,6 +282,12 @@ class Steer:
             kept[list(self.nodes)] = True
             delta = np.where(kept, delta, 0.0)
         return delta
+
+    def moves(self, basis: Decomposition, latents: np.ndarray) -> np.ndarray:
+        """How far the layer moves along the feature's direction at each node, ``(n_nodes,)``
+        float64: ``deltas`` times ``node_lengths`` (one, except for a token-normalized
+        dictionary)."""
+        return self.deltas(basis, latents) * node_lengths(basis, latents)
 
     def to_dict(self) -> dict[str, Any]:
         reference = None
@@ -569,7 +596,8 @@ class _Plan:
     ) -> list[Hook]:
         """The edits of one arm: the reconstruction (``vector`` None), or a ``delta`` along
         ``vector``. The delta is ``given[t]`` when given; otherwise ``steer``'s, worked out
-        as ``steer.loop`` says. ``applied`` collects, per time, the delta actually used."""
+        as ``steer.loop`` says (``Steer.moves``). ``applied`` collects, per time, the move
+        actually used."""
         valid, layer, basis = self.grid.valid, steer.layer, self.basis
         hooks = []
         for t in self.times:
@@ -578,7 +606,7 @@ class _Plan:
             elif given is not None:
                 edit = _along(given[t], vector, applied, t)
             elif steer.loop == "open":
-                deltas = steer.deltas(basis, control.latents[(layer, t)])
+                deltas = steer.moves(basis, control.latents[(layer, t)])
                 edit = _along(deltas, vector, applied, t)
             else:
                 edit = _closed(basis, steer, vector, applied, t)
@@ -727,7 +755,8 @@ def contributions(
     """What each feature of ``basis`` carries where ``steer`` acts: its activation's
     magnitude, area-weighted over the valid nodes the steer edits and summed over the
     times given (``latents[t]`` is the layer at time ``t``), times the length of its
-    direction -- a feature's size is what it contributes. ``(n_features,)``."""
+    direction (and, for a token-normalized dictionary, of each node) -- a feature's size
+    is what it contributes. ``(n_features,)``."""
     nodes = np.flatnonzero(_acting(steer, grid))
     weights = grid.weights()[nodes]
     total = np.zeros(basis.n_features)
@@ -735,6 +764,7 @@ def contributions(
         for start in range(0, nodes.size, _BLOCK):
             block = nodes[start : start + _BLOCK]
             active = np.abs(basis.transform(values[block]))
+            active *= node_lengths(basis, values[block])[:, None]
             if not np.isfinite(active).all():
                 raise RequestError(
                     "the basis returned activations that are not finite where the edit acts"
@@ -965,7 +995,7 @@ def _along(deltas: np.ndarray, vector: np.ndarray, applied=None, time: int = 0):
 
 def _closed(basis: Decomposition, steer: Steer, vector: np.ndarray, applied=None, time: int = 0):
     def edit(latents: np.ndarray) -> np.ndarray:
-        deltas = steer.deltas(basis, latents)
+        deltas = steer.moves(basis, latents)
         _note(applied, time, deltas)
         return _moved(latents, deltas, vector)
 

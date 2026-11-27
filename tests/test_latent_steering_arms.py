@@ -643,3 +643,54 @@ def test_a_dose_curve_refuses_an_adapter_that_skips_the_edit():
     steer = Steer(layer=1, feature=0, mode="scale", amount=2.0, times=(1,))
     with pytest.raises(RequestError, match="every time asked for"):
         dose_curve(system, system.planted_dictionary(), steer, [0.0, 2.0], steps=STEPS)
+
+
+# -- token-normalized dictionaries -----------------------------------------------------
+
+
+def _token_dictionary(seed=0, channels=32, features=96, k=8):
+    from exege.latents.basis import token_normalized_dictionary
+
+    rng = np.random.default_rng(seed)
+    encoder = rng.normal(size=(features, channels)) / np.sqrt(channels)
+    decoder = encoder / np.linalg.norm(encoder, axis=1, keepdims=True)
+    basis = token_normalized_dictionary(
+        encoder.astype(np.float32), decoder.astype(np.float32), np.zeros(channels, np.float32), k
+    )
+    nodes = (rng.normal(size=(400, channels)) * 3.0 + 1.0).astype(np.float32)
+    return basis, nodes
+
+
+def test_a_token_dictionary_moves_the_layer_by_what_its_decoder_writes():
+    """Its decoder writes the normalized node, which each node's own length puts back into
+    raw units: a change in activation moves the raw node by that much more."""
+    from exege.latents.steering import Steer, feature_direction, node_lengths
+
+    basis, x = _token_dictionary()
+    active = basis.transform(x)
+    feature = int(np.argmax((active > 0).sum(axis=0)))
+    steer = Steer(layer=0, feature=feature, mode="clamp", amount=0.0)
+    lengths = np.linalg.norm(x - x.mean(axis=1, keepdims=True), axis=1)
+    np.testing.assert_allclose(node_lengths(basis, x), lengths, rtol=1e-5)
+    np.testing.assert_allclose(steer.moves(basis, x), steer.deltas(basis, x) * lengths, rtol=1e-5)
+    # the move is what decode_nodes writes when the activation is changed, node by node
+    zeroed = active.copy()
+    zeroed[:, feature] = 0.0
+    written = basis.decode_nodes(zeroed, x) - basis.decode_nodes(active, x)
+    moved = steer.moves(basis, x)[:, None] * feature_direction(basis, feature)[None, :]
+    np.testing.assert_allclose(moved, written, atol=1e-4)
+    # and, re-encoded, the feature is gone where it was on (it kept ~90% before the fix)
+    on = active[:, feature] > 0
+    after = basis.transform((x + moved).astype(np.float32))[:, feature]
+    assert np.abs(after[on]).max() < 0.05 * active[on, feature].mean()
+
+
+def test_a_standard_dictionary_moves_by_the_delta_alone():
+    from exege.latents.steering import Steer, node_lengths
+
+    basis = _identity_dictionary(_archive())
+    x = np.random.default_rng(1).normal(size=(10, 3)).astype(np.float32) * 5.0
+    np.testing.assert_array_equal(node_lengths(basis, x), np.ones(10))
+    for mode, amount in (("add", 1.5), ("clamp", 0.0)):
+        steer = Steer(layer=0, feature=0, mode=mode, amount=amount)
+        np.testing.assert_array_equal(steer.moves(basis, x), steer.deltas(basis, x))

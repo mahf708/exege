@@ -346,8 +346,10 @@ class Dictionary:
     ``token_normalized_dictionary``). Such a dictionary was trained to rebuild the
     *normalized* node, so ``decode`` writes normalized units; ``reconstruct``, which
     has the nodes in hand, puts each node's own mean and length back. ``input_mean``
-    is zero and ``input_scale`` one, and a decoder row is the direction a steer moves
-    the layer along, unscaled, as the published hook for such dictionaries does.
+    is zero and ``input_scale`` one. A decoder row is the direction a steer moves the
+    layer along, and a change ``a`` in activation moves each node by ``a`` times that
+    node's own length, which is what the decoder writes for it in raw units (see
+    ``steering.node_lengths``).
     """
 
     encoder: np.ndarray
