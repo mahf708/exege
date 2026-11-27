@@ -621,3 +621,25 @@ def test_an_adapter_that_skips_the_features_edit_is_refused():
     steer = Steer(layer=1, feature=0, mode="scale", amount=2.0, times=(1, 2), loop="closed")
     with pytest.raises(RequestError, match="every time asked for"):
         run_steering(system, system.planted_dictionary(), steer, steps=STEPS, n_random=1)
+
+
+def test_an_edit_called_twice_at_one_time_is_refused():
+    class Twice(ToyDynamics):
+        def run(self, state, steps, hooks=(), **kw):
+            return super().run(state, steps, [*hooks, *[h for h in hooks if h.time == 1]], **kw)
+
+    system = Twice(masked=3, gain=GAIN, decay=DECAY)
+    steer = Steer(layer=1, feature=0, mode="scale", amount=2.0, times=(1,))
+    with pytest.raises(RequestError, match="called twice"):
+        run_steering(system, system.planted_dictionary(), steer, steps=STEPS, n_random=1)
+
+
+def test_a_dose_curve_refuses_an_adapter_that_skips_the_edit():
+    class Skips(ToyDynamics):
+        def run(self, state, steps, hooks=(), **kw):
+            return super().run(state, steps, [h for h in hooks if h.time != 1], **kw)
+
+    system = Skips(masked=3, gain=GAIN, decay=DECAY)
+    steer = Steer(layer=1, feature=0, mode="scale", amount=2.0, times=(1,))
+    with pytest.raises(RequestError, match="every time asked for"):
+        dose_curve(system, system.planted_dictionary(), steer, [0.0, 2.0], steps=STEPS)

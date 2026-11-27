@@ -897,12 +897,8 @@ def run_steering(
             hooks = plan.hooks(arm_steer, vector, control, given=given,
                                applied=applied if arm == FEATURE else None)  # fmt: skip
             rollout = plan.run(state, hooks, seed)
-            if arm == FEATURE and set(applied) != set(plan.times):
-                raise RequestError(
-                    f"{plan.info.source} ran the feature's edit at time(s) {sorted(applied)}, not "
-                    f"at every time asked for, {list(plan.times)}: an adapter must call each hook "
-                    "once, at its layer and time"
-                )
+            if arm == FEATURE:
+                _check_applied(plan, applied)
             outcomes = _reduce(rollout.fields, names, grid, plan.steps, plan.outcome)
             differences = {n: outcomes[n] - series[n] for n in names}
             latent_rms = {p: _rms(rollout.latents[p] - control.latents[p], grid)
@@ -946,10 +942,22 @@ def _reconstruction(basis: Decomposition):
     return lambda latents: basis.reconstruct(latents).astype(latents.dtype)
 
 
+def _note(applied, time: int, deltas: np.ndarray) -> None:
+    """Keep the delta an arm's edit used at ``time``; an edit called twice at one time is an
+    adapter error (it would apply the steer twice), not something to average away."""
+    if applied is None:
+        return
+    if time in applied:
+        raise RequestError(
+            f"the edit at time {time} was called twice in one run: an adapter must call each "
+            "hook once, at its layer and time"
+        )
+    applied[time] = deltas
+
+
 def _along(deltas: np.ndarray, vector: np.ndarray, applied=None, time: int = 0):
     def edit(latents: np.ndarray) -> np.ndarray:
-        if applied is not None:
-            applied[time] = deltas
+        _note(applied, time, deltas)
         return _moved(latents, deltas, vector)
 
     return edit
@@ -958,11 +966,19 @@ def _along(deltas: np.ndarray, vector: np.ndarray, applied=None, time: int = 0):
 def _closed(basis: Decomposition, steer: Steer, vector: np.ndarray, applied=None, time: int = 0):
     def edit(latents: np.ndarray) -> np.ndarray:
         deltas = steer.deltas(basis, latents)
-        if applied is not None:
-            applied[time] = deltas
+        _note(applied, time, deltas)
         return _moved(latents, deltas, vector)
 
     return edit
+
+
+def _check_applied(plan: _Plan, applied: Mapping[int, np.ndarray]) -> None:
+    if set(applied) != set(plan.times):
+        raise RequestError(
+            f"{plan.info.source} ran the feature's edit at time(s) {sorted(applied)}, not at "
+            f"every time asked for, {list(plan.times)}: an adapter must call each hook once, "
+            "at its layer and time"
+        )
 
 
 def _moved(latents: np.ndarray, deltas: np.ndarray, direction: np.ndarray) -> np.ndarray:
@@ -1243,8 +1259,10 @@ def dose_curve(
                 for m, n in enumerate(names):
                     baseline[c, m] += _error(series[n], goal[n], plan.first) / len(plan.seeds)
             for a, amount in enumerate(amounts):
-                dosed = replace(plan.steer, amount=amount)
-                rollout = plan.run(state, plan.hooks(dosed, plan.direction, control), seed)
+                dosed, applied = replace(plan.steer, amount=amount), {}
+                hooks = plan.hooks(dosed, plan.direction, control, applied=applied)
+                rollout = plan.run(state, hooks, seed)
+                _check_applied(plan, applied)
                 outcomes = _reduce(rollout.fields, names, grid, plan.steps, plan.outcome)
                 for m, n in enumerate(names):
                     difference = outcomes[n] - series[n]

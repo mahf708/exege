@@ -195,3 +195,24 @@ def test_a_reference_is_read_at_the_archives_layer_in_the_same_network_place(pla
     same = [*args[: args.index("--reference-from") + 1], str(full),
             *args[args.index("--reference-from") + 2 :]]  # fmt: skip
     assert _invoke(args).splitlines()[:4] == _invoke(same).splitlines()[:4]
+
+
+def test_a_reference_from_another_network_is_refused(planted, tmp_path):
+    from exege.adapters.latent_archive import write_archive
+
+    path, _ = planted
+    system = ToyDynamics(masked=3)
+    info = system.info()
+    latents = system.run(system.initial_state(0), 1, (), noise_seed=0, record=[(1, 0)]).latents
+    other = write_archive(
+        tmp_path / "other", grid=system.grid(), times=["0001-01-01T00:00:00"],
+        layers=[("encoder", np.zeros_like(latents[(1, 0)])[None]),
+                ("mixed", latents[(1, 0)][None])],
+        model=info.model, component=info.component, checkpoint="another.ckpt",
+        calendar="noleap", timestep_seconds=21600, dtype="float32",
+    )  # fmt: skip
+    result = CliRunner().invoke(cli, [*_BASE, "--basis", str(path), "--mode", "toward",
+                                      "--amount", "1", "--reference-from", str(other),
+                                      "--reference-time", "0", "--random-draws", "2",
+                                      "--allow-unverified-basis"])  # fmt: skip
+    assert result.exit_code != 0 and "is not the network" in result.output

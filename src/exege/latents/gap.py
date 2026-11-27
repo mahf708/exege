@@ -24,7 +24,7 @@ from exege import __version__
 from exege.core.errors import RequestError
 from exege.core.extras import missing_extra
 from exege.latents.analysis import AnyRegion
-from exege.latents.basis import Decomposition, basis_provenance
+from exege.latents.basis import Decomposition, Dictionary, basis_provenance
 from exege.latents.source import (
     LatentSource,
     check_basis_fits,
@@ -90,14 +90,14 @@ class FeatureGap:
     def ranked(self, top: int | None = None) -> np.ndarray:
         """Positions into ``columns``, the one free running weakens most first; columns
         with no deficit to speak of (silent in the reference) come last, and so do
-        features active over less than ``settings["min_coverage"]`` of the reference's
-        area and time: a feature that fires at a handful of nodes reads a deficit near
-        one, or far below zero, from noise alone."""
+        features of a sparse dictionary active over less than ``settings["min_coverage"]``
+        of the reference's area and time: a feature that fires at a handful of nodes reads
+        a deficit near one, or far below zero, from noise alone."""
         key = np.nan_to_num(self.deficit, nan=-np.inf)
         floor = self.settings.get("min_coverage") or 0.0
-        common = np.ones(key.shape, dtype=bool)
-        if floor > 0.0 and self.settings.get("columns") == "features":
-            common = np.nan_to_num(self.coverage[0]) >= floor
+        common = np.isfinite(self.deficit)  # no deficit to speak of goes last, always
+        if floor > 0.0 and self.settings.get("sparse"):
+            common &= np.nan_to_num(self.coverage[0]) >= floor
         # the common first, each group by deficit, largest first; ties keep column order
         order = np.lexsort((np.arange(key.size), -key, ~common))
         return order if top is None else order[: max(top, 0)]
@@ -291,6 +291,9 @@ def feature_gap(
             "region": None if region is None else asdict(region),
             "threshold": threshold,
             "min_coverage": min_coverage,
+            # the floor is for a sparse dictionary, whose features fire or do not; a PCA
+            # component or a channel swings both ways and its "coverage" means less
+            "sparse": isinstance(basis, Dictionary),
             "across_models": across_models,
             "allow_unverified": allow_unverified,
             "allow_unverified_basis": allow_unverified_basis,

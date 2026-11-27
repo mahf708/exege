@@ -953,7 +953,8 @@ def associate_cmd(
     )
     click.echo(
         f"calibration: {_percent(result.calibration_label_rate)} labeled with a rotation as the "
-        f"data (q = {q:g}); null |skew| {_number(shape['median_abs_skew'], '.2f')}, excess "
+        f"data against {result.calibration_rotations} of its own rotations (q = {q:g}); null "
+        f"|skew| {_number(shape['median_abs_skew'], '.2f')}, excess "
         f"kurtosis {_number(shape['median_excess_kurtosis'], '+.2f')}\n"
     )
     rows = [
@@ -1469,7 +1470,13 @@ def _same_place(archive_info, system_info, layer: int) -> int:
     """The archive's index of the layer at the network place of ``system_info``'s
     ``layer``."""
     from exege.core.errors import RequestError
+    from exege.latents.source import differing_identity
 
+    if apart := differing_identity(archive_info.identity(), system_info.identity()):
+        raise RequestError(
+            f"{archive_info.source} is not the network {system_info.source} runs "
+            f"({'; '.join(apart)}): a reference read there means nothing here"
+        )
     place = system_info.layer(layer).position
     found = [e.index for e in archive_info.layers if e.position == place]
     if not found:

@@ -296,3 +296,20 @@ def test_a_feature_too_rare_to_measure_is_ranked_last():
     assert floored.coverage[0, 1] < 0.01
     assert list(floored.columns[floored.ranked()]) == [0, 1, 2]
     assert floored.deficit[1] == pytest.approx(1.0)  # still reported, only ranked last
+
+
+def test_the_coverage_floor_is_for_sparse_features_and_silence_goes_last():
+    """A PCA-like basis swings both ways: its components are ranked by deficit whatever
+    their 'coverage'. A silent column has no deficit and goes after every one that has."""
+    from exege.latents.basis import PCA
+
+    data = _reference()
+    data[:, :, 1] -= 10.0  # negative throughout: coverage 0 above a threshold of 0
+    run = data.copy()
+    run[:, :, 1] *= 0.2
+    run[:, :, 0] *= 0.9
+    pca = PCA(mean=np.zeros(3), components=np.eye(3)[:2], explained_variance_ratio=np.ones(2) / 2)
+    result = feature_gap(Labeled({0: data}, LABELS), Labeled({0: run}, LABELS), layer=0,
+                         basis=pca, allow_unverified_basis=True)  # fmt: skip
+    assert result.settings["sparse"] is False
+    assert list(result.columns[result.ranked()]) == [1, 0]
