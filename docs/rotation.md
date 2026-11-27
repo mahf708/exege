@@ -20,7 +20,7 @@ layer, and asks of each column (a channel, or a feature of a basis):
 - **stays**: how well the turned run's map correlates with the original map where it was;
 - **follows**: how well it correlates with the original map turned by the same shift;
 - **score**: the turned map regressed on both, `a` times the original map where it was
-  plus `b` times the original turned along (area-weighted, standardized), as
+  plus `b` times the original turned along (area-weighted, in the column's own units), as
   `(a - b) / (|a| + |b|)`: +1 for a column that stayed, -1 for one that moved with the
   weather, and `2 alpha - 1` for one that is a share `alpha` of each.
 

@@ -83,18 +83,32 @@ def _columns(grid: Grid, degrees: float) -> int:
     return columns
 
 
-def _score(stays: np.ndarray, follows: np.ndarray, selfsim: np.ndarray) -> np.ndarray:
+def _score(
+    stays: np.ndarray,
+    follows: np.ndarray,
+    selfsim: np.ndarray,
+    spread_stayed: np.ndarray | float = 1.0,
+    spread_moved: np.ndarray | float = 1.0,
+) -> np.ndarray:
     """How much of the turned map is the original where it was (``a``) against the
-    original turned along (``b``): the area-weighted regression of the one on the two,
-    in standardized units, ``(a - b) / (|a| + |b|)``. A column that is a share ``alpha``
-    of the map that stayed and ``1 - alpha`` of the one that moved scores
-    ``2 alpha - 1`` whatever the two maps' own correlation (the self-similarity ``s``):
-    stays less follows would be ``(2 alpha - 1)(1 - s)``, which reads a half-anchored
-    column as anchored on a shift where ``s`` is negative."""
+    original turned along (``b``): the area-weighted regression of the one on the two, in
+    the column's own units, ``(a - b) / (|a| + |b|)``. A column that is a share ``alpha``
+    of the map that stayed and ``1 - alpha`` of the one that moved scores ``2 alpha - 1``
+    whatever the two maps' correlation (the self-similarity ``s``) and their spreads over
+    the nodes compared (``spread_*``, which a mask makes differ); stays less follows would
+    be ``(2 alpha - 1)(1 - s)``, which reads a half-anchored column as anchored on a shift
+    where ``s`` is negative."""
     with np.errstate(invalid="ignore", divide="ignore"):
-        a = stays - selfsim * follows  # both over 1 - s^2, which cancels in the ratio
-        b = follows - selfsim * stays
+        # standardized coefficients, both over 1 - s^2 (which cancels), less each map's spread
+        a = (stays - selfsim * follows) / spread_stayed
+        b = (follows - selfsim * stays) / spread_moved
         return (a - b) / (np.abs(a) + np.abs(b))
+
+
+def _spread(values: np.ndarray, weights: np.ndarray) -> np.ndarray:
+    w = weights / weights.sum()
+    centred = values - w @ values
+    return np.sqrt(w @ (centred * centred))
 
 
 def _correlate(a: np.ndarray, b: np.ndarray, weights: np.ndarray) -> np.ndarray:
@@ -250,6 +264,7 @@ def rotation_test(
     weights, valid = grid.weights(), grid.valid
     shape = (len(starts), len(turns), len(chosen))
     stays, follows, selfsim = np.full(shape, np.nan), np.full(shape, np.nan), np.full(shape, np.nan)
+    spread_stayed, spread_moved = np.full(shape, np.nan), np.full(shape, np.nan)
     for s, start in enumerate(starts):
         state = system.initial_state(start)
         original = read(state)
@@ -261,7 +276,9 @@ def rotation_test(
             stays[s, k] = _correlate(turned[keep], original[keep], weights[keep])
             follows[s, k] = _correlate(turned[keep], moved[keep], weights[keep])
             selfsim[s, k] = _correlate(original[keep], moved[keep], weights[keep])
-    scores = _score(stays, follows, selfsim)
+            spread_stayed[s, k] = _spread(original[keep], weights[keep])
+            spread_moved[s, k] = _spread(moved[keep], weights[keep])
+    scores = _score(stays, follows, selfsim, spread_stayed, spread_moved)
     powered = np.isfinite(selfsim) & (np.abs(selfsim) < max_self_similarity)
     n_powered = powered.sum(axis=(0, 1))
     counted = powered & np.isfinite(scores)

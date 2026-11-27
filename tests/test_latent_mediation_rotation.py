@@ -473,3 +473,21 @@ def test_exactness_is_over_the_fields_measured(system):
     with pytest.raises(RequestError, match="'deep' is not finite"):
         _mediate(Seafloor(), Mediator(layer=1, feature=2, basis=_linear(system)),
                  fields=["deep"])  # fmt: skip
+
+
+def test_the_score_reads_the_share_in_the_columns_own_units():
+    """Over the nodes compared the two maps may differ in spread (a mask leaves out
+    different values): a half-and-half mixture still scores zero."""
+    from exege.latents.rotation import _correlate, _score, _spread
+
+    rng = np.random.default_rng(1)
+    n = 20000
+    stayed, moved = 2.0 * rng.normal(size=n), rng.normal(size=n)
+    turned = 0.5 * stayed + 0.5 * moved
+    w = np.ones(n)
+    col = lambda v: v[:, None]  # noqa: E731
+    score = _score(
+        _correlate(col(turned), col(stayed), w), _correlate(col(turned), col(moved), w),
+        _correlate(col(stayed), col(moved), w), _spread(col(stayed), w), _spread(col(moved), w),
+    )  # fmt: skip
+    assert score[0] == pytest.approx(0.0, abs=0.02)
