@@ -1465,6 +1465,22 @@ def _comparisons(pairs: tuple[str, ...], pins: tuple[str, ...] = ()) -> tuple[di
     return loaded, given, {name: basis.meta["sha256"] for name, (basis, _) in loaded.items()}
 
 
+def _same_place(archive_info, system_info, layer: int) -> int:
+    """The archive's index of the layer at the network place of ``system_info``'s
+    ``layer``."""
+    from exege.core.errors import RequestError
+
+    place = system_info.layer(layer).position
+    found = [e.index for e in archive_info.layers if e.position == place]
+    if not found:
+        kept = ", ".join(str(e.position) for e in archive_info.layers)
+        raise RequestError(
+            f"{archive_info.source} keeps no layer at network place {place} (layer {layer} of "
+            f"{system_info.source}); it keeps network layers {kept}"
+        )
+    return found[0]
+
+
 def _steer_parts(
     source, adapter, adapter_options, basis_path, layer, feature, mode, amount, times, loop,
     reference_from, reference_adapter, reference_times, lat, lon, radius_km, outcome_stat,
@@ -1490,15 +1506,18 @@ def _steer_parts(
     if reference_from:
         archive = open_for_cli(reference_from, reference_adapter, None)
         labels = [_time(t) for t in reference_times]
+        # --layer is the system's; an archive that keeps some layers numbers them its own
+        # way, so the reference is read at the archive's layer in the same network place
+        archive_layer = _same_place(archive.info(), system.info(), layer)
 
         def reference_for(j):  # the reference and where it came from, checked as the steer's
             return feature_reference(
-                archive, basis, layer=layer, feature=j, times=labels,
+                archive, basis, layer=archive_layer, feature=j, times=labels,
                 allow_unverified_basis=allow_unverified_basis,
             )  # fmt: skip
 
         reference, meta = feature_reference(
-            archive, basis, layer=layer, feature=feature, times=labels,
+            archive, basis, layer=archive_layer, feature=feature, times=labels,
             allow_unverified_basis=allow_unverified_basis,
         )  # fmt: skip
         from exege.latents.steering import array_digest
