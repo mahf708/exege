@@ -7,14 +7,20 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
 | `grid.py` | nodes on a sphere: masks, area weights, regions, maps |
 | `source.py` | the contract: `LatentSource`, the optional `ReferenceFields`, `LatentInfo` |
 | `toy.py` | a toy emulator in numpy, so an archive can be made with no model and no data |
-| `basis.py` | `Decomposition`: `PCA`, a sparse `Dictionary`, and the basis file |
+| `basis.py` | `Decomposition`: `PCA`, a sparse `Dictionary` (also one trained elsewhere and token-normalized), and the basis file |
 | `analysis.py` | one region at one time: ranking, similarity, a decomposition |
 | `samples.py` | many times at once: moments, a global PCA, batches to train on |
 | `through.py` | through time and between runs: series, differences, field correlation |
 | `evaluate.py` | a frozen basis on held-out times: time-block splits, fidelity and sparsity, dead and redundant features, stability across seeds, PCA against a dictionary |
-| `steering.py` | steering: the `Intervenable` contract, four arms (control, reconstruction, feature, random direction) under paired noise, the response set against the random draws |
+| `steering.py` | steering: the `Intervenable` contract, six arms (control, reconstruction, feature, random direction, comparison, matched) under paired noise, reference modes, open and closed loops, outcomes in a region, many cases, dose curves with an amount chosen leave-one-out |
+| `references.py` | what a steer is measured against, read from an archive: a feature's reference level, a difference-of-means direction |
+| `mediation.py` | whether a steer acts through another feature: total, direct and indirect effects, with a hold-only run that must equal the control exactly |
+| `rotation.py` | `Rotatable`, and whether a column moves with the weather or stays where the model put it when named parts of the input are turned |
 | `record.py` | the experiment record: a versioned, compact JSON file of one evaluation or steering run, its loader, and the writers the commands call |
 | `features.py` | a feature without a field in mind: a census of a layer, one feature's profile |
+| `calibrate.py` | which field each feature goes with, against a longitude-rotation null: z-scores, Benjamini-Hochberg, labels with a runner-up bar, and their calibration on null input; or (`null="orbit"`) every shift by FFT and each column ranked against its whole orbit |
+| `stationary.py` | what is fixed in place: each column's variance split into its per-node time mean and the rest, the fixed part fitted on latitude rows and static fields |
+| `gap.py` | a free run against a teacher-forced one of the same network: each column's mean, coverage and strength in both, time by time |
 | `cli.py` | `exege latents …`, a thin client of the above |
 | `__init__.py` | the public names, re-exported lazily (see the first rule) |
 
@@ -60,11 +66,18 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
   marks one that says nothing `unknown`. A result is built with `result_provenance`; this
   package does not train (seeds and sweeps are `nn`'s, handed in as `Dictionary`s).
 - **A steer is compared with its control, under one noise, and against chance.**
-  Every arm of a seed shares the control's initial state and `noise_seed`, and the edit's
-  size is fixed from the control's latents, so a paired difference holds the edit and
-  nothing else (exactly zero when the edit is). The feature's response is reported against
-  random directions of the same length and size, never alone, and beside what merely
-  passing through the dictionary does (the reconstruction arm). Edits and fields are held to
+  Every arm of a seed shares the control's initial state and `noise_seed`. In an open loop
+  (the default) the edit's size is fixed from the control's latents; in a closed loop the
+  feature arm works it out from its own, and the random and comparison arms are given
+  exactly what it did, step by step. Either way a paired difference holds the edit and
+  nothing else (exactly zero when the edit is), and every random and comparison arm the
+  feature is ranked against was pushed by the same amount. The feature's response is
+  reported against random directions of the same length and size, never alone, beside what
+  merely passing through the dictionary does (the reconstruction arm), and, when asked,
+  against matched features (the same steer on another feature, so each by its own amount)
+  and named comparison directions; a tie never ranks as a win. Anything per node that a
+  steer reads from elsewhere (a reference) is checked to lie on the system's nodes
+  (`node_digest`), and anything a reproduction reads is pinned by content. Edits and fields are held to
   the same finiteness rule as `read_latents`. Nothing here imports a model: a system is an
   `Intervenable`, reached through the registry, and tested on `adapters/toy_dynamics.py`,
   whose answers are planted. See `docs/steering.md`.

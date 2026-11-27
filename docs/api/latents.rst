@@ -67,6 +67,9 @@ Defined in ``exege.latents.basis``.
 .. autoclass:: exege.latents.Decomposition
    :members:
 
+.. autoclass:: exege.latents.Directions
+   :members:
+
 .. autoclass:: exege.latents.Dictionary
    :members:
 
@@ -84,6 +87,8 @@ Defined in ``exege.latents.basis``.
 .. autofunction:: exege.latents.load_basis
 
 .. autofunction:: exege.latents.save_basis
+
+.. autofunction:: exege.latents.token_normalized_dictionary
 
 .. autofunction:: exege.latents.top_loadings
 
@@ -153,6 +158,43 @@ Defined in ``exege.latents.features``.
 
 .. autofunction:: exege.latents.feature_profile
 
+Fixed features
+--------------
+
+Defined in ``exege.latents.stationary``.
+
+.. autoclass:: exege.latents.Stationarity
+   :members:
+
+.. autofunction:: exege.latents.feature_stationarity
+
+A free run against a teacher-forced one
+---------------------------------------
+
+Defined in ``exege.latents.gap``.
+
+.. autoclass:: exege.latents.FeatureGap
+   :members:
+
+.. autofunction:: exege.latents.feature_gap
+
+Associations against chance
+---------------------------
+
+Defined in ``exege.latents.calibrate``. The rotations come from
+``exege.latents.grid.longitude_partner`` and ``exege.latents.grid.rotation_shifts``.
+
+.. autoclass:: exege.latents.Association
+   :members:
+
+.. autofunction:: exege.latents.associate
+
+.. autofunction:: exege.latents.benjamini_hochberg
+
+.. autofunction:: exege.latents.grid.longitude_partner
+
+.. autofunction:: exege.latents.grid.rotation_shifts
+
 Evaluation
 ----------
 
@@ -218,6 +260,71 @@ Defined in ``exege.latents.steering``.
 .. autofunction:: exege.latents.open_intervenable
 
 .. autofunction:: exege.latents.run_steering
+
+.. autoclass:: exege.latents.Outcome
+   :members:
+
+.. autoclass:: exege.latents.Case
+   :members:
+
+.. autoclass:: exege.latents.CaseStudy
+   :members:
+
+.. autofunction:: exege.latents.run_cases
+
+.. autoclass:: exege.latents.DoseCurve
+   :members:
+
+.. autoclass:: exege.latents.Selection
+   :members:
+
+.. autofunction:: exege.latents.dose_curve
+
+.. autofunction:: exege.latents.leave_one_out
+
+.. autofunction:: exege.latents.contributions
+
+.. autofunction:: exege.latents.matched_features
+
+References and directions
+-------------------------
+
+Defined in ``exege.latents.references``.
+
+.. autofunction:: exege.latents.feature_reference
+
+.. autofunction:: exege.latents.mean_difference
+
+.. autofunction:: exege.latents.grid.node_digest
+
+Mediation
+---------
+
+Defined in ``exege.latents.mediation``.
+
+.. autoclass:: exege.latents.Mediator
+   :members:
+
+.. autoclass:: exege.latents.MediationEffect
+   :members:
+
+.. autoclass:: exege.latents.MediationResult
+   :members:
+
+.. autofunction:: exege.latents.run_mediation
+
+Rotation
+--------
+
+Defined in ``exege.latents.rotation``.
+
+.. autoclass:: exege.latents.Rotatable
+   :members:
+
+.. autoclass:: exege.latents.RotationTest
+   :members:
+
+.. autofunction:: exege.latents.rotation_test
 
 Experiment records
 ------------------

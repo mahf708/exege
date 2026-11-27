@@ -10,8 +10,11 @@ makes it possible, and what is measured.
 :class: note
 
 Implemented: the protocol (`Intervenable`, `Hook`, `Steer`), the runner
-(`run_steering`), the `exege latents steer` command and a toy system to test them
-against. Planned: a real adapter, a view and a figure in the app, and fitted
+(`run_steering`) with its six arms, reference modes, open and closed loops, outcomes in a
+region, many cases (`run_cases`) and dose curves with an amount chosen leave-one-out
+(`dose_curve`); the `exege latents steer`, `dose` and `direction` commands; and a toy
+system to test them against. [Mediation](mediation.md) and [rotation](rotation.md) build
+on the same runner. Planned: a real adapter, a view and a figure in the app, and fitted
 dictionaries on the toy system; see the [roadmap](roadmap.md#steering).
 ```
 
@@ -25,8 +28,12 @@ then lets the forward pass continue from the edited value. Three things name it:
 - **along what**: a feature of a `latents.Decomposition`, i.e. a direction in that layer's
   channel space (`Dictionary.decoder[f]` in the layer's units; a PCA component);
 - **by how much**: `add` an amount of the direction, `scale` the feature's own activation
-  by a factor, or `clamp` it to a value. Every mode reduces to a per-node change `delta`
-  in the feature's activation, and the layer moves by `delta * direction`.
+  by a factor, `clamp` it to a value, or move it `toward` a reference or scale its `excess`
+  above one ([below](#modes-and-references)). Every mode reduces to a per-node change
+  `delta` in the feature's activation, and the layer moves by `delta * direction`. (A
+  [token-normalized](bases.md) dictionary's decoder writes the normalized node, so there
+  the move is also multiplied by each node's own length: what the decoder writes for that
+  `delta` in the layer's raw units.)
 
 The edit is made on the model's own latents (`h' = h + delta * direction`), not on a
 reconstruction of them, so whatever the dictionary fails to explain is left as it was. That
@@ -82,7 +89,7 @@ returns what it continues with. `Rollout` holds the physical fields each step wr
 `(layer, time)` pairs, taken *after* any hook there. The initial state is opaque to exege:
 it is whatever the adapter's `initial_state` returned.
 
-## The four arms
+## The arms
 
 Each is one run from the same initial state, with the same noise.
 
@@ -92,6 +99,8 @@ Each is one run from the same initial state, with the same noise.
 | reconstruction-only | at the hook point, `h` is replaced by `decode(encode(h))` | the effect of passing through the dictionary at all: its reconstruction error, with no feature touched |
 | feature | `h' = h + delta * direction` for the chosen feature | the effect of the feature, plus nothing the dictionary dropped |
 | random direction | the same `delta`, along a random unit direction scaled to the feature's direction length; repeated draws | what an edit of this size does to the model in a direction that means nothing |
+| comparison | the same `delta`, along a named direction from another basis (`--compare`), scaled the same way | whether the feature does anything a plainer direction does not: a [difference of means](#comparison-and-matched-arms), a principal component |
+| matched | the same steer applied to another feature of the basis that carries about as much where the edit acts (`--matched N`) | what a real, in-distribution feature of this size does; a random direction may push the model somewhere it has never been |
 
 The reconstruction arm is not subtracted from the feature arm: the feature edit is applied
 to `h`, so the feature arm's difference from control *is* the feature's effect. The
@@ -110,6 +119,191 @@ difference is computed per seed, and the spread across seeds says how far to tru
 mean. The random draws are fixed across seeds, so a draw is one direction tested under
 every noise. Pairing is only as good as the adapter's promise that its noise does not
 depend on what the hooks did (the noise is drawn from the seed, not from the state).
+
+
+## Modes and references
+
+`add`, `scale` and `clamp` need nothing but the amount. Two modes measure the activation
+against a **reference**, one value per node:
+
+| Mode | The activation becomes | Amount that changes nothing |
+|---|---|---|
+| `toward` | `f + amount * (reference - f)`: 1 sets it to the reference | 0 |
+| `excess` | `f + (amount - 1) * max(f - reference, 0)`: only what lies above the reference is scaled, so 0 caps it there and 2 doubles the excess | 1 |
+
+What the reference *is* decides what the experiment asks. The feature's mean over many
+times makes `toward 1` a mean-ablation, the usual remedy for zero-ablation taking a
+feature to a value it never has. Its value at one other time makes it a resample-ablation.
+Its level on quiet days of the same season makes `excess 0` "this feature as it is on a
+day without the storm", and `excess 2` "twice the storm's share of it". A reference is one
+value per *node*, so it must be read on the same nodes in the same order: it carries the
+grid's `node_digest`, and a steer refuses one read on a grid laid out otherwise, however
+many nodes it has.
+`feature_reference` reads one from an archive of the same network, averaging the
+feature over the times named, and the steer's spec records those times and the
+reference's content hash. On the command line, `--reference-from ARCHIVE` with
+`--reference-time T`, repeated.
+
+## Open and closed loops
+
+A steer acting at several steps can work out its change two ways (`--loop`):
+
+- **open** (the default): from the control's latents. Every arm of a seed changes the
+  same nodes by the same amounts however the runs drift apart: a forcing applied from
+  outside, and what the paired design above assumes.
+- **closed**: from the latents the steered run itself produced, at the moment of the edit.
+  An edit at step 2 reads what the edit at step 1 did. This is how steering inside a
+  model's own forward pass behaves, and it compounds: amplifying a feature that feeds
+  itself amplifies what the last amplification left.
+
+They agree for `add`, and for any system whose latents do not read its state back. In a
+closed loop the random and comparison arms are given the changes the feature arm actually
+made, step by step: worked out from their own latents, pushes along other directions would
+grow differently, and "an edit of the same size" would stop being true. (Matched arms are
+steers of their own, and close their own loop.) The toy system with `feedback` set reads
+its state back, and scaling the planted feature by 2 at three steps gives a response half
+as large again in a closed loop:
+
+```console
+$ exege latents steer --adapter toy-dynamics --adapter-option masked=3 \
+    --adapter-option feedback=0.4 --basis scratch/steer/planted.npz --layer 1 --feature 0 \
+    --mode scale --amount 2 --time 1 --time 2 --time 3 --steps 6 --seeds 0,1,2 \
+    --random-draws 10 --field temperature --loop open
+FIELD        RESPONSE  +-    RECON_ONLY  RANDOM_|RESP|  EFFECT_SIZE  RANK  P
+temperature  10        0.05  9.807       2.158          5.62         1/11  0.091
+$ ... --loop closed
+FIELD        RESPONSE  +-     RECON_ONLY  RANDOM_|RESP|  EFFECT_SIZE  RANK  P
+temperature  14.74     0.066  9.807       3.181          5.62         1/11  0.091
+```
+
+Neither is the right one: they are different experiments, and a dose curve read off one
+says nothing about the other. A response that runs away in a closed loop and not an open
+one is the loop's doing, not the feature's. (The reconstruction arm is large here for the
+same reason: with feedback, the channel the dictionary drops is dropped at every step,
+and the loss compounds.)
+
+## Comparison and matched arms
+
+A random direction answers "is this bigger than an arbitrary push?". Two more arms ask
+sharper questions.
+
+**Comparison** arms push along a direction from another basis by the same `delta`, scaled
+to the feature's length. The plainest is a **difference of means**: the mean latents at
+times the event is present less the mean at times it is absent, over a region.
+`exege latents direction` writes one as a basis of one direction (kind `directions`),
+which `--compare NAME=FILE` reads:
+
+```console
+$ exege latents toy scratch/dir/control
+$ exege latents direction scratch/dir/control --layer 3 --event-time 0 --event-time 1 \
+    --quiet-time 6 --quiet-time 7 --lat 10 --lon -140 --radius-km 2500 --label storm \
+    --out scratch/dir/storm.npz
+wrote scratch/dir/storm.npz: the direction from 2 quiet to 2 event time(s) at layer 3, length 1.27; --basis-sha256 75923395126e67f085f80715d406f1e0245d40e6f90fc19346b288e5266ee4e9
+```
+
+If the difference of means does as much as the dictionary's feature, the dictionary has
+found a direction, not a mechanism anyone needed a dictionary for.
+
+**Matched** arms apply the same steer -- same mode, amount, times, nodes and loop -- to
+other features of the same basis. They are chosen on the first seed's control, at the
+times the steer acts: what each feature *carries* there (its activation's magnitude,
+area-weighted over the nodes the steer edits, times its direction's length) is set
+against the feature's, and the closest by the log of the ratio are taken, among those that
+carry anything and whose direction is no closer to the feature's than `--max-cosine`
+(0.3). Matching on what a feature carries where the edit acts, and not on how often it
+fires across the globe, is the point: a feature that fires as often but is nearly silent
+inside the storm receives almost no edit under `scale` or `excess`, and its small effect
+then says nothing about the feature's. Under `toward` and `excess` each matched feature
+takes its own reference, read the same way. The feature's `MATCHED_RANK` is its place, by
+magnitude, among itself and them.
+
+On the toy, with a comparison along the fourth channel, which the planted dictionary does
+not read (`Directions` with one unit row):
+
+```console
+$ exege latents steer --adapter toy-dynamics --adapter-option masked=3 \
+    --basis scratch/steer/planted.npz --layer 1 --feature 0 --mode scale --amount 3 \
+    --time 1 --steps 5 --seeds 0,1,2 --random-draws 20 --matched 2 \
+    --compare ch3=scratch/steer/along3.npz
+scale 3 on feature 0 of layer 1 at time(s) 1 (open loop); 5 step(s), seed(s) 0, 1, 2, 20 random direction(s), 2 matched feature(s)
+
+FIELD        RESPONSE  +-      RECON_ONLY  RANDOM_|RESP|  EFFECT_SIZE  RANK   P      MATCHED_RANK  CH3
+moisture     0         0       0.3107      0.08638        -1.83        21/21  1      3/3           0
+pressure     0         0       0.1266      0.1239         -2.07        21/21  1      3/3           0.1025
+temperature  0.4099    0.0045  0.3335      0.1375         2.52         1/21   0.048  1/3           0
+
+matched features: 1, 2
+```
+
+The two matched features reach moisture and pressure, which the planted one does not, so
+on temperature it ranks first among them and on the others last: a response of zero ties
+with anything and wins nothing, so it takes the bottom place, among the random draws as
+among the matched features. The comparison along channel 3 reaches pressure, at half
+weight, and nothing else. A comparison basis is checked against the layer like the steered
+one: a direction fitted on another layer or network is refused.
+
+## Where an outcome is measured
+
+By default a field is reduced to its area-weighted global mean at each step. An edit
+that acts in one place is diluted to nothing by a global mean, so `Outcome` (`--outcome`)
+also takes the `min` or `max` over the valid nodes, and a region to measure in. On the
+command line `--lat`, `--lon` and `--radius-km` name one region that both restricts the
+edit to its nodes and is where the outcome is measured: the minimum pressure within
+1,500 km of a storm, say.
+
+## Cases
+
+One initial state is an anecdote. `run_cases` runs the whole experiment from each of
+several (`--start`, repeated), a region per case if they differ, and sets the feature's
+responses side by side: their median, how many were positive and negative, how many ranked
+first among the random draws. Each case keeps its own result, so the spread is there to
+read, not averaged away.
+
+```console
+$ exege latents steer --adapter toy-dynamics --adapter-option masked=3 \
+    --basis scratch/steer/planted.npz --layer 1 --feature 0 --amount 1.5 --time 1 --steps 5 \
+    --start 0 --start 1 --start 2 --lat 40 --lon 60 --radius-km 4000 --outcome max \
+    --field temperature --random-draws 10
+...
+across cases
+FIELD        MEDIAN  POSITIVE  NEGATIVE  RANK_1  CASES
+temperature  1.406   3         0         3       3
+```
+
+## Dose curves, and choosing an amount
+
+How the response grows with the amount is a curve, and the curve is the result:
+`dose_curve` (`exege latents dose --amounts`) runs the control and the feature arm at every
+amount, from every case. Given **targets** -- for each case, the series its outcome should
+have followed (an analysis, a best track) -- every amount is scored by its error, the RMS
+over the steps from the first edit on.
+
+Picking the amount that does best on a case and reporting how well it does *on that case*
+is a hindsight optimum: no forecaster could have made that choice. With two or more cases,
+`leave_one_out` picks, for each case, the amount that does best by the median over the
+*other* cases, and reports that case's error there, beside the hindsight optimum and the
+unsteered control. A correction is judged by the first number. On the toy, with targets
+made by adding 2 to the planted feature in each case's control:
+
+```console
+$ exege latents dose --adapter toy-dynamics --adapter-option masked=3 \
+    --basis scratch/steer/planted.npz --layer 1 --feature 0 --mode add --amounts 0,1,2,3 \
+    --time 1 --steps 5 --start 0 --start 1 --start 2 --field temperature \
+    --targets scratch/steer/targets.json
+...
+temperature: amount chosen leave-one-out
+CASE  LOO_AMOUNT  LOO_ERROR  ORACLE_AMOUNT  ORACLE_ERROR  CONTROL_ERROR
+0     2           2.9e-09    2              2.9e-09       2.305
+1     2           1.15e-08   2              1.15e-08      2.305
+2     2           2.105e-09  2              2.105e-09     2.305
+median error: leave-one-out 2.9e-09, hindsight 2.9e-09, control 2.305
+```
+
+A planted answer agrees with itself, so here the three coincide. Where the best amount
+swings from case to case, they part, and the leave-one-out error can be worse than doing
+nothing at all. That is the finding, not a failure of the method. Random and matched arms
+are not run inside a dose curve: it says how the response grows, and `steer` at a chosen
+amount says whether it is unusual.
 
 ## What is measured
 
@@ -131,9 +325,13 @@ draw, outcome series, latent RMS), every `Pairing` against the control of its se
 an `Effect` per field: the feature's signed response and its standard error across
 seeds, the reconstruction arm's, the random draws', and the feature's `effect_size`,
 `rank` (1 is a larger magnitude than every draw) and `p_value` among them.
-The edit's size is worked out once per seed from the control's latents, so every arm of a
-seed changes the same nodes by the same amounts however the runs drift apart; `scale` and
-`clamp` are therefore relative to the control, not to the arm's own activations.
+In an open loop (the default) the edit's size is worked out once per seed from the
+control's latents, so every arm of a seed changes the same nodes by the same amounts
+however the runs drift apart; `scale` and `clamp` are then relative to the control, not
+to the arm's own activations. In a closed loop the feature arm works its edit out from its
+own latents as it goes, and the random and comparison arms are given exactly what it did.
+A matched arm is the same steer on another feature, so it moves by that feature's own
+amount.
 
 ## Provenance
 
@@ -141,7 +339,13 @@ A result carries `result_provenance(info, basis=...)` of the system it ran (sour
 commit, options, the basis's content hash) and the full specification of the experiment,
 so a printed reproduction command pins what moves: `exege latents steer` ends with a
 `reproduce:` line that carries the adapter and its options, `--basis-sha256`, and every
-setting. A result saved with `save_result` is the same record as JSON.
+setting, numbers as they were given rather than rounded. Everything else it reads is pinned
+by content too: each `--compare` file by `--compare-sha256 NAME=HASH`, a reference read
+from an archive by `--reference-sha256` (the hash of the per-node values, so a reference
+read from other times, or from a changed archive, is refused), and a dose curve's
+`--targets` file by `--targets-sha256`. The matched features' references are named in the
+spec by the same kind of hash, and together by `--matched-references-sha256`, which a run
+whose matched references came out otherwise refuses. A result saved with `save_result` is the same record as JSON.
 
 ## Example
 
@@ -201,10 +405,12 @@ is 110 KB. `exege app --record FILE` draws each field's response against the dra
 
 - No real model is run, loaded or downloaded by `exege`; a real adapter is a later piece
   of work and lives in its own environment.
-- No search over features or amounts, and no claim that a feature "causes" anything beyond
-  what the arms show; the numbers are evidence for a reader to weigh.
-- No steer on several layers or features at once (a hook list can hold them, but
-  the runner varies one feature).
+- No search over features, and no claim that a feature "causes" anything beyond what the
+  arms show; the numbers are evidence for a reader to weigh. A dose curve reports every
+  amount it ran, and the only amount it *chooses* is chosen leave-one-out.
+- No steer on several features at once beyond holding one in place: the runner varies one
+  feature, matched and comparison arms each push one other, and
+  [mediation](mediation.md) holds one while another is steered.
 - No gradients: an edit is a forward-pass substitution.
 - No plotting here; figures and the app may draw a result later.
 
@@ -221,4 +427,52 @@ result = run_steering(
 )
 result.effects["temperature"].rank  # 1: larger than every random direction
 save_result("steer.json", result)
+```
+
+The arms and modes above, and many cases and a dose curve:
+
+```python
+from exege.latents import (
+    Box,
+    Case,
+    Outcome,
+    dose_curve,
+    feature_reference,
+    mean_difference,
+    open_source,
+    run_cases,
+)
+
+archive = open_source("latents/atmosphere")  # an archive of the same network
+reference, meta = feature_reference(archive, basis, layer=8, feature=676, times=quiet_days)
+steer = Steer(
+    layer=8,
+    feature=676,
+    mode="excess",
+    amount=2.0,
+    times=(0, 1, 2, 3),
+    loop="closed",
+    reference=reference,
+    reference_meta=meta,
+)
+dom = mean_difference(
+    archive, layer=8, event_times=storm_days, quiet_times=quiet_days, region=Box(0, 30, -100, -60)
+)
+storm = Box(lat_min=15, lat_max=35, lon_min=-100, lon_max=-75)
+study = run_cases(
+    system,
+    basis,
+    steer,
+    [Case(start=t, region=storm) for t in starts],
+    outcome=Outcome(statistic="min"),
+    steps=16,
+    comparisons={"dom": (dom, 0)},
+    n_matched=3,
+    reference_for=lambda j: feature_reference(archive, basis, layer=8, feature=j, times=quiet_days)[
+        0
+    ],
+)
+study.summary()["mean_sea_level_pressure"]["median"]
+curve = dose_curve(system, basis, steer, [0, 1, 1.5, 2, 3], steps=16, cases=cases, targets=analyses)
+curve.selections["mean_sea_level_pressure"].medians  # loo, oracle, baseline
 ```

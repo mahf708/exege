@@ -109,3 +109,43 @@ def test_nodes_stored_the_other_way_round_are_refused_not_misweighted():
         Grid(lat.T.ravel(), lon.T.ravel(), shape=lat.shape)
     with pytest.raises(ValueError, match="a mesh that should have no shape"):
         Grid(np.random.default_rng(0).uniform(-90, 90, 72), lon.ravel(), shape=lat.shape)
+
+
+def test_a_longitude_partner_is_the_node_that_many_columns_east():
+    from exege.core.errors import RequestError
+    from exege.latents.grid import longitude_partner
+
+    grid = _regular(step=30.0)  # 12 columns, longitudes 0..330
+    east = longitude_partner(grid, 2)
+    assert np.allclose((grid.lon[east] - grid.lon) % 360.0, 60.0)
+    assert np.array_equal(grid.lat[east], grid.lat)
+    assert np.array_equal(longitude_partner(grid, -2)[east], np.arange(grid.n_nodes))
+    assert np.array_equal(longitude_partner(grid, 12), np.arange(grid.n_nodes))
+    # longitudes stored westward, in -180..180: east is still east
+    lat_1d, lon_1d = np.array([-45.0, 45.0]), np.arange(165.0, -195.0, -30.0)
+    lon_1d = (lon_1d + 180.0) % 360.0 - 180.0
+    lon, lat = np.meshgrid(lon_1d, lat_1d)
+    westward = Grid(lat.ravel(), lon.ravel(), shape=(2, 12))
+    moved = longitude_partner(westward, 1)
+    assert np.allclose((westward.lon[moved] - westward.lon) % 360.0, 30.0)
+    with pytest.raises(RequestError, match="mesh"):
+        longitude_partner(Grid(grid.lat, grid.lon), 1)
+    lon, lat = np.meshgrid(np.arange(0.0, 90.0, 10.0), lat_1d)  # a regional grid
+    with pytest.raises(RequestError, match="evenly spaced"):
+        longitude_partner(Grid(lat.ravel(), lon.ravel(), shape=(2, 9)), 1)
+
+
+def test_rotation_shifts_keep_away_from_the_identity():
+    from exege.core.errors import RequestError
+    from exege.latents.grid import rotation_shifts
+
+    grid = _regular(step=10.0)  # 36 columns
+    shifts = rotation_shifts(grid, 100, min_degrees=30.0)
+    assert shifts == tuple(range(3, 34))
+    assert len(rotation_shifts(grid, 8, min_degrees=30.0)) == 8
+    assert all(3 <= k <= 33 for k in rotation_shifts(grid, 8))
+    assert rotation_shifts(grid, 1, min_degrees=180.0) == (18,)
+    with pytest.raises(RequestError, match="moves it"):
+        rotation_shifts(_regular(step=72.0), 4, min_degrees=170.0)
+    with pytest.raises(RequestError, match="at least one"):
+        rotation_shifts(grid, 0)

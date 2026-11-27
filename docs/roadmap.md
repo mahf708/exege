@@ -8,12 +8,18 @@ roughly in the order we mean to take them.
 - Bias and time-mean maps, spectra, zonal means (a `FieldSource` beside `LatentSource`, on
   the same `latents.grid`)
 - A GraphCast mesh adapter, including the *translator* of Tempest et al. (2026), which
-  puts an intermediate processor step in the basis of the last one
+  puts an intermediate processor step in the basis of the last one. The public GraphCast
+  dictionary already reads in (`latents import-sae`, [bases](bases.md#importing-a-dictionary-trained-elsewhere));
+  what is missing is a source of GraphCast's activations to use it on
 - The activation exporter as an adapter of its own, behind a framework extra — with
   the hooks that *write* a layer, for steering along a basis file's direction, and an
   `experiment` block (the SamudrACE exporter takes `--seed` and does not record it)
+- An exporter option that writes a *teacher-forced* archive: the reference state fed in
+  at every step and the latents kept, the reference that `latents gap` sets a free run
+  against
 - Ensemble members and per-layer grids in `LatentSource`
-- Differences and series in a basis's features between two runs
+- Differences in a basis's features between two runs node by node (`latents gap` compares
+  their area-weighted means, coverage and strength, time by time)
 - How redundant a basis is: the pairwise correlation of its features' activations over
   time, the measure Cheon (2026) reports beside explained variance
 - A probe for a labeled phenomenon on features against one on channels (MacMillan &
@@ -43,7 +49,12 @@ roughly in the order we mean to take them.
 
 ## Steering
 
-- A real adapter, in the model's environment: the hook that lets a real model be steered
+- A real adapter, in the model's environment: the hook that lets a real model be steered,
+  and `Rotatable` on it, naming the parts of its state (weather, statics, forcings) and
+  turning a local time worked out from the grid's longitudes with the rest
+- An outcome region that follows its object (a storm's centre, step by step) rather than
+  staying where the storm began
+- Records for case studies, dose curves, mediation and rotation, and views of them in the app
 - Fitted dictionaries on the toy system, to show a learned feature that is not planted
 
 ## Experiment records

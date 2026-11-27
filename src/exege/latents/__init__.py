@@ -21,12 +21,22 @@ Reading is an adapter's job (see ``LatentSource``); this package computes.
                 storylines, Hovmoller diagrams
 - ``evaluate``  a frozen basis on held-out times: splits, fidelity and sparsity, dead and
                 redundant features, stability across seeds, PCA against a dictionary
-- ``steering`` steering: edit a feature inside a running model, four arms, paired noise,
+- ``steering`` steering: edit a feature inside a running model, its arms, paired noise,
                 the response against random directions
 - ``record``    the experiment record: a versioned, compact JSON file of one evaluation or
                 steering run, with its provenance and the command that reproduces it
 - ``features``  what a feature is, without a field in mind: a census of a layer, and one
                 feature's profile against every field
+- ``calibrate`` which field each feature goes with, against a rotation null: z-scores,
+                a false-discovery rate, labels and their calibration
+- ``stationary`` how much of a feature sits in the same place at every time, and what
+                latitude and the boundary fields explain of it
+- ``gap``       a free run against a teacher-forced one: which features free running
+                weakens, time by time
+- ``references`` what a steer is measured against: a feature's reference level, a
+                difference-of-means direction, read from an archive
+- ``mediation`` whether a steer acts through another feature: total, direct and indirect
+- ``rotation``  whether a feature moves with the weather or stays where the model put it
 - ``toy``       a toy emulator in numpy, so an archive can be made with no model
 
 Needs the ``latents`` extra (numpy). The names above are loaded on first use, not
@@ -56,6 +66,7 @@ if TYPE_CHECKING:
         PCA,
         Decomposition,
         Dictionary,
+        Directions,
         basis_hash,
         basis_provenance,
         bspline_activation,
@@ -64,8 +75,10 @@ if TYPE_CHECKING:
         result_provenance,
         save_basis,
         spline_knots,
+        token_normalized_dictionary,
         top_loadings,
     )
+    from exege.latents.calibrate import Association, associate, benjamini_hochberg
     from exege.latents.evaluate import (
         Evaluation,
         FidelityCurve,
@@ -85,6 +98,8 @@ if TYPE_CHECKING:
         feature_census,
         feature_profile,
     )
+    from exege.latents.gap import FeatureGap, feature_gap
+    from exege.latents.mediation import MediationEffect, MediationResult, Mediator, run_mediation
     from exege.latents.record import (
         ExperimentRecord,
         evaluation_record,
@@ -93,6 +108,8 @@ if TYPE_CHECKING:
         save_record,
         steering_record,
     )
+    from exege.latents.references import feature_reference, mean_difference
+    from exege.latents.rotation import Rotatable, RotationTest, rotation_test
     from exege.latents.samples import (
         Moments,
         accumulate_moments,
@@ -109,17 +126,28 @@ if TYPE_CHECKING:
         parse_time,
         read_latents,
     )
+    from exege.latents.stationary import Stationarity, feature_stationarity
     from exege.latents.steering import (
+        Case,
+        CaseStudy,
+        DoseCurve,
         Effect,
         Hook,
         Intervenable,
+        Outcome,
         Pairing,
         Rollout,
         Run,
+        Selection,
         Steer,
         SteeringResult,
+        contributions,
+        dose_curve,
         feature_direction,
+        leave_one_out,
+        matched_features,
         open_intervenable,
+        run_cases,
         run_steering,
     )
     from exege.latents.through import (
@@ -140,6 +168,16 @@ if TYPE_CHECKING:
 
 # name -> the module that defines it, imported when the name is first asked for
 _LAZY = {
+    "run_mediation": "mediation",
+    "MediationResult": "mediation",
+    "MediationEffect": "mediation",
+    "Mediator": "mediation",
+    "rotation_test": "rotation",
+    "RotationTest": "rotation",
+    "Rotatable": "rotation",
+    "benjamini_hochberg": "calibrate",
+    "associate": "calibrate",
+    "Association": "calibrate",
     "AnyRegion": "analysis",
     "Box": "analysis",
     "ChannelRanking": "analysis",
@@ -151,6 +189,9 @@ _LAZY = {
     "rank_channels": "analysis",
     "Decomposition": "basis",
     "Dictionary": "basis",
+    "Directions": "basis",
+    "feature_reference": "references",
+    "mean_difference": "references",
     "PCA": "basis",
     "basis_hash": "basis",
     "basis_provenance": "basis",
@@ -160,6 +201,7 @@ _LAZY = {
     "load_basis": "basis",
     "save_basis": "basis",
     "spline_knots": "basis",
+    "token_normalized_dictionary": "basis",
     "top_loadings": "basis",
     "Effect": "steering",
     "Hook": "steering",
@@ -171,6 +213,16 @@ _LAZY = {
     "SteeringResult": "steering",
     "feature_direction": "steering",
     "open_intervenable": "steering",
+    "Case": "steering",
+    "CaseStudy": "steering",
+    "DoseCurve": "steering",
+    "Outcome": "steering",
+    "Selection": "steering",
+    "contributions": "steering",
+    "dose_curve": "steering",
+    "leave_one_out": "steering",
+    "matched_features": "steering",
+    "run_cases": "steering",
     "run_steering": "steering",
     "Evaluation": "evaluate",
     "FidelityCurve": "evaluate",
@@ -187,6 +239,10 @@ _LAZY = {
     "FeatureProfile": "features",
     "feature_census": "features",
     "feature_profile": "features",
+    "FeatureGap": "gap",
+    "feature_gap": "gap",
+    "Stationarity": "stationary",
+    "feature_stationarity": "stationary",
     "ExperimentRecord": "record",
     "evaluation_record": "record",
     "load_record": "record",
@@ -234,63 +290,87 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
-    "PCA",
+    "AnyRegion",
+    "Association",
+    "Box",
+    "Case",
+    "CaseStudy",
     "ChannelRanking",
     "Decomposition",
     "Dictionary",
     "DifferenceGrowth",
+    "Directions",
+    "DoseCurve",
     "Effect",
     "Evaluation",
     "ExperimentRecord",
     "FeatureCensus",
+    "FeatureGap",
     "FeatureProfile",
     "FidelityCurve",
     "FieldRanking",
     "FieldStoryline",
-    "Hovmoller",
     "Hook",
+    "Hovmoller",
     "Intervenable",
     "LatentInfo",
     "LatentSource",
     "LayerInfo",
+    "MediationEffect",
+    "MediationResult",
+    "Mediator",
     "Moments",
+    "Outcome",
+    "PCA",
     "PairedDifference",
     "Pairing",
     "ReferenceFields",
-    "AnyRegion",
-    "Box",
     "Region",
     "RegionAnalysis",
     "RegionSeries",
     "Rollout",
+    "Rotatable",
+    "RotationTest",
     "Run",
+    "Selection",
     "Split",
     "Stability",
+    "Stationarity",
     "Steer",
     "SteeringResult",
     "accumulate_moments",
     "analyze_region",
+    "associate",
     "basis_hash",
     "basis_provenance",
+    "benjamini_hochberg",
     "bspline_activation",
     "check_comparable",
+    "contributions",
     "correlate_field",
     "cosine_similarity",
     "difference",
     "difference_growth",
+    "dose_curve",
     "evaluate_basis",
     "evaluation_record",
     "feature_census",
     "feature_direction",
+    "feature_gap",
     "feature_profile",
+    "feature_reference",
+    "feature_stationarity",
     "fidelity_curve",
     "field_storyline",
-    "hovmoller",
     "fit_pca",
+    "hovmoller",
     "iter_batches",
+    "leave_one_out",
     "load_basis",
     "load_channels",
     "load_record",
+    "matched_features",
+    "mean_difference",
     "open_intervenable",
     "open_source",
     "parse_time",
@@ -301,6 +381,9 @@ __all__ = [
     "record_from_dict",
     "region_series",
     "result_provenance",
+    "rotation_test",
+    "run_cases",
+    "run_mediation",
     "run_steering",
     "save_basis",
     "save_record",
@@ -311,5 +394,6 @@ __all__ = [
     "split_groups",
     "split_time_blocks",
     "steering_record",
+    "token_normalized_dictionary",
     "top_loadings",
 ]

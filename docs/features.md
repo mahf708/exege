@@ -91,6 +91,11 @@ another threshold may say more. Both commands read the whole grid or, with `--la
 `--lon` and `--radius-km`, a region: the day side only, say. A profile says what a feature
 goes with, not what it does.
 
+Neither command says when an effect is large enough to mean something. `profile
+--rotations N` sets each field's effect against the same effect with the field turned in
+longitude, and `exege latents associate` labels a whole layer that way, under a
+false-discovery rate: [Associations against chance](associations.md).
+
 ## From Python
 
 ```python
