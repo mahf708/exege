@@ -320,9 +320,10 @@ def test_the_empirical_p_is_a_rank_over_the_data_and_its_finite_rotations():
 
 
 def test_the_calibration_runs_the_procedure_it_vouches_for():
-    """A single wave and a narrow band of shifts near half way round: every rotation sees
-    nearly the same thing, so the null barely varies and most features are labeled. The
-    calibration, run against rotations of its own rotation, must say so."""
+    """A single wave and a narrow band of shifts around half way round: the rotations see
+    much the same thing, so the null varies little and features are labeled. The
+    calibration, run against rotations of its own rotation that stay as far from the data,
+    must say so."""
 
     class Wave(TinySource):
         def __init__(self):
@@ -338,10 +339,13 @@ def test_the_calibration_runs_the_procedure_it_vouches_for():
                 n_nodes=lat.size, model="m", component="c", checkpoint="k",
             )  # fmt: skip
 
-    result = associate(Wave(), layer=0, min_shift_degrees=150)
-    assert result.n_labeled > 18
-    assert result.calibration_label_rate > 0.5  # the old held-out draw read 0 here
+    result = associate(Wave(), layer=0, min_shift_degrees=80)
+    assert result.n_labeled > 9
+    assert result.calibration_label_rate > 0.1  # the old held-out draw read 0 here
     assert result.calibration_shift == 36
+    # so narrow a band that the calibration could only come back to the data: refused
+    with pytest.raises(RequestError, match="calibration"):
+        associate(Wave(), layer=0, min_shift_degrees=150)
 
 
 def test_a_field_the_same_everywhere_carries_nothing():
@@ -373,3 +377,18 @@ def test_a_profile_of_a_field_of_latitude_alone_has_no_z_score():
     source._fields["zonal"] = [np.sin(np.radians(source._grid.lat)) for _ in range(N_TIMES)]
     profile = feature_profile(source, layer=0, column=ZONAL, fields=["zonal"], rotations=6)
     assert np.isnan(profile.null_z[0]) and np.isnan(profile.p_value[0])
+
+
+@pytest.mark.parametrize("n_lon", [360, 180, 288, 128, 1440])
+def test_the_calibration_null_never_comes_back_to_the_data(n_lon):
+    from exege.latents.calibrate import calibration_shifts
+    from exege.latents.grid import rotation_shifts
+    from exege.latents.toy import toy_grid
+
+    grid = toy_grid(n_lat=4, n_lon=n_lon)
+    shifts = rotation_shifts(grid, 64, 30.0)
+    held, again = calibration_shifts(shifts, n_lon, 30.0)
+    spacing = 360.0 / n_lon
+    assert abs(held * spacing - 180.0) <= spacing * max(1, n_lon // 64)
+    assert len(again) >= 4
+    assert all(min(a, n_lon - a) * spacing >= 30.0 - 1e-9 for a in again)
