@@ -1484,11 +1484,11 @@ def _steer_parts(
         archive = open_for_cli(reference_from, reference_adapter, None)
         labels = [_time(t) for t in reference_times]
 
-        def reference_for(j):
+        def reference_for(j):  # the reference and where it came from, checked as the steer's
             return feature_reference(
                 archive, basis, layer=layer, feature=j, times=labels,
                 allow_unverified_basis=allow_unverified_basis,
-            )[0]  # fmt: skip
+            )  # fmt: skip
 
         reference, meta = feature_reference(
             archive, basis, layer=layer, feature=feature, times=labels,

@@ -68,10 +68,11 @@ Diagnostics of a model's latent space: what its internal channels respond to, on
   (the default) the edit's size is fixed from the control's latents; in a closed loop the
   feature arm works it out from its own, and the random and comparison arms are given
   exactly what it did, step by step. Either way a paired difference holds the edit and
-  nothing else (exactly zero when the edit is), and every arm against which the feature is
-  ranked was pushed by the same amount. The feature's response is reported against random
-  directions of the same length and size, never alone, beside what merely passing through
-  the dictionary does (the reconstruction arm), and, when asked, against matched features
+  nothing else (exactly zero when the edit is), and every random and comparison arm the
+  feature is ranked against was pushed by the same amount. The feature's response is
+  reported against random directions of the same length and size, never alone, beside what
+  merely passing through the dictionary does (the reconstruction arm), and, when asked,
+  against matched features (the same steer on another feature, so each by its own amount)
   and named comparison directions; a tie never ranks as a win. Anything per node that a
   steer reads from elsewhere (a reference) is checked to lie on the system's nodes
   (`node_digest`), and anything a reproduction reads is pinned by content. Edits and fields are held to
