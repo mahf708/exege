@@ -13,29 +13,36 @@ mean and the rest. That share is `FIXED`: 1 for a channel that is the same map a
 time, near 0 for one whose time mean is the same everywhere. The fixed map is then fitted,
 by weighted least squares, on one value per latitude row (`ZONAL`) and on any fields named
 with `--static` (`STATIC`, beyond what the rows already explain). What neither explains,
-as a share of the whole variance, is `UNEXPLAINED`, and columns are ranked by it.
+as a share of the whole variance, is `UNEXPLAINED`.
+
+A time mean over a finite record keeps some weather of its own, and the square of that
+map counts it as fixed. `FIXED_SPLIT` and `UNEXPLAINED_SPLIT` take the product of the
+time-mean maps of the first and last thirds of the times instead, leaving the middle
+third out as a buffer. A map that is really fixed reads the same either way, and weather
+reads near zero, of either sign. Columns are ranked by `UNEXPLAINED_SPLIT`.
 
 ```console
 $ exege latents toy scratch/fix/control
 $ exege latents stationary scratch/fix/control --top 6
 channels of layer 3 over 8 time(s) and 1152 node(s), by fixed structure that latitude does not explain
 
-CHANNEL  COVERAGE  FIXED  ZONAL  STATIC  UNEXPLAINED
-9        0.995     0.623  0.511  0.000   0.305
-5        0.238     0.262  0.268  0.000   0.192
-14       0.005     0.621  0.755  0.000   0.152
-15       0.569     0.973  0.846  0.000   0.150
-0        0.590     0.409  0.703  0.000   0.122
-11       0.478     0.892  0.878  0.000   0.109
+CHANNEL  COVERAGE  FIXED  ZONAL  STATIC  UNEXPLAINED  FIXED_SPLIT  UNEXPLAINED_SPLIT
+9        0.995     0.623  0.511  0.000   0.305        0.593        0.275
+15       0.569     0.973  0.846  0.000   0.150        0.977        0.156
+14       0.005     0.621  0.755  0.000   0.152        0.538        0.072
+11       0.478     0.892  0.878  0.000   0.109        0.846        0.063
+8        0.428     0.892  0.940  0.000   0.053        0.877        0.042
+4        0.001     0.931  0.966  0.000   0.031        0.926        0.030
 ```
 
 That is the [toy emulator](quickstart.md), so these are numbers about the command. Channel
 15 is almost entirely fixed (0.973), and latitude explains most of that: the toy hands
 its network the sine and cosine of latitude. Channel 9 is fixed by less but explained by
 latitude by less too, leaving 0.305 of its variance as a map that stays put and is not a
-latitude profile. Channel 5 is the planted storm, which drifts east: its fixed part is
-small, and what there is of it is the storm's track, which a time mean over eight steps
-cannot tell from a place.
+latitude profile (0.275 by the split). Channel 5 is the planted storm, which drifts east.
+Its eight-step time mean keeps the storm's track, which reads 0.192 unexplained and would
+rank second. But the first and last thirds see the storm in different places, so the
+split reads -0.098, and it drops out of the list.
 
 `COVERAGE` is the share of area and time a column is active over (above `--threshold`):
 for a sparse basis, read the shares of a feature that fires over 0.5% of the world
@@ -53,13 +60,13 @@ channels of layer 3 over 8 time(s) and 1062 node(s), by fixed structure that lat
 
 static sst: fixed share 1.000
 
-CHANNEL  COVERAGE  FIXED  ZONAL  STATIC  UNEXPLAINED
-5        0.222     0.266  0.265  0.000   0.196
-0        0.600     0.433  0.786  0.000   0.093
-14       0.006     0.513  0.931  0.000   0.035
-10       0.449     0.882  0.967  0.000   0.029
-6        0.003     0.774  0.975  0.000   0.020
-9        1.000     0.395  0.962  0.000   0.015
+CHANNEL  COVERAGE  FIXED  ZONAL  STATIC  UNEXPLAINED  FIXED_SPLIT  UNEXPLAINED_SPLIT
+9        1.000     0.395  0.962  0.000   0.015        0.385        0.001
+15       0.627     0.977  0.995  0.000   0.005        0.978        -0.000
+4        0.001     0.938  0.999  0.000   0.001        0.934        -0.001
+6        0.003     0.774  0.975  0.000   0.020        0.732        -0.002
+13       0.000     0.947  0.986  0.000   0.013        0.926        -0.003
+7        0.168     0.920  0.993  0.000   0.006        0.898        -0.003
 ```
 
 The toy keeps no land field, and its sea-surface temperature is a function of latitude

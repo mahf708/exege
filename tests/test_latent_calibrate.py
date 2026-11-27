@@ -380,15 +380,16 @@ def test_a_profile_of_a_field_of_latitude_alone_has_no_z_score():
 
 
 @pytest.mark.parametrize("n_lon", [360, 180, 288, 128, 1440])
-def test_the_calibration_null_never_comes_back_to_the_data(n_lon):
+@pytest.mark.parametrize("min_degrees", [0.0, 30.0])
+def test_the_calibration_null_never_comes_back_to_the_data(n_lon, min_degrees):
     from exege.latents.calibrate import calibration_shifts
     from exege.latents.grid import rotation_shifts
     from exege.latents.toy import toy_grid
 
     grid = toy_grid(n_lat=4, n_lon=n_lon)
-    shifts = rotation_shifts(grid, 64, 30.0)
-    held, again = calibration_shifts(shifts, n_lon, 30.0)
+    shifts = rotation_shifts(grid, 64, min_degrees)
+    held, again = calibration_shifts(shifts, n_lon, min_degrees)
     spacing = 360.0 / n_lon
     assert abs(held * spacing - 180.0) <= spacing * max(1, n_lon // 64)
-    assert len(again) >= 4
-    assert all(min(a, n_lon - a) * spacing >= 30.0 - 1e-9 for a in again)
+    assert len(again) >= 4 and 0 not in again
+    assert all(min(a, n_lon - a) * spacing >= min_degrees - 1e-9 for a in again)

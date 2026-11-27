@@ -321,10 +321,11 @@ def _decompose(
         "residual_fixed_share": residual_share * keep,
     }
     if thirds is not None:
+        # not clamped where the whole record's map is flat: a column that reverses (one
+        # map early, its opposite late) reads a negative split share, which is the point
         split, residual_split = _split_shares(*thirds, weights, design, total)
-        flat = fixed <= 0.0  # a flat time-mean map holds nothing fixed, in either third
-        out["fixed_share_split"] = np.where(flat, 0.0, split) * keep
-        out["residual_fixed_share_split"] = np.where(flat, 0.0, residual_split) * keep
+        out["fixed_share_split"] = split * keep
+        out["residual_fixed_share_split"] = residual_split * keep
     return out
 
 
