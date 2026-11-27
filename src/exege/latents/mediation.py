@@ -95,7 +95,7 @@ class MediationResult:
     the nodes it is held at and the steps from the first edit on, of how far the steer
     alone moved the mediator's activation (zero: the steer never reached it there, and
     there is nothing to mediate); ``exactness`` the largest difference between the
-    hold-only run and the control, over every field and recorded latent at valid nodes
+    hold-only run and the control, over every field measured and recorded latent at valid nodes
     (zero in a deterministic system; infinite where the hold-only run is not a number
     where it should be); ``hold_error`` the largest gap, in the direct run, between the
     mediator's activation where it is held and the value it was held at (what the hold
@@ -315,11 +315,18 @@ def run_mediation(
     valid = grid.valid
 
     def gap(a: np.ndarray, b: np.ndarray) -> float:
+        """The largest difference at valid nodes. A field may be missing where the grid is
+        valid (an ocean level below the sea floor): missing in both runs at the same
+        places is the same; missing in one only, or another kind of non-number, is
+        infinitely inexact."""
         a = np.asarray(a, dtype=np.float64)[..., valid]
         b = np.asarray(b, dtype=np.float64)[..., valid]
-        if not np.isfinite(a).all() or not np.isfinite(b).all():
+        ok = np.isfinite(a)
+        if (ok != np.isfinite(b)).any():
             return float("inf")
-        return float(np.abs(a - b).max()) if a.size else 0.0
+        if not ok.all() and not np.array_equal(a[~ok], b[~ok], equal_nan=True):
+            return float("inf")
+        return float(np.abs(a[ok] - b[ok]).max()) if ok.any() else 0.0
 
     for seed in plan.seeds:
         control = plan.run(state, (), seed)
@@ -342,7 +349,7 @@ def run_mediation(
         for arm, hooks in runs.items():
             rollout = plan.run(state, hooks, seed, check_finite=arm != HOLD)
             if arm == HOLD:
-                for name in control.fields:
+                for name in names:  # the fields measured, held to the steering rule
                     exactness = max(exactness, gap(rollout.fields[name], control.fields[name]))
                 for place in plan.places:
                     exactness = max(

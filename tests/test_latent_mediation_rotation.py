@@ -447,3 +447,29 @@ def test_a_hold_that_misses_says_the_share_means_little():
     assert MediationResult(mediator_change=1.0, hold_rms=0.01, **base).held
     assert not MediationResult(mediator_change=1.0, hold_rms=0.5, **base).held
     assert MediationResult(mediator_change=1.0, hold_rms=0.5, **base).to_dict()["held"] is False
+
+
+def test_exactness_is_over_the_fields_measured(system):
+    """An ocean level below the sea floor is missing at nodes valid at the surface. A field
+    not measured is not held to account in the hold-only run either; one asked for must be
+    finite where the grid is valid, as for any steer."""
+
+    class Seafloor:
+        def __getattr__(self, name):
+            return getattr(system, name)
+
+        def run(self, state, steps, hooks=(), **kwargs):
+            rollout = system.run(state, steps, hooks, **kwargs)
+            fields = dict(rollout.fields)
+            deep = np.array(fields["temperature"], dtype=np.float64)
+            deep[..., np.flatnonzero(system.grid().valid)[:5]] = np.nan
+            fields["deep"] = deep
+            return type(rollout)(fields=fields, latents=rollout.latents)
+
+    measured = [n for n in system.run(system.initial_state(), 1).fields]
+    result = _mediate(Seafloor(), Mediator(layer=1, feature=2, basis=_linear(system)),
+                      fields=measured)  # fmt: skip
+    assert result.exactness == 0.0  # "deep", not measured, is not held to account
+    with pytest.raises(RequestError, match="'deep' is not finite"):
+        _mediate(Seafloor(), Mediator(layer=1, feature=2, basis=_linear(system)),
+                 fields=["deep"])  # fmt: skip

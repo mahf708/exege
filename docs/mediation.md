@@ -22,7 +22,7 @@ holding the steered feature itself takes back whatever of the edit that feature 
 The hold-only run is the check that matters before any share is read. Holding a feature
 at the value it already has should change nothing, and in a deterministic system it must
 change nothing *exactly*. `exactness` is the largest difference found between that run and
-the control, over every field and recorded latent. A value that is not zero means the hold
+the control, over every field measured and recorded latent. A value that is not zero means the hold
 is not a no-op -- a forward pass that is not deterministic, an encode that rounds -- and
 every share computed with it carries that error. The command prints it on its first line.
 
