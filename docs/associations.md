@@ -109,6 +109,23 @@ left out altogether). The raw association, `statistic` in the result, is reporte
 the z-score for that reason: the first includes what latitude explains, the second only
 what it does not. The sea-surface temperature above is that case.
 
+The opposite case is a field with one large east-west wave, such as incoming sunlight,
+whose day side is one hemisphere. Turning it moves the day side through every phase, so
+the null ranges from as aligned as the data to the opposite, and its spread is about as
+large as the association itself. A z-score cannot then get much past 2 however tight the
+association is, and the label goes to a smaller-scale field instead. On ACE's encoder
+output, SAE feature 142 follows incoming sunlight (spatial correlation 0.80). Its
+statistic for `SOLIN` beats all 64 rotations (`p_empirical` = 1/65), yet z = 1.9, so it
+is labeled by 10-m wind at z = -5. Read `p_empirical` beside the z-score for fields of
+the largest scales. With 64 rotations it cannot fall below 1/65, so it never passes the
+false-discovery cut across a whole layer by itself.
+
+Neighbouring rotations of a smooth field are close to one another, so the null has fewer
+independent draws than rotations. A z-score far out in the tail (the cut across
+thousands of pairs needs about 5) extrapolates the Gaussian from them, and that is
+anti-conservative for large-scale fields. The calibration line is the check: when it
+reads well above `--q`, treat the labels as a ranking, not as discoveries.
+
 It needs a structured grid whose longitudes are evenly spaced all the way round, where a
 rotation takes nodes exactly onto nodes; a mesh is refused. Masked nodes are left out,
 and so is a node wherever the rotated field is missing there or lands on a masked node,

@@ -48,16 +48,19 @@ def _published(seed: int = 0, n_features: int = N_FEATURES, n_channels: int = N_
 
 
 def _reference(x, encoder, decoder, pre_bias, k):
-    """The layout, written out plainly: (codes, reconstruction in raw units)."""
+    """The layout, written out plainly: (codes, reconstruction in raw units: the
+    normalized node rebuilt, then the node's own mean and length put back)."""
     x = np.asarray(x, dtype=np.float64)
     codes = np.zeros((x.shape[0], encoder.shape[0]))
+    rebuilt = np.zeros_like(x)
     for i, row in enumerate(x):
         centered = row - row.mean()
-        normalized = centered / max(np.linalg.norm(centered), 1e-6)
-        pre = np.maximum((normalized - pre_bias) @ encoder.T, 0.0)
+        length = max(np.linalg.norm(centered), 1e-6)
+        pre = np.maximum((centered / length - pre_bias) @ encoder.T, 0.0)
         keep = np.argsort(pre)[::-1][:k]
         codes[i, keep] = pre[keep]
-    return codes, codes @ decoder.T + pre_bias
+        rebuilt[i] = row.mean() + length * (codes[i] @ decoder.T + pre_bias)
+    return codes, rebuilt
 
 
 def test_it_encodes_and_decodes_as_the_layout_says():
@@ -211,18 +214,22 @@ def test_a_token_dictionary_survives_its_file_and_its_hash_says_so(tmp_path):
 
 
 def test_its_explained_variance_is_about_the_mean_of_what_is_measured():
-    """A dictionary that never fires rebuilds every node as its pre-bias. With the
-    pre-bias at the measured times' area-weighted mean, it explains nothing: exactly 0."""
+    """A dictionary that never fires, with no pre-bias, rebuilds each node as its own
+    channel mean. Its explained variance is set against the spread about the measured
+    times' area-weighted mean, worked out here by hand."""
     rng = np.random.default_rng(6)
     data = rng.normal(3.0, 1.5, size=(3, 48, N_CHANNELS))
     source = MemorySource({0: data})
     weights = source.grid().weights()
-    mean = np.mean([weights @ data[t] for t in range(3)], axis=0)
     silent = token_normalized_dictionary(
-        np.zeros((N_FEATURES, N_CHANNELS)), np.eye(N_CHANNELS, N_FEATURES), mean, K
-    )
+        np.zeros((N_FEATURES, N_CHANNELS)), np.eye(N_CHANNELS, N_FEATURES),
+        np.zeros(N_CHANNELS), K,
+    )  # fmt: skip
     metrics = measure(silent, source, ["t0", "t1", "t2"], layer=0)
-    assert metrics.explained_variance == pytest.approx(0.0, abs=1e-6)
+    mean = np.mean([weights @ data[t] for t in range(3)], axis=0)
+    error = np.mean([weights @ ((d - d.mean(1, keepdims=True)) ** 2).sum(1) for d in data])
+    power = np.mean([weights @ ((d - mean) ** 2).sum(1) for d in data])
+    assert metrics.explained_variance == pytest.approx(1 - error / power, rel=1e-5)
     assert metrics.mean_active_features == 0.0
 
 
@@ -322,3 +329,38 @@ def test_the_command_refuses_a_dictionary_of_another_width(tmp_path):
               "--k", "2"],
     )  # fmt: skip
     assert done.exit_code != 0 and "the decoder must be" in done.output
+
+
+def _lossless(n_channels):
+    """A token dictionary that rebuilds every normalized node exactly: features +e_i and
+    -e_i, with k = n_channels, so relu keeps each channel's sign on one of the pair."""
+    eye = np.eye(n_channels, dtype=np.float32)
+    signed = np.concatenate([eye, -eye])
+    return token_normalized_dictionary(
+        signed,
+        signed,
+        np.zeros(n_channels, np.float32),
+        n_channels,
+        decoder_layout="features-first",
+    )
+
+
+def test_reconstruction_puts_each_nodes_mean_and_length_back():
+    basis = _lossless(N_CHANNELS)
+    x = np.random.default_rng(5).normal(40.0, 9.0, size=(64, N_CHANNELS)).astype(np.float32)
+    x *= np.linspace(0.1, 30.0, 64, dtype=np.float32)[:, None]  # lengths far from one
+    np.testing.assert_allclose(basis.reconstruct(x), x, rtol=1e-5, atol=1e-3)
+    # decode alone writes the normalized node
+    centered = x - x.mean(axis=1, keepdims=True)
+    normalized = centered / np.linalg.norm(centered, axis=1, keepdims=True)
+    np.testing.assert_allclose(basis.decode(basis.transform(x)), normalized, atol=1e-5)
+
+
+def test_a_lossless_token_dictionary_explains_all_the_variance(tmp_path):
+    from exege.latents.toy import write_toy
+
+    source = open_source(write_toy(tmp_path / "toy"))
+    layer = source.info().layers[-1].index
+    basis = _lossless(source.info().layers[-1].n_channels)
+    side = measure(basis, source, list(source.info().times), layer=layer)
+    assert side.explained_variance > 0.999

@@ -343,10 +343,11 @@ class Dictionary:
 
     ``input_norm="token"`` standardizes each node on its own instead: its channels
     less their mean, divided by the length of what is left (see
-    ``token_normalized_dictionary``). No single mean and scale can undo that on the
-    way out, so such a dictionary decodes straight into the layer's raw units:
-    ``input_mean`` is zero, ``input_scale`` one, and a decoder row is a direction in
-    those units.
+    ``token_normalized_dictionary``). Such a dictionary was trained to rebuild the
+    *normalized* node, so ``decode`` writes normalized units; ``reconstruct``, which
+    has the nodes in hand, puts each node's own mean and length back. ``input_mean``
+    is zero and ``input_scale`` one, and a decoder row is the direction a steer moves
+    the layer along, unscaled, as the published hook for such dictionaries does.
     """
 
     encoder: np.ndarray
@@ -402,9 +403,8 @@ class Dictionary:
     def _standardize(self, block: np.ndarray, mean: np.ndarray) -> np.ndarray:
         """A block of raw float32 latents as the encoder was trained to see them."""
         if self.input_norm == "token":
-            centered = block - block.mean(axis=1, keepdims=True)
-            length = np.linalg.norm(centered, axis=1, keepdims=True)
-            return centered / np.maximum(length, np.float32(_TOKEN_FLOOR))
+            centre, length = _token_frame(block)
+            return (block - centre) / length
         return (block - mean) / self.input_scale
 
     def _activate(self, z: np.ndarray, rows: np.ndarray | None) -> np.ndarray:
@@ -448,7 +448,8 @@ class Dictionary:
     def decode(self, active: np.ndarray) -> np.ndarray:
         """Activations ``(n_nodes, n_features)`` written out as the layer the dictionary
         writes, in that layer's own units: the input layer for an autoencoder, another
-        for a transcoder."""
+        for a transcoder. A token-normalized dictionary writes the normalized node; see
+        ``decode_nodes`` to put each node's own mean and length back."""
         mean = self.input_mean if self.output_mean is None else self.output_mean
         scale = self.input_scale if self.output_scale is None else self.output_scale
         out = (np.asarray(active, dtype=np.float32) @ self.decoder + self.decoder_bias) * scale
@@ -460,16 +461,32 @@ class Dictionary:
         would be as wide as the dictionary."""
         out = np.empty((np.shape(latents)[0], self.decoder.shape[1]), dtype=np.float32)
         for start in range(0, out.shape[0], _BLOCK):
-            out[start : start + _BLOCK] = self.decode(
-                self.transform(latents[start : start + _BLOCK])
-            )
+            block = latents[start : start + _BLOCK]
+            out[start : start + _BLOCK] = self.decode_nodes(self.transform(block), block)
         return out
+
+    def decode_nodes(self, active: np.ndarray, latents: np.ndarray) -> np.ndarray:
+        """``decode``, then, for a token-normalized dictionary, each node's own mean and
+        length (read from ``latents``, the nodes ``active`` was encoded from) put back,
+        so the result is in the layer's raw units like ``latents``."""
+        out = self.decode(active)
+        if self.input_norm != "token":
+            return out
+        centre, length = _token_frame(_floating(latents).astype(np.float32))
+        return (centre + length * out).astype(np.float32)
 
     def directions(self) -> np.ndarray:
         return self.decoder
 
     def describe(self, feature: int) -> dict[str, Any]:
         return {"decoder_norm": float(np.linalg.norm(self.decoder[feature]))}
+
+
+def _token_frame(block: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Each node's mean over its channels and the length of what is left, floored."""
+    centre = block.mean(axis=1, keepdims=True)
+    length = np.linalg.norm(block - centre, axis=1, keepdims=True)
+    return centre, np.maximum(length, np.asarray(_TOKEN_FLOOR, dtype=block.dtype))
 
 
 DECODER_LAYOUTS = ("features-first", "channels-first")
@@ -490,10 +507,12 @@ def token_normalized_dictionary(
     (the public GraphCast dictionary of MacMillan & Ouellette 2025 is one): each node's
     channel vector ``x`` is centered on its own mean and divided by its own length,
     ``xn = (x - mean(x)) / |x - mean(x)|``; then ``relu((xn - pre_bias) @ encoder.T)``,
-    of which the ``k`` largest are kept; and the code is written back in the layer's
-    **raw** units, ``code @ decoder + pre_bias``, with nothing undone. So the pre-bias
-    is subtracted in normalized units and added back in raw ones; it is folded into the
-    encoder's bias here, ``-(encoder @ pre_bias)``, and kept as the decoder's.
+    of which the ``k`` largest are kept; and the code is decoded as
+    ``code @ decoder + pre_bias``, which rebuilds the *normalized* node (that is what
+    such a dictionary is trained to do). ``reconstruct`` then puts each node's mean and
+    length back, ``mean(x) + |x - mean(x)| * (code @ decoder + pre_bias)``. The
+    pre-bias is folded into the encoder's bias here, ``-(encoder @ pre_bias)``, and
+    kept as the decoder's.
 
     ``encoder`` is ``(n_features, n_channels)``. ``decoder`` may be either way round,
     ``(n_features, n_channels)`` or ``(n_channels, n_features)``; its orientation is

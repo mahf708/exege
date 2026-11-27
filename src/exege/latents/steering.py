@@ -380,7 +380,7 @@ class Effect:
             "reconstruction_response": self.reconstruction_response,
             "random_responses": self.random_responses, "effect_size": self.effect_size,
             "random_mean_magnitude": float(np.abs(self.random_responses).mean()),
-            "rank": self.rank, "n_draws": int(self.random_responses.size),
+            "rank": self.rank, "rank_ties": "last", "n_draws": int(self.random_responses.size),
             "p_value": self.p_value,
             "comparison_responses": dict(self.comparison_responses),
             "matched_features": list(self.matched_features),
@@ -592,6 +592,36 @@ class _Plan:
         return names
 
 
+def _acting(steer: Steer, grid: Grid) -> np.ndarray:
+    """The valid nodes ``steer`` edits: all of them, or those of its ``nodes``."""
+    acting = grid.valid.copy()
+    if steer.nodes is not None:
+        chosen = np.zeros(grid.n_nodes, dtype=bool)
+        chosen[list(steer.nodes)] = True
+        acting &= chosen
+    return acting
+
+
+def _check_reference(steer: Steer, grid: Grid, acting: np.ndarray) -> None:
+    """A steer's reference, if it has one, is one finite value per node of this grid where
+    the steer acts, read on this grid's nodes in this order."""
+    if steer.reference is None:
+        return
+    whose = f"feature {steer.feature}'s reference"
+    if steer.reference.shape != (grid.n_nodes,):
+        raise RequestError(
+            f"{whose} holds {steer.reference.size} value(s) for {grid.n_nodes} node(s)"
+        )
+    if not np.isfinite(steer.reference[acting]).all():
+        raise RequestError(f"{whose} is not finite on a valid node the steer acts at")
+    read_on = (steer.reference_meta or {}).get("grid")
+    if read_on is not None and read_on != node_digest(grid):
+        raise RequestError(
+            f"{whose} was read on a grid laid out otherwise than this system's: its nodes are "
+            "not this system's nodes, in this order"
+        )
+
+
 def _plan(
     system: Intervenable,
     basis: Decomposition,
@@ -616,28 +646,13 @@ def _plan(
     late = [t for t in steer.times if not 0 <= t < steps]
     if late:
         raise RequestError(f"cannot act at time(s) {late} in a run of {steps} step(s)")
-    acting = grid.valid.copy()
     if steer.nodes is not None:
         if any(not 0 <= n < grid.n_nodes for n in steer.nodes):
             raise RequestError(f"nodes must lie in 0..{grid.n_nodes - 1}")
         if not grid.valid[list(steer.nodes)].any():
             raise RequestError("every node asked for is masked out")
-        chosen = np.zeros(grid.n_nodes, dtype=bool)
-        chosen[list(steer.nodes)] = True
-        acting &= chosen
-    if steer.reference is not None:
-        if steer.reference.shape != (grid.n_nodes,):
-            raise RequestError(
-                f"the reference holds {steer.reference.size} value(s) for {grid.n_nodes} node(s)"
-            )
-        if not np.isfinite(steer.reference[acting]).all():
-            raise RequestError("the reference is not finite on a valid node the steer acts at")
-        read_on = (steer.reference_meta or {}).get("grid")
-        if read_on is not None and read_on != node_digest(grid):
-            raise RequestError(
-                "the reference was read on a grid laid out otherwise than this system's: its "
-                "nodes are not this system's nodes, in this order"
-            )
+    acting = _acting(steer, grid)
+    _check_reference(steer, grid, acting)
     check_basis_fits(basis, info, layer, allow_unverified=allow_unverified_basis)
     direction = feature_direction(basis, steer.feature)
     recorded = sorted({layer, *(record_layers or ())})
@@ -713,12 +728,7 @@ def contributions(
     magnitude, area-weighted over the valid nodes the steer edits and summed over the
     times given (``latents[t]`` is the layer at time ``t``), times the length of its
     direction -- a feature's size is what it contributes. ``(n_features,)``."""
-    acting = grid.valid.copy()
-    if steer.nodes is not None:
-        chosen = np.zeros(grid.n_nodes, dtype=bool)
-        chosen[list(steer.nodes)] = True
-        acting &= chosen
-    nodes = np.flatnonzero(acting)
+    nodes = np.flatnonzero(_acting(steer, grid))
     weights = grid.weights()[nodes]
     total = np.zeros(basis.n_features)
     for values in latents.values():
@@ -780,7 +790,7 @@ def run_steering(
     comparisons: Mapping[str, tuple[Decomposition, int]] | None = None,
     n_matched: int = 0,
     max_cosine: float = 0.3,
-    reference_for: Callable[[int], np.ndarray] | None = None,
+    reference_for: Callable[[int], Any] | None = None,
 ) -> SteeringResult:
     """Run the arms for every seed, and compare them with the control.
 
@@ -799,7 +809,11 @@ def run_steering(
     ``n_matched`` adds that many arms that apply the same steer to other features of the
     basis, chosen by ``matched_features`` on the first seed's control at the times the
     steer acts; for ``toward`` and ``excess`` each needs its own reference, which
-    ``reference_for(feature)`` supplies.
+    ``reference_for(feature)`` supplies (an array, or an array and its provenance, as
+    ``feature_reference`` returns), checked against this grid as the steer's is. A matched
+    arm is the same steer on another feature: its delta is that feature's own, not the
+    feature arm's, so its rank says how unusual the response is among features steered
+    alike, not among pushes of one size (the random and comparison arms are those).
     """
     if n_random < 1:
         raise RequestError("at least one random-direction draw is needed to say what is unusual")
@@ -851,14 +865,17 @@ def run_steering(
             carried = contributions(basis, steer, acting, grid)
             picked = matched_features(basis, steer.feature, carried, n=n_matched,
                                       max_cosine=max_cosine)  # fmt: skip
-            matched_steers = [
-                replace(
-                    steer, feature=j,
-                    reference=None if reference_for is None or steer.reference is None
-                    else reference_for(j),
-                )
-                for j in picked
-            ]  # fmt: skip
+            matched_steers = []
+            for j in picked:
+                reference = meta = None
+                if reference_for is not None and steer.reference is not None:
+                    # a reference with its provenance, or the bare array
+                    got = reference_for(j)
+                    reference, meta = got if isinstance(got, tuple) else (got, None)
+                    reference = np.asarray(reference, dtype=np.float64)
+                other = replace(steer, feature=j, reference=reference, reference_meta=meta)
+                _check_reference(other, grid, _acting(other, grid))
+                matched_steers.append(other)
         arms: list[tuple[str, int | None, str | None, Steer, np.ndarray | None]] = [
             (RECONSTRUCTION, None, None, steer, None),
             (FEATURE, None, None, steer, plan.direction),
@@ -880,6 +897,12 @@ def run_steering(
             hooks = plan.hooks(arm_steer, vector, control, given=given,
                                applied=applied if arm == FEATURE else None)  # fmt: skip
             rollout = plan.run(state, hooks, seed)
+            if arm == FEATURE and set(applied) != set(plan.times):
+                raise RequestError(
+                    f"{plan.info.source} ran the feature's edit at time(s) {sorted(applied)}, not "
+                    f"at every time asked for, {list(plan.times)}: an adapter must call each hook "
+                    "once, at its layer and time"
+                )
             outcomes = _reduce(rollout.fields, names, grid, plan.steps, plan.outcome)
             differences = {n: outcomes[n] - series[n] for n in names}
             latent_rms = {p: _rms(rollout.latents[p] - control.latents[p], grid)

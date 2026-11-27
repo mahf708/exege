@@ -322,9 +322,13 @@ draw, outcome series, latent RMS), every `Pairing` against the control of its se
 an `Effect` per field: the feature's signed response and its standard error across
 seeds, the reconstruction arm's, the random draws', and the feature's `effect_size`,
 `rank` (1 is a larger magnitude than every draw) and `p_value` among them.
-The edit's size is worked out once per seed from the control's latents, so every arm of a
-seed changes the same nodes by the same amounts however the runs drift apart; `scale` and
-`clamp` are therefore relative to the control, not to the arm's own activations.
+In an open loop (the default) the edit's size is worked out once per seed from the
+control's latents, so every arm of a seed changes the same nodes by the same amounts
+however the runs drift apart; `scale` and `clamp` are then relative to the control, not
+to the arm's own activations. In a closed loop the feature arm works its edit out from its
+own latents as it goes, and the random and comparison arms are given exactly what it did.
+A matched arm is the same steer on another feature, so it moves by that feature's own
+amount.
 
 ## Provenance
 

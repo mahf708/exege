@@ -590,3 +590,34 @@ def test_a_mean_difference_weighs_nodes_by_their_area():
     w = grid.weights()
     expected = np.array([w[polar].sum(), w[~polar].sum()])
     assert np.allclose(direction.directions()[0], expected / np.linalg.norm(expected))
+
+
+def test_matched_references_are_checked_as_the_steers_is(system):
+    """A matched feature's reference read on another grid, or missing where the steer
+    acts, is refused before anything runs; its provenance is its own, not the feature's."""
+    n = system.grid().n_nodes
+    steer = Steer(layer=1, feature=0, mode="excess", amount=2.0, times=(T0,),
+                  reference=np.zeros(n), reference_meta={"feature": 0})  # fmt: skip
+    basis = system.planted_dictionary()
+    with pytest.raises(RequestError, match="feature [12]'s reference was read on a grid"):
+        run_steering(system, basis, steer, steps=STEPS, n_random=1, n_matched=1,
+                     reference_for=lambda j: (np.zeros(n), {"grid": "elsewhere"}))  # fmt: skip
+    hole = np.zeros(n)
+    hole[np.flatnonzero(system.grid().valid)[0]] = np.nan
+    with pytest.raises(RequestError, match="feature [12]'s reference is not finite"):
+        run_steering(system, basis, steer, steps=STEPS, n_random=1, n_matched=1,
+                     reference_for=lambda j: hole)  # fmt: skip
+
+
+def test_an_adapter_that_skips_the_features_edit_is_refused():
+    """A closed loop hands the random arms what the feature arm did at each time; an
+    adapter that never called the hook at one of them is an error, not a KeyError."""
+
+    class Skips(ToyDynamics):
+        def run(self, state, steps, hooks=(), **kw):
+            return super().run(state, steps, [h for h in hooks if h.time != 2], **kw)
+
+    system = Skips(masked=3, gain=GAIN, decay=DECAY, feedback=0.4)
+    steer = Steer(layer=1, feature=0, mode="scale", amount=2.0, times=(1, 2), loop="closed")
+    with pytest.raises(RequestError, match="every time asked for"):
+        run_steering(system, system.planted_dictionary(), steer, steps=STEPS, n_random=1)

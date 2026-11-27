@@ -89,8 +89,17 @@ class FeatureGap:
 
     def ranked(self, top: int | None = None) -> np.ndarray:
         """Positions into ``columns``, the one free running weakens most first; columns
-        with no deficit to speak of (silent in the reference) come last."""
-        order = np.argsort(np.nan_to_num(self.deficit, nan=-np.inf), kind="stable")[::-1]
+        with no deficit to speak of (silent in the reference) come last, and so do
+        features active over less than ``settings["min_coverage"]`` of the reference's
+        area and time: a feature that fires at a handful of nodes reads a deficit near
+        one, or far below zero, from noise alone."""
+        key = np.nan_to_num(self.deficit, nan=-np.inf)
+        floor = self.settings.get("min_coverage") or 0.0
+        common = np.ones(key.shape, dtype=bool)
+        if floor > 0.0 and self.settings.get("columns") == "features":
+            common = np.nan_to_num(self.coverage[0]) >= floor
+        # the common first, each group by deficit, largest first; ties keep column order
+        order = np.lexsort((np.arange(key.size), -key, ~common))
         return order if top is None else order[: max(top, 0)]
 
     def summary(self, top: int | None = None) -> dict[str, Any]:
@@ -191,6 +200,7 @@ def feature_gap(
     times: Sequence[str | int] | None = None,
     region: AnyRegion | None = None,
     threshold: float = 0.0,
+    min_coverage: float = 0.01,
     across_models: bool = False,
     allow_unverified: bool = False,
     allow_unverified_basis: bool = False,
@@ -202,8 +212,11 @@ def feature_gap(
 
     The two must be one network on one grid (``check_comparable``, which says what
     ``across_models`` and ``allow_unverified`` lift), and a basis must fit both. See
-    ``FeatureGap`` for what is measured.
+    ``FeatureGap`` for what is measured. Features active over less than ``min_coverage``
+    of the reference are ranked last (channels are ranked whatever their coverage).
     """
+    if not 0.0 <= min_coverage <= 1.0:
+        raise RequestError(f"min_coverage is a share of the area, 0..1; not {min_coverage:g}")
     check_comparable(
         reference, run, layer=layer, across_models=across_models, allow_unverified=allow_unverified
     )
@@ -215,6 +228,8 @@ def feature_gap(
     kind = "feature" if basis is not None else "channel"
     chosen = _columns(basis.n_features if basis is not None else width, columns, kind)
     labels = _common_times(reference, run, times)
+    if len(set(labels)) != len(labels):
+        raise RequestError("each time may be read once: a repeated time weighs it twice")
     grid = shared_grid(reference, run)
     area = grid.weights()  # raises where the shared mask leaves no node
     nodes = np.flatnonzero(grid.valid) if region is None else region.nodes(grid)
@@ -275,6 +290,7 @@ def feature_gap(
             "basis": None if basis is None else basis.meta.get("path"),
             "region": None if region is None else asdict(region),
             "threshold": threshold,
+            "min_coverage": min_coverage,
             "across_models": across_models,
             "allow_unverified": allow_unverified,
             "allow_unverified_basis": allow_unverified_basis,
