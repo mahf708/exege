@@ -967,8 +967,8 @@ def associate_cmd(
     if null == "orbit":
         click.echo(
             f"calibration: {_percent(result.calibration_label_rate)} labeled with the shift half "
-            f"way round as the data (q = {q:g}; at most about q by construction, so a check of "
-            "the computation, not of the null)\n"
+            f"way round as the data (q = {q:g}; the orbit holds each column to q on average "
+            "over shifts, so this is no test of the null, and alike columns move it together)\n"
         )
     else:
         click.echo(

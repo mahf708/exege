@@ -244,9 +244,11 @@ class Association:
     ``label``, the top field and ``gap`` come from the orbit test (``gap`` in units of
     the orbit's own spread, not of ``z``); ``gap_bar`` does not apply and is NaN, and
     ``z``, ``p`` and ``significant`` are still the rotations null's, for the size and
-    sign of each association. The calibration is the orbit test with the shift half way
-    round as the data: averaged over every shift it labels at most ``q`` by construction,
-    so it checks the computation, not whether every alignment is as likely as the data's.
+    sign of each association (``summary`` reports the orbit's best field, ``top_field``).
+    The calibration is the orbit test with the shift half way round as the data. Averaged
+    over every shift, each column is labeled at no more than a share ``q`` of them by
+    construction, so the calibration checks neither that nor the null; at one shift it can
+    read far above ``q`` when many columns are alike (they then share their ranks).
     """
 
     settings: dict[str, Any]
@@ -271,6 +273,7 @@ class Association:
     calibration_rotations: int
     null_shape: dict[str, float]
     feature_p: np.ndarray | None = None
+    top_field: np.ndarray | None = None  # the orbit's best field per column, -1 for none
 
     @property
     def n_labeled(self) -> int:
@@ -294,6 +297,8 @@ class Association:
         for i in rows:
             z_row = np.where(np.isfinite(self.z[i]), np.abs(self.z[i]), -np.inf)
             best = int(np.argmax(z_row)) if np.isfinite(z_row).any() else None
+            if self.top_field is not None:  # the orbit's winner, which the label names
+                best = int(self.top_field[i]) if self.top_field[i] >= 0 else None
             out.append(
                 {
                     "column": self.columns[i],
@@ -500,7 +505,7 @@ def associate(
     # footprint that stayed where it was. The calibration takes the rotation nearest half
     # way round as its data, and needs that rotation turned by every shift in turn.
     n_lon = grid.shape[1]
-    if orbit and n_lon * q < 1.0:
+    if orbit and 1.0 / n_lon > q * (1.0 + 1e-9):  # p_orbit's smallest value is 1 / n_lon
         raise RequestError(
             f"the orbit has {n_lon} shift(s), so p_orbit is never below 1/{n_lon} = "
             f"{1.0 / n_lon:.3g}, more than q = {q:g}: nothing could be labeled (a larger q, or "
@@ -635,6 +640,7 @@ def associate(
         calibration_label_rate=calibration,
         calibration_shift=int(held),
         feature_p=feature_p,
+        top_field=main.top if orbit else None,
         calibration_rotations=n_lon if orbit else len(again),
         null_shape={"median_abs_skew": skew, "median_excess_kurtosis": kurtosis},
     )

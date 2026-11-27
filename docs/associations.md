@@ -117,12 +117,13 @@ The sums at every shift come from one FFT along each latitude row (a shift is a 
 cross-correlation), so the whole orbit costs little more than 64 rotations.
 
 The calibration runs the same test with the shift half way round as the data. Unlike the
-rotations null's, it cannot fail: each column's `p_orbit` ranks one shift of its orbit
-against all of them, so over every shift a column is labeled at no more than a share `q`
-of them, whatever the data. It reads near `q` or below by construction, and checks the
-computation, not the null. What can fail is the assumption that every alignment is as
-likely as the data's; the evidence on that is below, from fields with nothing in common
-and from weather weeks apart, not from the calibration column.
+rotations null's, it is no test of the null: each column's `p_orbit` ranks one shift of
+its orbit against all of them, so over every shift a column is labeled at no more than a
+share `q` of them, whatever the data. One shift is one draw of that: usually near `q` or
+below, but columns that are alike rank alike, and a field that peaks half way round for
+all of them can make it read far above `q`. What can fail is the assumption that every
+alignment is as likely as the data's; the evidence on that is below, from fields with
+nothing in common and from weather weeks apart, not from the calibration column.
 
 In the table the orbit prints `P_ORBIT` and `LEAD` (the best field's lead over the
 runner-up, in units of the orbit's own spread: there is no bar to clear), and `Z` from

@@ -488,4 +488,21 @@ def test_the_orbit_has_no_bar_and_prints_its_own_columns(tmp_path):
     assert shown.exit_code == 0, shown.output
     header = next(line for line in shown.output.splitlines() if line.startswith("CHANNEL"))
     assert header.split() == ["CHANNEL", "LABEL", "FIELD", "Z", "P_ORBIT", "LEAD", "COVERAGE"]
-    assert "a check of the computation" in shown.output
+    assert "no test of the null" in shown.output
+
+
+def test_the_orbit_reports_the_field_it_labeled_and_allows_q_of_one_over_n(tmp_path):
+    from dataclasses import replace
+
+    archive = tmp_path / "toy"
+    assert CliRunner().invoke(cli, ["latents", "toy", str(archive)]).exit_code == 0
+    result = associate(open_source(str(archive)), layer=3, null="orbit", q=1 / 48)
+    assert result.top_field is not None and result.n_labeled > 0
+    for row in result.summary()["columns"]:
+        if row["label"] not in ("none", "ambiguous"):
+            assert row["field"] == row["label"]
+    # the row's field and z follow the orbit's winner, not the largest |z|
+    other = (result.top_field + 1) % len(result.fields)
+    moved = replace(result, top_field=np.where(result.top_field >= 0, other, -1))
+    row = next(r for r in moved.summary()["columns"] if r["column"] == result.columns[0])
+    assert row["field"] == result.fields[other[0]]
