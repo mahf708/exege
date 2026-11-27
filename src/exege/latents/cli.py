@@ -1470,7 +1470,13 @@ def _same_place(archive_info, system_info, layer: int) -> int:
     """The archive's index of the layer at the network place of ``system_info``'s
     ``layer``."""
     from exege.core.errors import RequestError
+    from exege.latents.source import differing_identity
 
+    if apart := differing_identity(archive_info.identity(), system_info.identity()):
+        raise RequestError(
+            f"{archive_info.source} is not the network {system_info.source} runs "
+            f"({'; '.join(apart)}): a reference read there means nothing here"
+        )
     place = system_info.layer(layer).position
     found = [e.index for e in archive_info.layers if e.position == place]
     if not found:
