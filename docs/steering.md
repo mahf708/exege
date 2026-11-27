@@ -29,7 +29,10 @@ then lets the forward pass continue from the edited value. Three things name it:
 - **by how much**: `add` an amount of the direction, `scale` the feature's own activation
   by a factor, `clamp` it to a value, or move it `toward` a reference or scale its `excess`
   above one ([below](#modes-and-references)). Every mode reduces to a per-node change
-  `delta` in the feature's activation, and the layer moves by `delta * direction`.
+  `delta` in the feature's activation, and the layer moves by `delta * direction`. (A
+  [token-normalized](bases.md) dictionary's decoder writes the normalized node, so there
+  the move is also multiplied by each node's own length: what the decoder writes for that
+  `delta` in the layer's raw units.)
 
 The edit is made on the model's own latents (`h' = h + delta * direction`), not on a
 reconstruction of them, so whatever the dictionary fails to explain is left as it was. That

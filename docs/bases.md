@@ -101,9 +101,12 @@ a reconstruction in the layer's raw units puts each node's own mean and length b
 a steer's reconstruction arm). exege reads it as a `Dictionary` with
 `input_norm="token"` (mean zero, scale one): an activation is invariant to rescaling or
 shifting a node as a whole. A decoder row is the direction a [steer](steering.md)
-moves the layer along, added to the raw node unscaled, as the published GraphCast hook
-does; re-encoded, a move of `a` along it changes the activation by about
-`a / |x - mean(x)|`.
+moves the layer along, and a change `a` in a feature's activation moves each node by
+what the decoder writes for it in raw units, `a * |x - mean(x)|` along the row, so
+`clamp`, `scale`, `toward` and `excess` mean what they say whatever the dictionary's
+normalization. The published GraphCast hook adds `a` along the row unscaled; that is
+`--mode add` with `a / |x - mean(x)|`, which differs node to node, so expect a
+steer's amounts for such a dictionary to be far smaller than the hook's.
 
 The published GraphCast dictionary is a torch checkpoint; its arrays are
 `model_state.enc.weight`, `model_state.dec.weight` and `model_state.b_pre`. Write them
