@@ -114,11 +114,23 @@ is as likely as the data's, a column gets `p_orbit <= q` with probability at mos
 So `q` is now each column's chance of a false label, not a false-discovery rate across
 the table. A column is labeled with its best field at `p_orbit <= q` and a positive lead.
 The sums at every shift come from one FFT along each latitude row (a shift is a circular
-cross-correlation), so the whole orbit costs little more than 64 rotations. The
-calibration takes the shift half way round as the data, and should read near `q` or
-below.
+cross-correlation), so the whole orbit costs little more than 64 rotations.
 
-On ACE's latents (20 times, 39 fields), compared with the default:
+The calibration runs the same test with the shift half way round as the data. Unlike the
+rotations null's, it cannot fail: each column's `p_orbit` ranks one shift of its orbit
+against all of them, so over every shift a column is labeled at no more than a share `q`
+of them, whatever the data. It reads near `q` or below by construction, and checks the
+computation, not the null. What can fail is the assumption that every alignment is as
+likely as the data's; the evidence on that is below, from fields with nothing in common
+and from weather weeks apart, not from the calibration column.
+
+In the table the orbit prints `P_ORBIT` and `LEAD` (the best field's lead over the
+runner-up, in units of the orbit's own spread: there is no bar to clear), and `Z` from
+the rotations null for the size and sign of the association. A grid of fewer than `1/q`
+columns is refused: its smallest `p_orbit`, one over the number of columns, is above `q`.
+
+On ACE's latents (20 times, 39 fields), compared with the default (the orbit's
+calibration is the computation check above, not evidence like the rotations'):
 
 | layer | null | labeled | calibration |
 |---|---|---|---|

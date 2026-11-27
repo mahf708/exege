@@ -18,6 +18,7 @@ from exege.latents import (  # noqa: E402
     associate,
     benjamini_hochberg,
     feature_profile,
+    open_source,
 )
 from exege.latents.calibrate import _empirical_p, _label, _leave_one_out_gaps  # noqa: E402
 from exege.latents.grid import Grid  # noqa: E402
@@ -467,3 +468,24 @@ def test_the_orbit_respects_the_mask():
 def test_an_unknown_null_is_refused():
     with pytest.raises(RequestError, match="null must be"):
         associate(_Smooth(np.random.default_rng(0), 2), layer=0, null="gaussian")
+
+
+def test_the_orbit_refuses_a_grid_too_coarse_to_label_anything():
+    """72 columns: p_orbit is never below 1/72, above q = 0.01."""
+    source = _Smooth(np.random.default_rng(7), 2)
+    with pytest.raises(RequestError, match="nothing could be labeled"):
+        associate(source, layer=0, null="orbit", q=0.01)
+    assert associate(source, layer=0, null="orbit", q=0.05).settings["null"] == "orbit"
+
+
+def test_the_orbit_has_no_bar_and_prints_its_own_columns(tmp_path):
+    archive = tmp_path / "toy"
+    runner = CliRunner()
+    assert runner.invoke(cli, ["latents", "toy", str(archive)]).exit_code == 0
+    result = associate(open_source(str(archive)), layer=3, null="orbit")
+    assert np.isnan(result.gap_bar).all() and result.feature_p is not None
+    shown = runner.invoke(cli, ["latents", "associate", str(archive), "--null", "orbit"])
+    assert shown.exit_code == 0, shown.output
+    header = next(line for line in shown.output.splitlines() if line.startswith("CHANNEL"))
+    assert header.split() == ["CHANNEL", "LABEL", "FIELD", "Z", "P_ORBIT", "LEAD", "COVERAGE"]
+    assert "a check of the computation" in shown.output

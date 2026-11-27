@@ -964,19 +964,30 @@ def associate_cmd(
         )
         + f"{result.n_labeled} of {len(result.columns)} labeled at q = {q:g}"
     )
-    click.echo(
-        f"calibration: {_percent(result.calibration_label_rate)} labeled with a rotation as the "
-        f"data against {result.calibration_rotations} of its own rotations (q = {q:g}); null "
-        f"|skew| {_number(shape['median_abs_skew'], '.2f')}, excess "
-        f"kurtosis {_number(shape['median_excess_kurtosis'], '+.2f')}\n"
-    )
+    if null == "orbit":
+        click.echo(
+            f"calibration: {_percent(result.calibration_label_rate)} labeled with the shift half "
+            f"way round as the data (q = {q:g}; at most about q by construction, so a check of "
+            "the computation, not of the null)\n"
+        )
+    else:
+        click.echo(
+            f"calibration: {_percent(result.calibration_label_rate)} labeled with a rotation as "
+            f"the data against {result.calibration_rotations} of its own rotations (q = {q:g}); "
+            f"null |skew| {_number(shape['median_abs_skew'], '.2f')}, excess "
+            f"kurtosis {_number(shape['median_excess_kurtosis'], '+.2f')}\n"
+        )
+    # with the orbit, the label, field and lead are the orbit test's (the lead in its own
+    # units, with no bar to clear); z is the rotations null's, for size and sign
     rows = [
         {
             s["columns"][:-1]: c["column"], "label": c["label"], "field": c["field"] or "-",
-            "z": _number(c["z"], "+.1f"), "p": _number(c["p"], ".2g"),
-            "gap": _number(c["gap"], ".1f"), "bar": _number(c["gap_bar"], ".1f"),
+            "z": _number(c["z"], "+.1f"),
+            **({"p_orbit": _number(c["p_orbit"], ".3g"), "lead": _number(c["gap"], ".1f")}
+               if null == "orbit"
+               else {"p": _number(c["p"], ".2g"), "gap": _number(c["gap"], ".1f"),
+                     "bar": _number(c["gap_bar"], ".1f")}),
             "coverage": _number(c["coverage"], ".3f"),
-            **({"p_orbit": _number(c["p_orbit"], ".3g")} if null == "orbit" else {}),
         }
         for c in summary["columns"]
     ]  # fmt: skip

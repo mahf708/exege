@@ -239,6 +239,14 @@ class Association:
     own rotations stay ``min_shift_degrees`` from the data: fewer than the main null's);
     ``null_shape`` is the median ``|skew|`` and
     excess kurtosis of the null, for how far a Gaussian p-value can be trusted.
+
+    With ``settings["null"] == "orbit"``, ``feature_p`` is each column's ``p_orbit``, and
+    ``label``, the top field and ``gap`` come from the orbit test (``gap`` in units of
+    the orbit's own spread, not of ``z``); ``gap_bar`` does not apply and is NaN, and
+    ``z``, ``p`` and ``significant`` are still the rotations null's, for the size and
+    sign of each association. The calibration is the orbit test with the shift half way
+    round as the data: averaged over every shift it labels at most ``q`` by construction,
+    so it checks the computation, not whether every alignment is as likely as the data's.
     """
 
     settings: dict[str, Any]
@@ -492,6 +500,12 @@ def associate(
     # footprint that stayed where it was. The calibration takes the rotation nearest half
     # way round as its data, and needs that rotation turned by every shift in turn.
     n_lon = grid.shape[1]
+    if orbit and n_lon * q < 1.0:
+        raise RequestError(
+            f"the orbit has {n_lon} shift(s), so p_orbit is never below 1/{n_lon} = "
+            f"{1.0 / n_lon:.3g}, more than q = {q:g}: nothing could be labeled (a larger q, or "
+            "null='rotations')"
+        )
     held, again = calibration_shifts(shifts, n_lon, min_shift_degrees)
     needed = list(range(n_lon)) if orbit else sorted({0, *shifts, *again})
     where = {k: i for i, k in enumerate(needed)}
@@ -562,8 +576,9 @@ def associate(
     feature_p = None
     if orbit:
         tested = _orbit_test(statistic, q, min_shift_degrees, centre=0)
+        no_bar = np.full_like(main.gap_bar, np.nan)  # the orbit's lead needs no bar
         main = _Labels(main.z, main.p, main.significant, tested["top"], tested["gap"],
-                       main.gap_bar, tested["label"], tested["label"])  # fmt: skip
+                       no_bar, tested["label"], tested["label"])  # fmt: skip
         feature_p = tested["p"]
     with _quiet():
         null_mean = np.nanmean(null, axis=-1)
