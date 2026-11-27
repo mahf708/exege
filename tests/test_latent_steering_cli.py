@@ -168,3 +168,30 @@ def test_matched_references_are_pinned_in_the_command(planted, tmp_path):
     words[at] = "0" * 64
     refused = CliRunner().invoke(cli, words)
     assert refused.exit_code != 0 and "matched features' references" in refused.output
+
+
+def test_a_reference_is_read_at_the_archives_layer_in_the_same_network_place(planted, tmp_path):
+    """An exporter that keeps only some layers numbers them its own way (here network layer
+    1 is the archive's layer 0): the reference is read where the network place matches."""
+    from exege.adapters.latent_archive import write_archive
+
+    path, _ = planted
+    system = ToyDynamics(masked=3)
+    info = system.info()
+    latents = [
+        system.run(system.initial_state(s), 1, (), noise_seed=0, record=[(1, 0)]).latents[(1, 0)]
+        for s in (0, 1)
+    ]
+    kept = write_archive(
+        tmp_path / "kept", grid=system.grid(), times=["0001-01-01T00:00:00", "0001-01-02T00:00:00"],
+        layers=[("mixed", np.stack(latents))], network_layers=[1], model=info.model,
+        component=info.component, checkpoint=info.checkpoint, calendar="noleap",
+        timestep_seconds=21600, dtype="float32",
+    )  # fmt: skip
+    args = [*_BASE, "--basis", str(path), "--mode", "toward", "--amount", "1",
+            "--reference-from", str(kept), "--reference-time", "0", "--reference-time", "1",
+            "--random-draws", "2", "--field", "temperature"]  # fmt: skip
+    full = _archive_of(system, tmp_path / "full", starts=(0, 1))
+    same = [*args[: args.index("--reference-from") + 1], str(full),
+            *args[args.index("--reference-from") + 2 :]]  # fmt: skip
+    assert _invoke(args).splitlines()[:4] == _invoke(same).splitlines()[:4]
