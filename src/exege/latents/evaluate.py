@@ -343,7 +343,8 @@ def measure(
             part = slice(start, start + _BLOCK)
             scores = basis.transform(x[part])
             wanted = target[part].astype(np.float64)
-            error += float(w[part] @ ((wanted - basis.decode(scores)) ** 2).sum(axis=1))
+            rebuilt = basis.decode_nodes(scores, x[part]) if own_mean else basis.decode(scores)
+            error += float(w[part] @ ((wanted - rebuilt) ** 2).sum(axis=1))
             if own_mean:
                 moved = wanted - shift
                 first += w[part] @ moved

@@ -92,15 +92,29 @@ mean, divided by the length of what is left,
 ```
 xn    = (x - mean(x)) / |x - mean(x)|          per node, over its channels
 code  = top_k( relu((xn - b_pre) @ W_enc.T) )
-recon = code @ W_dec.T + b_pre                  in the layer's raw units
+xn'   = code @ W_dec.T + b_pre                  the normalized node, rebuilt
 ```
 
-and that is undone by nothing on the way out. A node's own length cannot be put back
-by one mean and one scale, so the decoder writes the layer's **raw** units directly,
-and the pre-bias is taken off in normalized units and added back in raw ones. exege
-reads it as a `Dictionary` with `input_norm="token"` (mean zero, scale one): an
-activation is invariant to rescaling or shifting a node as a whole, and a decoder row is
-a direction in raw units, which is what a [steer](steering.md) moves along.
+It is trained to rebuild the *normalized* node, so `decode` writes normalized units, and
+a reconstruction in the layer's raw units puts each node's own mean and length back,
+`x' = mean(x) + |x - mean(x)| * xn'` (`reconstruct` does this, and so do `evaluate` and
+a steer's reconstruction arm). exege reads it as a `Dictionary` with
+`input_norm="token"` (mean zero, scale one): an activation is invariant to rescaling or
+shifting a node as a whole. A decoder row is the direction a [steer](steering.md)
+moves the layer along, added to the raw node unscaled, as the published GraphCast hook
+does; re-encoded, a move of `a` along it changes the activation by about
+`a / |x - mean(x)|`.
+
+The published GraphCast dictionary is a torch checkpoint; its arrays are
+`model_state.enc.weight`, `model_state.dec.weight` and `model_state.b_pre`. Write them
+to an `.npz` once, with torch, and import that:
+
+```console
+$ python -c "
+import numpy as np, torch
+s = torch.load('sae_step0334221_t2300M.pt', map_location='cpu', weights_only=True)['model_state']
+np.savez('gc_L08.npz', W_enc=s['enc.weight'].numpy(), W_dec=s['dec.weight'].numpy(), b_pre=s['b_pre'].numpy())"
+```
 
 `exege latents import-sae` writes one as a basis file. The arrays are named by
 `--encoder`, `--decoder` and `--pre-bias` (the defaults above); the decoder may be either

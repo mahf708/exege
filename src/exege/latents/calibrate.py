@@ -314,6 +314,29 @@ class Association:
         }
 
 
+def calibration_shifts(
+    shifts: Sequence[int], n_lon: int, min_degrees: float
+) -> tuple[int, list[int]]:
+    """The rotation the calibration takes as its data (the one nearest half way round),
+    and the absolute shifts of its null: it turned again by each of ``shifts``, less any
+    that would come back within ``min_degrees`` of the real alignment (shift 0), which
+    would be the data itself and make the calibration look cleaner than it is."""
+    spacing = 360.0 / n_lon
+    held = shifts[int(np.argmin([abs(k * spacing - 180.0) for k in shifts]))]
+    again = []
+    for k in shifts:
+        at = (held + k) % n_lon
+        if min(at, n_lon - at) * spacing >= min_degrees - 1e-9:
+            again.append(at)
+    if len(again) < MIN_ROTATIONS:
+        raise RequestError(
+            f"only {len(again)} rotation(s) of the calibration stay {min_degrees:g} degrees "
+            f"from the data; at least {MIN_ROTATIONS} are needed (more rotations, or a smaller "
+            "--min-shift-degrees)"
+        )
+    return held, again
+
+
 def associate(
     source: LatentSource,
     *,
@@ -373,8 +396,7 @@ def associate(
     # footprint that stayed where it was. The calibration takes the rotation nearest half
     # way round as its data, and needs that rotation turned by every shift in turn.
     n_lon = grid.shape[1]
-    held = shifts[int(np.argmin([abs(k * 360.0 / n_lon - 180.0) for k in shifts]))]
-    again = [(held + k) % n_lon for k in shifts]
+    held, again = calibration_shifts(shifts, n_lon, min_shift_degrees)
     needed = sorted({0, *shifts, *again})
     where = {k: i for i, k in enumerate(needed)}
     partners = np.stack([longitude_partner(grid, k) for k in needed])
