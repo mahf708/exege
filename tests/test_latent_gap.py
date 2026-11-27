@@ -265,3 +265,34 @@ def test_the_command(tmp_path):
     assert column["column"] == 1
     assert column["run"]["mean_by_time"][0] == pytest.approx(column["reference"]["mean_by_time"][0])
     assert column["difference"] == pytest.approx(-0.5, abs=1e-3)  # shifted at one time of two
+
+
+def test_a_repeated_time_is_refused():
+    data = _reference()
+    with pytest.raises(RequestError, match="once"):
+        feature_gap(Labeled({0: data}, LABELS), Labeled({0: data}, LABELS), layer=0,
+                    times=["t0", "t0", "t1"])  # fmt: skip
+
+
+def test_a_feature_too_rare_to_measure_is_ranked_last():
+    """Feature 1 fires at one node of the reference and nowhere in the run: a deficit of
+    one, from nothing. Below min_coverage it goes after the feature truly damped."""
+    from exege.latents.basis import Dictionary
+
+    data = _reference()
+    data[:, :, 1] = 0.0
+    data[:, 0, 1] = 5.0  # one node of 48
+    run = data.copy()
+    run[:, :, 0] *= 0.7
+    run[:, 0, 1] = 0.0
+    eye = np.eye(3, dtype=np.float32)
+    basis = Dictionary(eye, np.zeros(3), eye, np.zeros(3), np.zeros(3), meta={})
+    kw = {"layer": 0, "basis": basis, "allow_unverified_basis": True}
+    rare_first = feature_gap(Labeled({0: data}, LABELS), Labeled({0: run}, LABELS),
+                             min_coverage=0.0, **kw)  # fmt: skip
+    assert rare_first.deficit[1] == pytest.approx(1.0)
+    assert list(rare_first.columns[rare_first.ranked()])[:2] == [1, 0]
+    floored = feature_gap(Labeled({0: data}, LABELS), Labeled({0: run}, LABELS), **kw)
+    assert floored.coverage[0, 1] < 0.01
+    assert list(floored.columns[floored.ranked()]) == [0, 1, 2]
+    assert floored.deficit[1] == pytest.approx(1.0)  # still reported, only ranked last
